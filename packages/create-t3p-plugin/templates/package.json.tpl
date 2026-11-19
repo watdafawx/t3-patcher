@@ -10,8 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@t3p/api": "*",
-    "@t3p/plugin-build": "*",
+    "@t3p/api": "__DEP_RANGE__",
+    "@t3p/plugin-build": "__DEP_RANGE__",
     "typescript": "^5.9.3"
   }
 }

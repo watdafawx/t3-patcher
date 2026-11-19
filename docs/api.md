@@ -130,6 +130,7 @@ export interface T3Api {
   readonly providers: T3Providers;
   readonly threads: T3Threads;
   readonly timeline: T3Timeline;
+  readonly environment: T3Environment;
   readonly cache: T3Cache;
   readonly usage: T3Usage;
   readonly ui: T3Ui;
@@ -478,6 +479,13 @@ export interface T3Timeline {
   list(threadId: string): Promise<TimelineRecord[]>;
   /** Existing records first (as one call each, in order), then every new record live. */
   subscribe(threadId: string, callback: (record: TimelineRecord) => void): Unsubscribe;
+  /**
+   * Pure: merges provider-log frames into `records` and returns a new array (input is not
+   * mutated; unmatched records are returned as the same object). `logText` is the text of the
+   * server's `events.<threadId>.log` (lines `[<ISO>] NTIVE|CANON|ORCH: <json>`); reading the file
+   * is the caller's job (`t3.native`, needs `fs.read`). Matched records get `enrichment`.
+   */
+  enrichFromProviderLog(records: readonly TimelineRecord[], logText: string): TimelineRecord[];
 }
 ```
 
@@ -485,6 +493,10 @@ export interface T3Timeline {
 
 - `list`: All records of a thread so far, oldest first.
 - `subscribe`: Existing records first (as one call each, in order), then every new record live.
+- `enrichFromProviderLog`: Pure: merges provider-log frames into `records` and returns a new array (input is not
+mutated; unmatched records are returned as the same object). `logText` is the text of the
+server's `events.<threadId>.log` (lines `[<ISO>] NTIVE|CANON|ORCH: <json>`); reading the file
+is the caller's job (`t3.native`, needs `fs.read`). Matched records get `enrichment`.
 
 ### `TimelineRecord`
 
@@ -758,6 +770,8 @@ export interface T3Ui {
   modal(options: ModalOptions): Promise<number>;
   /** The app's current CSS custom properties (theme tokens), so plugin UI can match. */
   themeVars(): Record<string, string>;
+  /** The right panel dock. */
+  readonly dock: T3UiDock;
 }
 ```
 
@@ -767,6 +781,7 @@ export interface T3Ui {
 - `toast`: Shows a toast.
 - `modal`: Opens a modal. Resolves with the index of the button pressed, or `-1` when dismissed.
 - `themeVars`: The app's current CSS custom properties (theme tokens), so plugin UI can match.
+- `dock`: The right panel dock.
 
 ### `UiSlotRegistration`
 
@@ -842,12 +857,15 @@ export interface ToastOptions {
   kind?: "info" | "success" | "warning" | "error";
   /** 0 keeps it until dismissed. Default 5000. */
   durationMs?: number;
+  /** Buttons shown in the toast (shared `t3p-btn`). The toast is dismissed after `onClick` runs. */
+  actions?: ToastAction[];
 }
 ```
 
 #### Members
 
 - `durationMs`: 0 keeps it until dismissed. Default 5000.
+- `actions`: Buttons shown in the toast (shared `t3p-btn`). The toast is dismissed after `onClick` runs.
 
 ### `ModalOptions`
 

@@ -15,11 +15,32 @@ export class Overlays {
       document.body.appendChild(this.#toasts);
     }
     const kind = options.kind ?? "info";
+    const actions = Array.isArray(options.actions) ? options.actions.filter((a) => a && typeof a.label === "string" && typeof a.onClick === "function") : [];
+    const buttons = actions.map((action) =>
+      h(
+        "button",
+        {
+          class: "t3p-btn",
+          type: "button",
+          onClick: () => {
+            // Dismiss first, so a throwing or slow action never leaves the toast open.
+            remove();
+            try {
+              void Promise.resolve(action.onClick()).catch(() => undefined);
+            } catch {
+              // plugin action failed; the toast is already gone
+            }
+          },
+        },
+        action.label,
+      ),
+    );
     const node = h(
       "div",
       { class: "t3p-toast t3p-glass", role: "status", "data-kind": kind, "data-t3p-plugin": plugin },
       options.title ? h("b", null, options.title) : null,
       h("span", null, options.message),
+      buttons.length > 0 ? h("div", { class: "t3p-buttons" }, ...buttons) : null,
     );
     const remove = (): void => {
       clearTimeout(timer);

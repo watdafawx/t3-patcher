@@ -76,7 +76,7 @@ function crashLoopCheck(home: string): DoctorCheck {
   }
   return disabled.length === 0
     ? { name: "crash-loop guard", ok: true, detail: "no plugin disabled by the guard" }
-    : { name: "crash-loop guard", ok: false, detail: `disabled after repeated failed starts: ${disabled.join(", ")} (re-enable with: t3p enable <id>)` };
+    : { name: "crash-loop guard", ok: true, detail: `warning: disabled after repeated failed starts: ${disabled.join(", ")} (re-enable with: t3p enable <id>)` };
 }
 
 /**

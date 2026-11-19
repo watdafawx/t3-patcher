@@ -226,7 +226,7 @@ Goal: a plugin that fails on every launch must not keep failing forever.
 - **Reset.** A 10 s window with no failure resets the counter to 0. A main-only plugin is reset by a host timer, a renderer plugin by the renderer's `ok: true` report.
 - **Limit of attribution.** Plugin code shares one JS world (section 4.5). An error thrown from a callback that app code runs later, or from a chunk without a plugin frame in its stack, cannot be attributed and is not counted. Only start failures and errors with a plugin stack frame count.
 - **Trip.** At `threshold` (default 3, `T3P_CRASH_LOOP_THRESHOLD`) the host sets `enabled: false` and `disabledReason: "crash-loop"` for the plugin in `state.json` (optional field, older files and older runtimes ignore it), logs it, and marks the record `disabled`. The next load shows a persistent toast "<plugin> was disabled after 3 failed starts. Re-enable with: t3p enable <id>" and the Plugins page card shows the reason.
-- **Recovery.** `t3p enable <id>` clears the counter and the reason. `t3p plugins` shows the reason; `t3p doctor` fails its "crash-loop guard" check while any plugin is disabled this way. Enabling from the Plugins page also clears the counter.
+- **Recovery.** `t3p enable <id>` clears the counter and the reason. `t3p plugins` shows the reason; `t3p doctor` reports a warning (exit code stays 0) on its "crash-loop guard" check while any plugin is disabled this way. Enabling from the Plugins page also clears the counter.
 - **Dev mode** (`t3p dev` marker or `T3P_DEV=1`): failures are counted and logged but the plugin is never disabled, so editing a plugin live cannot lock it out.
 - Counter failures never block startup: an unreadable or malformed `health.json` is treated as empty.
 

@@ -193,6 +193,7 @@ export class Shell {
       const component = (): unknown =>
         createElement("div", {
           "data-t3p-settings-route": "",
+          className: "t3p-settings-route",
           ref: (el: HTMLElement | null) => {
             dispose?.();
             dispose = null;
@@ -247,6 +248,21 @@ export class Shell {
         return this.overlays.modal(plugin, options, (fn) => (close = fn)).finally(() => forget());
       },
       themeVars: () => this.theme.values(),
+      dock: Object.freeze({
+        open: (tabId?: string): void => {
+          scope.assertAlive();
+          this.slots.dockControl(plugin).open(tabId);
+        },
+        close: (): void => {
+          scope.assertAlive();
+          this.slots.dockControl(plugin).close();
+        },
+        toggle: (tabId?: string): void => {
+          scope.assertAlive();
+          this.slots.dockControl(plugin).toggle(tabId);
+        },
+        isOpen: (): boolean => this.slots.dockControl(plugin).isOpen(),
+      }),
     });
     const internals: T3Internals = Object.freeze({
       get: <K extends keyof InternalHandles>(name: K): InternalHandles[K] | null => this.hub.get(name),

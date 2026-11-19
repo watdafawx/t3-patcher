@@ -1,6 +1,6 @@
 import type { T3Timeline, TimelineRecord, Unsubscribe } from "@t3p/api";
 import { type RpcClient, watchThread } from "@t3p/rpc-client";
-import { createTimeline, type Timeline } from "@t3p/timeline";
+import { createTimeline, enrichFromProviderLog, type Timeline } from "@t3p/timeline";
 
 import { requireRpc, type SharedRpc } from "./rpc.js";
 import type { Scope } from "./scope.js";
@@ -109,6 +109,12 @@ export function createTimelineApi(deps: TimelineDeps): T3Timeline {
     if (typeof threadId !== "string" || threadId.length === 0) throw new TypeError("threadId must be a non-empty string");
   };
   return Object.freeze({
+    enrichFromProviderLog(records: readonly TimelineRecord[], logText: string): TimelineRecord[] {
+      scope.assertAlive();
+      if (!Array.isArray(records)) throw new TypeError("records must be an array");
+      if (typeof logText !== "string") throw new TypeError("logText must be a string");
+      return enrichFromProviderLog(records, logText);
+    },
     async list(threadId: string): Promise<TimelineRecord[]> {
       check(threadId);
       const entry = store.entry(threadId);

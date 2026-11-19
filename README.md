@@ -13,8 +13,8 @@ Stock T3 Code 0.1.10 with the six first-party plugins loaded. Dark theme unless 
 | | |
 |---|---|
 | <img src="docs/assets/screenshots/overview-dark.png" alt="Overview" width="100%"><br>**Overview.** Cache timer, Keep warm and provider switcher in the thread header, limits and cache chips in the status bar, Inspector in the plugin dock. | <img src="docs/assets/screenshots/overview-light.png" alt="Overview, light theme" width="100%"><br>**Light theme.** Plugin UI reads the app's CSS variables, so every theme works with no extra code. |
-| <img src="docs/assets/screenshots/cache-popover.png" alt="Cache popover" width="100%"><br>**Cache popover.** Click the status bar chip to see each live thread's prompt-cache countdown. | <img src="docs/assets/screenshots/provider-limits.png" alt="Provider limits" width="100%"><br>**Provider limits.** Session and weekly usage per provider, from the status bar chip. |
-| <img src="docs/assets/screenshots/plugins-settings.png" alt="Plugins settings page" width="100%"><br>**Plugins settings.** Enable, disable and configure each plugin. | <img src="docs/assets/screenshots/command-palette.png" alt="Command palette" width="100%"><br>**Command palette.** Plugins register their own commands. |
+| <img src="docs/assets/screenshots/cache-popover.png" alt="Cache popover" width="100%"><br>**Cache popover.** Click the status bar chip to see each live thread's prompt-cache countdown. | <img src="docs/assets/screenshots/provider-limits.png" alt="Provider limits" width="100%"><br>**Provider limits.** Session and weekly usage per provider, opened from the status bar chip (Claude shown; Codex had no data on the capture machine). |
+| <img src="docs/assets/screenshots/plugins-settings.png" alt="Plugins settings page" width="100%"><br>**Plugins settings.** Settings > Plugins (last entry in the Settings sidebar, under Archive): enable, disable and configure each plugin. | <img src="docs/assets/screenshots/command-palette.png" alt="Command palette" width="100%"><br>**Command palette.** Plugins register their own commands. |
 
 ## Overview
 
@@ -92,7 +92,7 @@ Performs an end-to-end health check of the environment and patcher runtime:
 5. Hash verification against manifest.
 6. Runtime file presence (`main.cjs`).
 7. Windows Authenticode signature verification of the main executable.
-8. Plugins the crash-loop guard disabled (see below). This check fails until you re-enable them.
+8. Plugins the crash-loop guard disabled (see below). This is a warning only (exit code unaffected) until you re-enable them.
 8. Tier 2 internal capture states (`atomRegistry`, `router`, `shortcutDispatcher`, `settingsNav`, `commandPalette`).
 9. Recent entries in `shim.log`.
 

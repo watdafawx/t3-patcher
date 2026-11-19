@@ -50,6 +50,18 @@ export class SharedRpc {
     return this.#client?.state ?? "idle";
   }
 
+  /** `{id, label}` of the local environment from the desktop bridge (not the server), or `null`. Never throws. */
+  async localEnvironment(): Promise<{ id: string | null; label: string | null } | null> {
+    try {
+      const value = await this.deps.bridge?.getLocalEnvironmentBootstraps();
+      const first = (Array.isArray(value) ? value[0] : value) as { id?: unknown; label?: unknown } | null | undefined;
+      if (!first || typeof first !== "object") return null;
+      return { id: typeof first.id === "string" && first.id ? first.id : null, label: typeof first.label === "string" && first.label ? first.label : null };
+    } catch {
+      return null;
+    }
+  }
+
   get created(): boolean {
     return this.#client !== null;
   }

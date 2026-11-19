@@ -71,7 +71,7 @@ Rules that matter:
 
 - **Tiers.** Tier 1 uses stable surfaces (server RPC, files, `data-slot` DOM anchors, CSS variables). Tier 2 uses captured app internals (`t3.internals`). Tier 3 uses raw text patches. Prefer the lowest tier that works. See `docs/patching.md`.
 - **Permissions** are declared in `plugin.json` and granted by the user (`t3p grant <id> <permission>`): `rpc`, `fs.read`, `sqlite.read`, `log.tail`, `spawn`, `main`, `patches`. Ask for the minimum.
-- **API namespaces** on `t3`: rpc, providers, threads, timeline, cache, usage, ui, commands, keybinds, patches, internals, storage, settings, native, events. Reference: `docs/api.md` (generated, do not edit by hand; run `pnpm docs:api`).
+- **API namespaces** on `t3`: rpc, providers, threads, timeline, environment, cache, usage, ui, commands, keybinds, patches, internals, storage, settings, native, events. Reference: `docs/api.md` (generated, do not edit by hand; run `pnpm docs:api`).
 - **UI slots**: sidebarSection, threadHeader, composerBanner, rightPanel, statusBar, settingsPage, timelineRowDecorator, contextMenuItem.
 - **Styling.** Use the shared `t3p-*` classes and the app's CSS variables only, never hard-coded colours. See `docs/ui-style.md`.
 - **Hot reload**: with dev mode on (`t3p dev` writes a marker, or set `T3P_DEV=1`), saving files in a linked plugin reloads it; new plugins, enable/disable and removals are picked up live. Main-process plugin code cannot be unloaded in place, so restart the app for `main` entries. Changing the core renderer runtime reloads the page after `pnpm dev:sync`.

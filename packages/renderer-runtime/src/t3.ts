@@ -1,6 +1,7 @@
 import { T3_API_VERSION, type T3Api, type T3Dev, type T3LogLevel } from "@t3p/api";
 
 import { createCacheApi } from "./cache.js";
+import { createEnvironmentApi } from "./environment.js";
 import { createEventsApi } from "./events.js";
 import { createNativeApi } from "./native.js";
 import { createProvidersApi } from "./providers.js";
@@ -51,6 +52,7 @@ export function createT3(deps: T3Deps): T3Api {
     providers: createProvidersApi(entry.id, rpcAllowed, deps.shared, scope, deps.log),
     threads: createThreadsApi({ id: entry.id, allowed: rpcAllowed, shared: deps.shared, scope, log: deps.log, systemBus: deps.systemBus, guard: deps.guard ?? null, guardAllowed: effective.guard === true }),
     timeline: createTimelineApi({ id: entry.id, allowed: rpcAllowed, shared: deps.shared, scope, log: deps.log }),
+    environment: createEnvironmentApi({ shared: deps.shared }),
     cache: createCacheApi({ id: entry.id, allowed: rpcAllowed, shared: deps.shared, scope, log: deps.log }),
     usage: createUsageApi({ id: entry.id, allowed: rpcAllowed, shared: deps.shared, scope, log: deps.log }),
     ui: stubs.ui(),

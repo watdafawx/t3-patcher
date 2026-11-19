@@ -93,6 +93,21 @@ export function threadIdFromLocation(location: ThreadRouteLocation): string | nu
   }
 }
 
+/** Environment id of a thread route (`#/<environmentId>/<threadId>`), or `null` outside one. Same parsing as `threadIdFromLocation`. */
+export function environmentIdFromLocation(location: ThreadRouteLocation): string | null {
+  if (threadIdFromLocation(location) === null) return null;
+  const hash = typeof location.hash === "string" ? location.hash : "";
+  const pathname = typeof location.pathname === "string" ? location.pathname : "";
+  const route = hash.startsWith("#/") ? hash.slice(1) : pathname;
+  const segment = (route.split("?")[0] ?? "").split("/")[1];
+  if (!segment) return null;
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return null;
+  }
+}
+
 /** Watches one window's URL and reports the focused thread id when it changes. */
 class RouteFocusTracker {
   #id: string | null;

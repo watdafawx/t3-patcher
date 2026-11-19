@@ -24,10 +24,10 @@ create-t3p-plugin my-plugin --id com.example.my-plugin --name "My plugin" --tier
 The folder must be new or empty; nothing is ever overwritten. Options are validated
 before a single file is written.
 
-> The packages are not published yet. Inside this repo, pnpm links `@t3p/api` and
-> `@t3p/plugin-build` from the workspace because the generated `package.json` asks for
-> `"*"`, which `0.0.0` satisfies. A scaffolded folder in a normal project needs those
-> packages installed from a registry first.
+> The packages are not published yet. Run from inside this repo's pnpm workspace (for example
+> from `plugins/`), the scaffold writes `"workspace:*"` for `@t3p/api` and
+> `@t3p/plugin-build`, so pnpm links them. Anywhere else it writes the placeholder `"^0.0.0"`;
+> install those packages from a registry (or link them) first.
 
 ### What the scaffold writes
 
@@ -60,6 +60,8 @@ const plugin: PluginModule = {
 
 export default plugin;
 ```
+
+Plugin settings show up on the Plugins page, at **Settings > Plugins** in T3 Code (the last entry in the Settings sidebar, under Archive).
 
 ## The build preset
 
@@ -181,10 +183,11 @@ single source of truth is [`packages/api/src/t3.ts`](../packages/api/src/t3.ts).
 | `t3.rpc` | live (needs `rpc`) | `call`, `subscribe` (resubscribes after reconnects), `http`, connection `state` |
 | `t3.providers` | stub (WP-3B) | provider list, auth state, usage limits, change events |
 | `t3.threads` | stub (WP-3B) | list, current, projection, subscribe, `setModel`, `switchProvider` with `ok`/`busy`/`unavailable` results |
-| `t3.timeline` | stub (WP-3C) | normalized per-thread activity records with causes |
+| `t3.timeline` | live (needs `rpc`) | normalized per-thread activity records with causes; `enrichFromProviderLog(records, logText)` (pure) merges provider-log frames |
+| `t3.environment` | live | `current()`: `{id, label}` of the active environment (id from the route, label from the desktop bridge for the local one; `null` when unknown) |
 | `t3.cache` | stub (WP-4C) | prompt-cache state and expiry notifications |
 | `t3.usage` | stub (WP-3B) | token totals by range, thread and provider |
-| `t3.ui` | stub (WP-3D) | slots, toast, modal, theme variables |
+| `t3.ui` | live | slots, toast (optional `actions` buttons), modal, theme variables, `dock.open/close/toggle/isOpen` for the `rightPanel` dock |
 | `t3.commands` | stub (WP-3D) | command palette entries |
 | `t3.keybinds` | stub (WP-3D) | keyboard shortcuts bound to commands |
 | `t3.patches` | stub (WP-3D, needs `patches`) | tier 3 text patches |

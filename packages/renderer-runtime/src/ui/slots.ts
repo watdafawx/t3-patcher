@@ -1,4 +1,4 @@
-import type { UiSlotContext, UiSlotName, UiSlotRegistration } from "@t3p/api";
+import type { T3UiDock, UiSlotContext, UiSlotName, UiSlotRegistration } from "@t3p/api";
 
 import { ensureStyles, h } from "./dom.js";
 import type { Theme } from "./theme.js";
@@ -110,6 +110,7 @@ export class SlotEngine {
   #timer: ReturnType<typeof setTimeout> | null = null;
   #dockOpen = false;
   #dockTab: Registration | null = null;
+  #setDockOpen: ((open: boolean) => void) | null = null;
 
   constructor(private readonly deps: SlotEngineDeps) {}
 
@@ -158,6 +159,27 @@ export class SlotEngine {
       }
       this.schedule();
     };
+  }
+
+  /** `t3.ui.dock` for one plugin. `tabId` picks one of that plugin's own `rightPanel` registrations. */
+  dockControl(plugin: string): T3UiDock {
+    const select = (tabId: string | undefined): void => {
+      if (tabId === undefined) return;
+      const entry = [...this.#regs].find((r) => r.plugin === plugin && r.reg.slot === "rightPanel" && r.reg.id === tabId);
+      if (!entry) throw new Error(`t3.ui.dock: ${plugin} has no rightPanel registration "${String(tabId)}"`);
+      this.#dockTab = entry;
+      this.#renderDockTabs();
+    };
+    const open = (tabId?: string): void => {
+      select(tabId);
+      this.#setDockOpen?.(true);
+    };
+    return Object.freeze({
+      open,
+      close: (): void => this.#setDockOpen?.(false),
+      toggle: (tabId?: string): void => (this.#dockOpen ? this.#setDockOpen?.(false) : open(tabId)),
+      isOpen: (): boolean => this.#dockOpen,
+    });
   }
 
   /** Mounted roots, for diagnostics (`window.__t3p.ui.mounted()`). */
@@ -322,6 +344,7 @@ export class SlotEngine {
       const header = inset?.querySelector("header");
       if (inset && header) dock.style.setProperty("--t3p-dock-top", `${Math.ceil(header.getBoundingClientRect().bottom - inset.getBoundingClientRect().top)}px`);
     };
+    this.#setDockOpen = setOpen;
     toggle.addEventListener("click", () => setOpen(!this.#dockOpen));
     const close = h("button", { class: "t3p-btn t3p-dock-close", type: "button", "aria-label": "Close panel", title: "Close (Esc)" }, "×");
     close.addEventListener("click", () => setOpen(false));

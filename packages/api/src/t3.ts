@@ -323,6 +323,13 @@ export interface T3Timeline {
   list(threadId: string): Promise<TimelineRecord[]>;
   /** Existing records first (as one call each, in order), then every new record live. */
   subscribe(threadId: string, callback: (record: TimelineRecord) => void): Unsubscribe;
+  /**
+   * Pure: merges provider-log frames into `records` and returns a new array (input is not
+   * mutated; unmatched records are returned as the same object). `logText` is the text of the
+   * server's `events.<threadId>.log` (lines `[<ISO>] NTIVE|CANON|ORCH: <json>`); reading the file
+   * is the caller's job (`t3.native`, needs `fs.read`). Matched records get `enrichment`.
+   */
+  enrichFromProviderLog(records: readonly TimelineRecord[], logText: string): TimelineRecord[];
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -433,6 +440,48 @@ export interface ToastOptions {
   kind?: "info" | "success" | "warning" | "error";
   /** 0 keeps it until dismissed. Default 5000. */
   durationMs?: number;
+  /** Buttons shown in the toast (shared `t3p-btn`). The toast is dismissed after `onClick` runs. */
+  actions?: ToastAction[];
+}
+
+/** A button in a toast. */
+export interface ToastAction {
+  label: string;
+  /** Runs on click; a throw is swallowed and does not keep the toast open. */
+  onClick(): void | Promise<void>;
+}
+
+/** Control of the `rightPanel` dock (the plugin panel at the right edge). */
+export interface T3UiDock {
+  /**
+   * Opens the dock. `tabId` is the `id` of one of the calling plugin's own `rightPanel`
+   * registrations and selects its tab; an unknown id throws. Does nothing until the dock exists
+   * (a `rightPanel` registration was mounted).
+   */
+  open(tabId?: string): void;
+  /** Closes the dock. */
+  close(): void;
+  /** Opens it when closed, closes it when open. `tabId` as in `open`. */
+  toggle(tabId?: string): void;
+  /** `true` while the dock is visible. */
+  isOpen(): boolean;
+}
+
+/** The environment (server) the window shows. */
+export interface T3EnvironmentInfo {
+  /** Id from the current route (`#/<environmentId>/<threadId>`), else the local environment's id; `null` when neither is known yet. */
+  id: string | null;
+  /** The local environment's label (from the desktop bridge). `null` when unknown, or when the route points at another environment. */
+  label: string | null;
+}
+
+/** The active environment. */
+export interface T3Environment {
+  /**
+   * Synchronous best knowledge. The label comes from the desktop bridge, which is read
+   * asynchronously at plugin start, so a call right after start may return `null`s.
+   */
+  current(): T3EnvironmentInfo;
 }
 
 /** A modal dialog. */
@@ -454,6 +503,8 @@ export interface T3Ui {
   modal(options: ModalOptions): Promise<number>;
   /** The app's current CSS custom properties (theme tokens), so plugin UI can match. */
   themeVars(): Record<string, string>;
+  /** The right panel dock. */
+  readonly dock: T3UiDock;
 }
 
 /** A command palette entry. */
@@ -799,6 +850,7 @@ export interface T3Api {
   readonly providers: T3Providers;
   readonly threads: T3Threads;
   readonly timeline: T3Timeline;
+  readonly environment: T3Environment;
   readonly cache: T3Cache;
   readonly usage: T3Usage;
   readonly ui: T3Ui;

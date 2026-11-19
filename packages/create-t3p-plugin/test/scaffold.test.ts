@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { validateManifest } from "@t3p/api";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { scaffoldPlugin, ScaffoldError, SCAFFOLD_VERSION, slugify } from "../src/index.js";
+import { insideT3pWorkspace, scaffoldPlugin, ScaffoldError, SCAFFOLD_VERSION, slugify } from "../src/index.js";
 
 let root: string;
 
@@ -78,6 +78,38 @@ describe("scaffoldPlugin", () => {
     expect(() => scaffoldPlugin({ dir, id: "con" })).toThrow(/not a valid plugin id/);
     expect(() => scaffoldPlugin({ dir, tier: 4 as 1 })).toThrow(/--tier/);
     expect(existsSync(dir)).toBe(false);
+  });
+
+  it("pins ^0.0.0 for @t3p deps outside the repo", () => {
+    const dir = join(root, "outside");
+    scaffoldPlugin({ dir });
+    const pkg = JSON.parse(read(dir, "package.json"));
+    expect(pkg.devDependencies["@t3p/api"]).toBe("^0.0.0");
+    expect(pkg.devDependencies["@t3p/plugin-build"]).toBe("^0.0.0");
+    expect(insideT3pWorkspace(dir)).toBe(false);
+  });
+
+  it("emits workspace:* inside a pnpm workspace that holds @t3p/api", () => {
+    const repo = join(root, "repo");
+    mkdirSync(join(repo, "packages", "api"), { recursive: true });
+    writeFileSync(join(repo, "pnpm-workspace.yaml"), 'packages:\n  - "plugins/*"\n');
+    writeFileSync(join(repo, "packages", "api", "package.json"), JSON.stringify({ name: "@t3p/api" }));
+    const dir = join(repo, "plugins", "my-plugin"); // does not exist yet
+    expect(insideT3pWorkspace(dir)).toBe(true);
+    scaffoldPlugin({ dir });
+    const pkg = JSON.parse(read(dir, "package.json"));
+    expect(pkg.devDependencies["@t3p/api"]).toBe("workspace:*");
+    expect(pkg.devDependencies["@t3p/plugin-build"]).toBe("workspace:*");
+  });
+
+  it("ignores a pnpm workspace that is not this repo", () => {
+    const other = join(root, "other");
+    mkdirSync(other, { recursive: true });
+    writeFileSync(join(other, "pnpm-workspace.yaml"), 'packages:\n  - "plugins/*"\n');
+    const dir = join(other, "plugins", "p");
+    expect(insideT3pWorkspace(dir)).toBe(false);
+    scaffoldPlugin({ dir });
+    expect(JSON.parse(read(dir, "package.json")).devDependencies["@t3p/api"]).toBe("^0.0.0");
   });
 
   it("derives the id from the folder name and refuses when that is not a valid id", () => {
