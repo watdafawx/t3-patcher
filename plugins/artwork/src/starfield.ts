@@ -14,8 +14,6 @@ const LEVELS = 4;
 const TINTS = 2;
 
 export class Starfield extends CanvasBg {
-  protected override maxDpr = 1;
-  protected override maxPixels = 1_200_000;
 
   #n = 0;
   #x = new Float32Array(0);

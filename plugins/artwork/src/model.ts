@@ -1,5 +1,7 @@
 /** Pure helpers for the artwork plugin: preset to CSS variables, color math, image sizing, name handling. */
 
+import type { BgQuality } from "./bg-perf.js";
+
 export const PRESETS = ["aurora", "gradient", "mesh", "image", "none"] as const;
 export type Preset = (typeof PRESETS)[number];
 
@@ -178,6 +180,12 @@ export interface OceanConfig {
   ripples: boolean;
   /** Same hue setting as the sidebar artwork: negative follows the app accent. */
   hue: number;
+  /** Render quality (default `high`, the original behaviour), see `bg-perf.ts`. */
+  quality?: BgQuality;
+  /** Freeze while the user types or scrolls and while the chat streams (default off). */
+  pauseWhileTyping?: boolean;
+  /** 0 to 20 px, applied as a CSS filter on the Ocean canvas only. Optional: absent means 0. */
+  blur?: number;
 }
 
 export interface OceanParams {

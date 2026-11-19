@@ -57,3 +57,18 @@ describe("nextPingAt", () => {
     expect(nextPingAt(state(now - 1), now, 480_000)).toBeNull();
   });
 });
+
+describe("decide: settled threads", () => {
+  it("never pings a settled thread, even inside the lead window", () => {
+    expect(decide(watch(), state(now + 5 * 60_000), false, now, rules, true)).toEqual({ action: "settled", reason: "settled: not kept warm" });
+  });
+  it("settled wins over a reached time limit and keeps the watch (no stop)", () => {
+    expect(decide(watch({ until: now - 1 }), state(now + 5 * 60_000), false, now, rules, true).action).toBe("settled");
+  });
+  it("pings again once un-settled", () => {
+    expect(decide(watch(), state(now + 5 * 60_000), false, now, rules, false)).toEqual({ action: "ping" });
+  });
+  it("keepWarmSettled opts in", () => {
+    expect(decide(watch(), state(now + 5 * 60_000), false, now, { ...rules, keepWarmSettled: true }, true)).toEqual({ action: "ping" });
+  });
+});

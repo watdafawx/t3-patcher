@@ -85,3 +85,22 @@ To run other `t3p` commands on rig, set `T3P_HOME` in the same rig shell (the ri
 
 - `\Rig\g\...` as a UNC path from pwsh on FOX resolved to a **local** `C:\Rig\g\...` during this work. The scripts use the mapped `Q:` drive (`Q:` = `\Rig\g`) for file copies instead.
 - Disk: base ~0.85 GB + 0.85 GB per slot + 0.39 GB installer.
+
+## perf/: background performance measurements (WP-13C)
+
+Measures what a full-app background costs the app on a slot, over CDP. Results and method: `docs/artwork-perf.md`.
+
+```sh
+pwsh -NoProfile -File tools/rig/perf/maximize.ps1 -Slot 2          # maximize the slot window (4K, like a real desktop)
+node tools/rig/perf/bg-perf.mjs --slot 2 --set baseline             # off + every preset with its defaults
+node tools/rig/perf/bg-perf.mjs --slot 2 --set tiers --no-trace     # every preset at every quality tier
+node tools/rig/perf/bg-perf.mjs --slot 2 --set ab --only ag,ag-still --repeat 2 --out res.json
+node tools/rig/perf/layers.mjs --slot 2 --set '{"oceanOn":true,"bgKind":"drift"}'   # big composited layers and why (run from bash)
+```
+
+- `cdp.mjs`: ssh tunnel + minimal CDP client (`attach`, `evaluate`).
+- `probe.js`: injected into the page. Records rAF gaps, long animation frames, Event Timing, key delay and key-to-frame time, and a fake streamed chat column (`#t3p-perf-stream`, a token every 30 ms) with a textarea to type into. It swallows window `blur` so the background keeps running while rig is not focused.
+- `bg-perf.mjs`: per scenario: reset, apply settings via `__t3p.manager.setSetting`, settle, LayerTree snapshot, an idle and a work window (typing, wheel scrolling, streaming) without tracing, then the same with a trace (`--no-trace` skips it). Reports frame times, dropped frames, GPU and renderer process CPU (`SystemInfo.getProcessInfo`), busy ms per thread from the trace, layer count and memory.
+- `scenarios.mjs`: the scenario sets. Add one by giving settings and optional `setup` JS.
+- Rig is shared (Minecraft, Docker, other slots): compare rows of one run, use `--repeat`, and treat absolute numbers as rig-specific.
+- A stored Custom HTML/CSS background takes over every preset; the driver warns when one is active.

@@ -167,11 +167,16 @@ export interface ThreadSummary {
   updatedAt: string | null;
   /** True while a run is active. */
   running: boolean;
+  /** True when the thread is in T3's Settled section (`settledOverride === "settled"`, see {@link isThreadSettled}). */
+  settled: boolean;
   raw: unknown;
 }
 
 /** A thread projection as `orchestration.getThreadProjection` returns it (wire shape). */
-export type ThreadProjection = RpcMethods["orchestration.getThreadProjection"]["result"];
+export type ThreadProjection = RpcMethods["orchestration.getThreadProjection"]["result"] & {
+  /** True when the thread is in T3's Settled section (derived from `thread.settledOverride`, see {@link isThreadSettled}). Added by `t3.threads.projection()`. */
+  settled?: boolean;
+};
 
 /** An orchestration command (wire shape), for {@link T3Threads.dispatch}. */
 export type OrchestrationCommand = RpcMethods["orchestration.dispatchCommand"]["payload"];
@@ -673,6 +678,24 @@ interface SettingBase {
   /** Short label for the settings page. */
   label: string;
   description?: string;
+  /**
+   * Section title on the Plugins settings page. Settings with the same `group` share one collapsible
+   * section, in the order of their first appearance. Without it the page falls back to a heuristic
+   * (a shared first camelCase word of the key, else "General").
+   */
+  group?: string;
+  /**
+   * Show this setting only while another setting has a given value. Hidden rows are only hidden:
+   * the value stays stored and keeps working. The target must be a setting of the same plugin.
+   */
+  showWhen?: SettingCondition;
+}
+
+/** A visibility rule: the setting `key` equals `equals`, or is one of `in`. With neither it never hides. */
+export interface SettingCondition {
+  key: string;
+  equals?: boolean | string | number;
+  in?: ReadonlyArray<boolean | string | number>;
 }
 
 export interface BooleanSettingSchema extends SettingBase {

@@ -3,7 +3,9 @@ import type { PluginModule, SettingSchema, SettingValue, T3Api } from "@t3p/api"
 import { CUSTOM_KEY, CustomLayers, emptyBundle, parseBundle, serializeBundle, type CustomId } from "./custom.js";
 import { backgroundTemplate, headerTemplate } from "./custom-templates.js";
 import { Antigravity } from "./antigravity.js";
-import { BG_KINDS, BG_LABELS, isBgKind, type BgConfig, type BgKind, type BgPresetKind } from "./bg-model.js";
+import { BgDim } from "./bg-dim.js";
+import { BG_KINDS, BG_LABELS, BLUR_MAX, DIM_MAX, dimOpacity, isBgKind, type BgConfig, type BgKind, type BgPresetKind } from "./bg-model.js";
+import { BG_QUALITIES, BG_QUALITY_LABELS, isBgQuality, type BgQuality } from "./bg-perf.js";
 import { GradientDrift } from "./drift.js";
 import { Ocean } from "./ocean.js";
 import { Starfield } from "./starfield.js";
@@ -85,46 +87,73 @@ a[data-t3p-logo="hide"]{display:none!important}
 .t3p-art-thumb{width:40px;height:24px;border-radius:4px;object-fit:cover;border:1px solid var(--border,currentColor)}
 `;
 
-const settings: SettingSchema[] = [
+const G_SIDEBAR = "Sidebar artwork";
+const G_LOGO = "Logo";
+const G_BG = "Background";
+const G_CUSTOM = "Custom HTML/CSS";
+/** Visibility of the Background rows: which kind needs them. Hidden rows keep their stored value. */
+const OCEAN_ONLY = { key: "bgKind", equals: "ocean" } as const;
+const NOT_OCEAN = { key: "bgKind", in: ["antigravity", "drift", "starfield"] } as const;
+
+/**
+ * Order matters: the Plugins page lists sections in order of first appearance (Sidebar artwork, Logo,
+ * Background, Custom HTML/CSS). Keys never change, so installs from before the regrouping keep their values.
+ */
+export const settings: SettingSchema[] = [
   {
     key: "preset",
     type: "enum",
     default: "aurora",
+    group: G_SIDEBAR,
     label: "Sidebar artwork",
     description: "What sits behind the sidebar header. Also in the command palette: Artwork: switch preset.",
     options: PRESETS.map((value) => ({ value, label: PRESET_LABELS[value] })),
   },
-  { key: "intensity", type: "range", default: 60, min: 0, max: 100, label: "Intensity", description: "How strong the artwork is." },
-  { key: "speed", type: "range", default: 40, min: 0, max: 100, label: "Speed", description: "Drift speed. 0 is still. Animation also stops while the window is hidden or the system asks for reduced motion." },
-  { key: "hue", type: "number", default: -1, min: -1, max: 360, label: "Hue (-1 = app accent)", description: "-1 follows the theme accent color. 0 to 360 picks a fixed hue (150 to 190 is the northern lights look)." },
-  { key: "fadeHeight", type: "range", default: 190, min: 60, max: 600, label: "Fade height (px)", description: "How far down the artwork reaches before it fades into the background." },
-  { key: "blur", type: "range", default: 24, min: 0, max: 80, label: "Blur (px)", description: "Softness of the glow or image." },
-  { key: "angle", type: "range", default: 160, min: 0, max: 360, label: "Gradient angle", description: "Angle of the Gradient preset." },
-  { key: "scrim", type: "boolean", default: true, label: "Readability scrim", description: "A faint theme-colored veil under the title row so text stays readable on any artwork." },
-  { key: "artworkName", type: "string", default: "", label: "Image name", description: "Which saved image the Image preset shows. Add and pick images in the Artwork images card below." },
-  { key: "mainGlow", type: "boolean", default: false, label: "Main area glow", description: "A very subtle glow behind the top of the chat header, same style as the sidebar." },
+  { key: "intensity", type: "range", default: 60, min: 0, max: 100, group: G_SIDEBAR, label: "Intensity", description: "How strong the artwork is." },
+  { key: "speed", type: "range", default: 40, min: 0, max: 100, group: G_SIDEBAR, label: "Speed", description: "Drift speed. 0 is still. Animation also stops while the window is hidden or the system asks for reduced motion." },
+  { key: "hue", type: "number", default: -1, min: -1, max: 360, group: G_SIDEBAR, label: "Hue (-1 = app accent)", description: "-1 follows the theme accent color. 0 to 360 picks a fixed hue (150 to 190 is the northern lights look). Also colors the app background." },
+  { key: "fadeHeight", type: "range", default: 190, min: 60, max: 600, group: G_SIDEBAR, label: "Fade height (px)", description: "How far down the artwork reaches before it fades into the background." },
+  { key: "blur", type: "range", default: 24, min: 0, max: 80, group: G_SIDEBAR, label: "Blur (px)", description: "Softness of the glow or image." },
+  { key: "angle", type: "range", default: 160, min: 0, max: 360, group: G_SIDEBAR, label: "Gradient angle", description: "Angle of the Gradient preset." },
+  { key: "scrim", type: "boolean", default: true, group: G_SIDEBAR, label: "Readability scrim", description: "A faint theme-colored veil under the title row so text stays readable on any artwork." },
+  { key: "artworkName", type: "string", default: "", group: G_SIDEBAR, label: "Image name", description: "Which saved image the Image preset shows. Add and pick images in the Artwork images card below." },
+  { key: "mainGlow", type: "boolean", default: false, group: G_SIDEBAR, label: "Main area glow", description: "A very subtle glow behind the top of the chat header, same style as the sidebar." },
   {
     key: "logoMode",
     type: "enum",
     default: "keep",
+    group: G_LOGO,
     label: "Logo",
     description: "Restyle the T3 Code wordmark. Window controls, collapse button and arrows are never touched.",
     options: LOGO_MODES.map((value) => ({ value, label: { keep: "Keep stock", text: "Custom text", image: "Custom image", hide: "Hide" }[value] })),
   },
-  { key: "oceanOn", type: "boolean", default: false, label: "App background", description: "Turns the full-app background on. Which one is the Background kind below (Ocean, Antigravity, Gradient drift or Starfield). Independent of the sidebar artwork." },
-  { key: "bgKind", type: "enum", default: "ocean", label: "Background kind", description: "Only one full-app background runs at a time.", options: BG_KINDS.map((value) => ({ value, label: BG_LABELS[value] })) },
-  { key: "bgIntensity", type: "range", default: 60, min: 0, max: 100, label: "Background intensity", description: "How strong the Antigravity, Gradient drift and Starfield backgrounds are." },
-  { key: "bgSpeed", type: "range", default: 50, min: 0, max: 100, label: "Background speed", description: "Motion speed of Antigravity, Gradient drift and Starfield. 0 is a still frame." },
-  { key: "bgDensity", type: "range", default: 50, min: 0, max: 100, label: "Background density", description: "How many particles (Antigravity, Starfield) or how large the blobs (Gradient drift). The app lowers it by itself when frames get slow." },
-  { key: "bgPointer", type: "boolean", default: true, label: "Pointer reactive", description: "Antigravity's ring follows the pointer and the Starfield shifts slightly with it. Gradient drift ignores the pointer." },
-  { key: "bgFollowAccent", type: "boolean", default: true, label: "Follow accent color", description: "Colors come from the app accent (or the artwork Color). Off uses each background's own palette." },
-  { key: "bgLowPower", type: "boolean", default: false, label: "Low power", description: "Caps Antigravity at 30 fps for laptops on battery. Starfield always runs at 30 fps; Gradient drift costs no JavaScript." },
-  { key: "oceanIntensity", type: "range", default: 60, min: 0, max: 100, label: "Ocean intensity", description: "How bright the letters are. Their color follows the app text color." },
-  { key: "oceanSpeed", type: "range", default: 50, min: 0, max: 100, label: "Ocean speed", description: "Drift, shimmer and ripple speed. 0 is a still frame. Also still under reduced motion and paused while the window is hidden." },
-  { key: "oceanRipples", type: "boolean", default: true, label: "Ocean ripples", description: "Clicks send a ripple through the letters and the pointer lights them up. Clicks always still reach the app." },
-  { key: "allowRemoteAssets", type: "boolean", default: false, label: "Allow remote assets", description: "Custom HTML/CSS may load http(s) images and urls. Off by default: remote files can track you and can change." },
-  { key: "logoText", type: "string", default: "T3 Code", label: "Logo text", description: "Used when Logo is Custom text." },
-  { key: "logoHeight", type: "range", default: 18, min: 10, max: 28, label: "Logo image height (px)", description: "Used when Logo is Custom image." },
+  { key: "logoText", type: "string", default: "T3 Code", group: G_LOGO, label: "Logo text", description: "Used when Logo is Custom text.", showWhen: { key: "logoMode", equals: "text" } },
+  { key: "logoHeight", type: "range", default: 18, min: 10, max: 28, group: G_LOGO, label: "Logo image height (px)", description: "Used when Logo is Custom image.", showWhen: { key: "logoMode", equals: "image" } },
+  { key: "oceanOn", type: "boolean", default: false, group: G_BG, label: "App background", description: "Master switch for the full-app background. Independent of the sidebar artwork." },
+  { key: "bgKind", type: "enum", default: "ocean", group: G_BG, label: "Background kind", description: "Only one full-app background runs at a time. The rows below show only what the kind uses.", options: BG_KINDS.map((value) => ({ value, label: BG_LABELS[value] })) },
+  { key: "oceanIntensity", type: "range", default: 60, min: 0, max: 100, group: G_BG, label: "Intensity", description: "How bright the letters are. Their color follows the app text color.", showWhen: OCEAN_ONLY },
+  { key: "bgIntensity", type: "range", default: 60, min: 0, max: 100, group: G_BG, label: "Intensity", description: "How strong the background is.", showWhen: NOT_OCEAN },
+  { key: "oceanSpeed", type: "range", default: 50, min: 0, max: 100, group: G_BG, label: "Speed", description: "Drift, shimmer and ripple speed. 0 is a still frame. Also still under reduced motion and paused while the window is hidden.", showWhen: OCEAN_ONLY },
+  { key: "bgSpeed", type: "range", default: 50, min: 0, max: 100, group: G_BG, label: "Speed", description: "Motion speed. 0 is a still frame.", showWhen: NOT_OCEAN },
+  { key: "bgDensity", type: "range", default: 50, min: 0, max: 100, group: G_BG, label: "Density", description: "How many particles (Antigravity, Starfield) or how large the blobs (Gradient drift). The app lowers it by itself when frames get slow.", showWhen: NOT_OCEAN },
+  { key: "bgDim", type: "range", default: 0, min: 0, max: DIM_MAX, group: G_BG, label: "Dim (%)", description: "A flat veil in the app background color between the background and the app. Calms busy backgrounds and improves text contrast. Costs nothing per frame." },
+  { key: "bgBlur", type: "range", default: 0, min: 0, max: BLUR_MAX, group: G_BG, label: "Blur (px)", description: "Softens the background only, never the app. Gradient drift gets bigger, flatter blobs instead (free). On the canvas backgrounds the blur is redrawn on every app frame, even while paused: on a 4K screen it costs noticeable GPU while you type. Switches itself off if frames get slow." },
+  { key: "bgPointer", type: "boolean", default: true, group: G_BG, label: "Pointer reactive", description: "The Antigravity ring follows the pointer and the Starfield shifts slightly with it.", showWhen: { key: "bgKind", in: ["antigravity", "starfield"] } },
+  { key: "bgFollowAccent", type: "boolean", default: true, group: G_BG, label: "Follow accent color", description: "Colors come from the app accent (or the sidebar artwork hue). Off uses each background's own palette.", showWhen: NOT_OCEAN },
+  { key: "bgLowPower", type: "boolean", default: false, group: G_BG, label: "Low power", description: "Caps Antigravity, Gradient drift and Starfield at 30 fps for laptops on battery (most quality tiers are already at or below that).", showWhen: NOT_OCEAN },
+  { key: "oceanRipples", type: "boolean", default: true, group: G_BG, label: "Ripples", description: "Clicks send a ripple through the letters and the pointer lights them up. Clicks always still reach the app.", showWhen: OCEAN_ONLY },
+  // Performance (shared by every kind; the dock panel shows them as their own block inside Background).
+  {
+    key: "bgQuality",
+    type: "enum",
+    default: "auto",
+    group: G_BG,
+    label: "Quality",
+    description: "What the background may cost. Every frame it draws makes the GPU recompose the whole window, so lower tiers draw fewer frames at a lower resolution. Auto starts at Balanced and steps down by itself when typing, scrolling or streaming get slow (a blur goes first). Static draws one frame.",
+    options: BG_QUALITIES.map((value) => ({ value, label: BG_QUALITY_LABELS[value] })),
+  },
+  { key: "bgPauseWhileTyping", type: "boolean", default: true, group: G_BG, label: "Pause while typing", description: "Freezes the background on its current frame while you type or scroll and while the chat is streaming, so the app gets every frame. It resumes about a second later." },
+  { key: "allowRemoteAssets", type: "boolean", default: false, group: G_CUSTOM, label: "Allow remote assets", description: "Custom HTML/CSS may load http(s) images and urls. Off by default: remote files can track you and can change." },
 ];
 
 const plugin: PluginModule = {
@@ -175,10 +204,17 @@ const plugin: PluginModule = {
       speed: get<number>("oceanSpeed"),
       ripples: get<boolean>("oceanRipples"),
       hue: get<number>("hue"),
+      quality: bgQuality(),
+      pauseWhileTyping: get<boolean>("bgPauseWhileTyping"),
+      blur: get<number>("bgBlur"),
     });
     const ocean = new Ocean({ config: oceanConfig });
     disposers.push(() => ocean.stop());
 
+    const bgQuality = (): BgQuality => {
+      const q = get<string>("bgQuality");
+      return isBgQuality(q) ? q : "auto";
+    };
     const bgKind = (): BgKind => {
       const k = get<string>("bgKind");
       return isBgKind(k) ? k : "ocean";
@@ -192,6 +228,10 @@ const plugin: PluginModule = {
       followAccent: get<boolean>("bgFollowAccent"),
       hue: get<number>("hue"),
       lowPower: get<boolean>("bgLowPower"),
+      quality: bgQuality(),
+      pauseWhileTyping: get<boolean>("bgPauseWhileTyping"),
+      dim: get<number>("bgDim"),
+      blur: get<number>("bgBlur"),
     });
     const onAutoStop = (kind: BgPresetKind): void => {
       t3.ui.toast({
@@ -204,6 +244,9 @@ const plugin: PluginModule = {
     const bgHost = (kind: BgPresetKind) => ({ config: () => bgConfig(kind), onAutoStop });
     const backgrounds = [new Antigravity("antigravity", bgHost("antigravity")), new GradientDrift("drift", bgHost("drift")), new Starfield("starfield", bgHost("starfield"))];
     disposers.push(() => backgrounds.forEach((b) => b.stop()));
+    // Dim: one flat element between the preset and the app, only while a preset runs.
+    const dim = new BgDim({ active: () => get<boolean>("oceanOn") && !custom.active("background"), opacity: () => dimOpacity(get<number>("bgDim")) });
+    disposers.push(() => dim.stop());
 
     // ---- layers ------------------------------------------------------------------------------
     const makeLayer = (main: boolean): HTMLElement => {
@@ -328,6 +371,7 @@ const plugin: PluginModule = {
     const applyAll = (): void => {
       ocean.update();
       for (const b of backgrounds) b.update();
+      dim.update();
       applyLayers();
       ensure();
     };

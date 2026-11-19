@@ -7,8 +7,7 @@ Custom artwork behind the T3 Code sidebar header, plus a restyled logo. Tier 1, 
 ## What it does
 
 - **Backdrop** behind the title row, collapse button, arrows and Search row. Presets: **Aurora** (animated glow with faint rays), **Gradient** (angle), **Mesh glow**, **Image** (your own), **None**.
-- **App background** (off by default): Ocean, Antigravity, Gradient drift or Starfield behind the whole app, one at a time. See below.
-- **Ocean background** (off by default): a drifting field of letters behind the whole app, with click ripples. Separate from the sidebar preset, so it never replaces the aurora. See below.
+- **Background** (off by default): Ocean, Antigravity, Gradient drift or Starfield behind the whole app, one at a time, with dim and blur. One section, see below. Separate from the sidebar preset, so it never replaces the aurora.
 - **Logo**: keep stock, custom text, custom image (height-fit), or hide the wordmark. Only the `T3 Code home` link's text/logo node is restyled; window controls, the collapse button and the back/forward arrows are never touched.
 - **Main area glow** (off by default): a very faint same-style glow behind the top of the chat header.
 - **Custom HTML/CSS** (off by default): write your own markup and CSS for the sidebar header or the whole app background instead of choosing a preset. See below.
@@ -32,7 +31,7 @@ Everything goes through `t3.settings`, so Settings > Plugins stays in sync.
 
 ## Ocean background
 
-Turn it on with the **Ocean background** switch (dock tab, section *Ocean background*, or Settings > Plugins > Artwork). Settings: on/off, **Ocean intensity**, **Ocean speed** (0 is a still frame), **Ocean ripples** (clicks and pointer glow). The glow follows the artwork Color setting (app accent by default); the letters use the app text color (`--foreground`), re-read every second, so dark, light and custom themes follow.
+Pick **Ocean** in the **Background** section (dock tab, or Settings > Plugins > Artwork). Rows shown for Ocean: **Intensity**, **Speed** (0 is a still frame), **Ripples** (clicks and pointer glow). Keys unchanged: `oceanOn`, `oceanIntensity`, `oceanSpeed`, `oceanRipples`. The glow follows the artwork Color setting (app accent by default); the letters use the app text color (`--foreground`), re-read every 2 seconds (not while you type), so dark, light and custom themes follow.
 
 - A fixed full-viewport `<canvas id="t3p-ocean">` sits behind the app (`z-index:-1`, `pointer-events:none`). Pointer and click input are read from `window`, so the app never loses a click.
 - The big opaque layers the app stacks over the page (body, the page wrappers) are made transparent while it runs; cards, menus and the composer keep their fills. The sidebar keeps its own background and the aurora.
@@ -43,7 +42,9 @@ Turn it on with the **Ocean background** switch (dock tab, section *Ocean backgr
 
 <img src="../../docs/assets/screenshots/artwork-bg-antigravity.png" alt="Antigravity" width="320"> <img src="../../docs/assets/screenshots/artwork-bg-drift.png" alt="Gradient drift" width="320"> <img src="../../docs/assets/screenshots/artwork-bg-starfield.png" alt="Starfield" width="320">
 
-Dock tab, section **Background**: a radio row **Off / Ocean / Antigravity / Gradient drift / Starfield**. Only one runs at a time; the master switch is `oceanOn` ("App background") and the kind is `bgKind`. A Custom HTML/CSS background still takes over whichever one is on and gives it back when turned off.
+<img src="../../docs/assets/screenshots/artwork-background-settings.png" alt="Unified Background section in Settings > Plugins" width="480">
+
+Dock tab and Settings > Plugins, one section **Background** (order: Sidebar artwork, Logo, Background, Custom HTML/CSS). Rows depend on the kind (`showWhen`): Ocean extras only for Ocean, Density only where it applies. A radio row **Off / Ocean / Antigravity / Gradient drift / Starfield**. Only one runs at a time; the master switch is `oceanOn` ("App background") and the kind is `bgKind`. A Custom HTML/CSS background still takes over whichever one is on and gives it back when turned off.
 
 | Setting | Meaning |
 |---|---|
@@ -52,26 +53,44 @@ Dock tab, section **Background**: a radio row **Off / Ocean / Antigravity / Grad
 | `bgDensity` | particle / star count, blob size for Gradient drift |
 | `bgPointer` | Antigravity's ring follows the pointer, Starfield shifts slightly (not used by Gradient drift) |
 | `bgFollowAccent` | colors from the app accent / artwork Color; off uses the preset's own warm-to-cool palette |
-| `bgLowPower` | cap Antigravity at 30 fps |
+| `bgLowPower` | cap Antigravity, Gradient drift and Starfield at 30 fps |
+| `bgDim` | 0 to 80 %. One fixed compositor-only overlay between the background and the app UI, colour from `--background` |
+| `bgBlur` | 0 to 20 px. Soften the background only (never the app UI) |
+| `bgQuality` | **auto** (default) / high / balanced / low / static: frame rate and internal resolution. Auto starts at Balanced and steps down by itself when frames are late or the page has long tasks |
+| `bgPauseWhileTyping` | default on: freeze on the current frame while you type or scroll and while the chat streams; resumes about a second later |
+
+### Dim and blur
+
+- **No `backdrop-filter` and no CSS `filter`.** Dim is a single `div#t3p-bg-dim` (`position:fixed`, `pointer-events:none`, `contain:strict`, opacity only). Blur is drawn **inside the canvas**: the preset draws into an offscreen canvas at a reduced resolution, and each drawn frame is blitted once to the visible canvas through `ctx.filter = blur()` (slightly oversized so the filter's edge bleed is off screen). A frozen (typing, streaming, hidden, still) background therefore costs nothing extra. Gradient drift bakes blur into its blobs (bigger, softer blobs on its small canvas), no blit at all. Why not a CSS filter: see `docs/artwork-perf.md` (WP-13D).
+- Blur is shed automatically when frames run slow, once, before quality drops further: by the draw-cost governor (60-frame average over 10 ms) and by the Auto quality governor (a bad window sheds the blur first; the next bad window lowers the tier).
+- Custom HTML/CSS background takes over dim and blur with the preset and gives them back. Reset all returns both to 0. Reduced motion keeps the still frame, dim and blur still apply.
+- Measured on rig slot 2 (maximized 4K window, 120 Hz, typing + scrolling + streaming workload, `docs/artwork-perf.md`): with the old CSS filter blur 8 or 20 cost about +6 to +10 points of GPU process CPU while typing (up to +15 in the merge run) and pushed stream-to-frame p95 as high as 49.5 ms. With the in-canvas blur, blur 8 and 20 are within ~2 points of blur 0 while typing and idle on every preset, and stream-to-frame p95 is unchanged (about 29 to 35 ms, the same as no background). The cap stays 20 px.
 
 All of them share the Ocean plumbing: a fixed full-viewport root at `z-index:-1`, `pointer-events:none`, input read from `window`, the big opaque app layers made transparent (`markSurfaces`), clean removal of root, style, attributes, timers and listeners on stop.
 
 ### Cost class
 
-| Preset | Cost class | Notes |
-|---|---|---|
-| **Gradient drift** | **compositor only, no JS per frame** | 4 radial-gradient blobs animating `transform` only (no `filter: blur`). Paused with `animation-play-state` when hidden or blurred. Uses a few big GPU layers (about 20 MB each at 4K). |
-| **Starfield** | JS per frame, tiny | about 200 stars, one canvas at dpr 1 and at most 1.2 MP, 30 fps, 8 batched fills. About 0.05 ms per frame. |
-| **Antigravity** | JS per frame | about 1700 dashes at the default density, one pass of arithmetic and at most 20 batched strokes. About 0.75 ms per frame measured on rig at 4K. 60 fps, or 30 with Low power. |
-| **Ocean** | JS per frame | letters on a 30 fps canvas, only changed cells repainted. |
+What a background costs the app is not its JavaScript (all draw well under 1 ms) but the frames it produces: each one makes the GPU process replay the canvas commands and re-composite the whole window, competing with the app's own frames. Measured on rig at 4K / 120 Hz, extra GPU process CPU over no background, idle (details and raw numbers: `docs/artwork-perf.md`):
 
-### Performance rules (Antigravity and Starfield)
+| Preset | High | Balanced (Auto start) | Low | Static |
+|---|---|---|---|---|
+| Ocean (letters, 30/20/12 fps) | +10 | +9 | +7 | +1 |
+| **Antigravity** (dashes, 60/30/15 fps), **heavy** | +53 | +22 | +6 | +1 |
+| Gradient drift (4 blobs on a 0.2x canvas, 30/20/10 fps) | +6 | +4 | +3 | +1 |
+| Starfield (dots, 30/20/12 fps) | +24 | +12 | +6 | +1 |
 
-- Device pixel ratio capped at 1.5 and an internal pixel budget of 2.5 MP (1.2 MP for Starfield); the canvas is scaled up by CSS, so a 4K screen renders at about 1080p-class resolution.
+With the defaults (Auto, pause while typing) every preset costs the same as no background while you type, scroll or stream (stream-to-frame p95 31-32 ms vs 31 ms off). Antigravity is marked Heavy in the panel: keep it on Auto or Balanced on a 4K screen.
+
+### Performance rules
+
+- Quality tiers (`src/bg-perf.ts`): frame rate plus internal resolution (px per CSS px, never above the device ratio) and a pixel budget (2.5 / 1.5 / 0.8 MP); the canvas is scaled up by CSS.
+- Auto (`QualityGovernor`): every 3 s, average draw cost over 4 ms, more than 25 % of frames after a main-thread stall over 50 ms, or more than 150 ms of long-animation-frame blocking while animating, steps one tier down; 5 clean windows step back up, never above Balanced.
+- Pause while typing (`ActivityGate`, one shared `ActivityMonitor`): key, wheel and scroll, or 12+ DOM mutation records a second (streaming), freeze the frame for 1.2 s / 1.5 s after the last one. Pointer moves and clicks do not.
 - Fixed 1/60 s simulation step with dt clamped (a stall advances at most 100 ms), one draw per frame.
-- Pauses at once while the document is hidden, and after the window has been blurred for more than 5 s. One still frame under `prefers-reduced-motion` or speed 0.
-- Adaptive quality: the draw cost is averaged over 60 frames. Above 10 ms the density drops one step (to 60 %, then 35 %). If it is still above 16 ms after a reduction, the background stops and a toast says so; it stays off until you switch it off and on.
-- Measuring: set `window.__t3pBgPerf = []` before turning one on; every frame's draw cost (ms) is pushed into it.
+- Pauses at once while the document is hidden, and after the window has been blurred for more than 5 s. One still frame under `prefers-reduced-motion`, speed 0 or Static.
+- Density fallback: above 10 ms average draw the density drops one step (60 %, then 35 %); still above 16 ms after a reduction, the background stops and a toast says so.
+- Theme and surface checks run every 2 s and never while you are busy.
+- Measuring: set `window.__t3pBgPerf = []` before turning one on; every frame's draw cost (ms) is pushed into it. Whole-app measurements: `tools/rig/perf/`.
 
 ### Antigravity: what the reference actually is
 

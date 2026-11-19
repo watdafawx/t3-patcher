@@ -1,4 +1,10 @@
-<p align="center"><img src="docs/assets/banner.svg" alt="T3 Patcher: plugins and patches for T3 Code" width="100%"></p>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/banner-light.svg">
+    <img src="docs/assets/banner.svg" alt="T3 Patcher: plugins and patches for T3 Code" width="100%">
+  </picture>
+</p>
 
 > Building a plugin or patching the app? Start with [AGENTS.md](AGENTS.md) and [docs/plugin-authoring.md](docs/plugin-authoring.md). Not affiliated with the T3 Code project.
 

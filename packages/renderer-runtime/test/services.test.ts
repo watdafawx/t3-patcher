@@ -343,6 +343,27 @@ const shellRow = (id: string, updatedAt: string, status = "idle") => ({
 });
 
 describe("t3.threads", () => {
+  it("derives settled from settledOverride === 'settled' and follows live updates", async () => {
+    const { t3, fake } = await startPlugins();
+    const pending = t3.threads.list();
+    const sub = await waitForSub(fake, "orchestration.subscribeShell");
+    sub.emit({
+      kind: "snapshot",
+      snapshot: {
+        threads: [
+          { ...shellRow("s1", "2026-01-01T10:00:00.000Z"), settledOverride: "settled", settledAt: "2026-01-01T09:00:00.000Z" },
+          { ...shellRow("a1", "2026-01-01T09:00:00.000Z"), settledOverride: "active", settledAt: "2026-01-01T08:00:00.000Z" },
+          { ...shellRow("n1", "2026-01-01T08:00:00.000Z"), settledOverride: null, settledAt: "2026-01-01T07:00:00.000Z" },
+        ],
+        archivedThreads: [],
+      },
+    });
+    const by = (list: Awaited<typeof pending>) => Object.fromEntries(list.map((t) => [t.threadId, t.settled]));
+    expect(by(await pending)).toEqual({ s1: true, a1: false, n1: false });
+    sub.emit({ kind: "thread.updated", location: "active", sequence: 1, thread: { ...shellRow("s1", "2026-01-01T11:00:00.000Z"), settledOverride: "active" } });
+    expect(by(await t3.threads.list()).s1).toBe(false);
+  });
+
   it("maps the shell stream to ThreadSummary rows, most recently active first", async () => {
     const { t3, fake } = await startPlugins();
     const pending = t3.threads.list();
@@ -404,7 +425,7 @@ describe("t3.threads", () => {
     fake.handle("orchestration.getThreadProjection", () => projection).handle("orchestration.dispatchCommand", () => ({ sequence: 12 }));
     const { t3 } = await startPlugins({ fake });
 
-    await expect(t3.threads.projection("th-1")).resolves.toEqual(projection);
+    await expect(t3.threads.projection("th-1")).resolves.toEqual({ ...projection, settled: false });
     expect(fake.callsOf("orchestration.getThreadProjection")).toEqual([{ threadId: "th-1" }]);
 
     const command = { type: "thread.metadata.update", commandId: "c-1", threadId: "th-1", title: "renamed" };

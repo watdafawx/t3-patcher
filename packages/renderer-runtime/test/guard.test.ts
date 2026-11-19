@@ -88,6 +88,7 @@ describe("enrichContext", () => {
     model: "claude-opus-5-5",
     updatedAt: null,
     running: false,
+    settled: false,
     raw: {} as ThreadSummary["raw"],
     ...over,
   });

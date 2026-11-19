@@ -1,66 +1,118 @@
-import { BgLayer } from "./bg-base.js";
+import { CanvasBg } from "./bg-base.js";
 import { FIXED_PALETTE, rgbaString } from "./bg-model.js";
-import { accentColor, clamp, shiftedColor } from "./model.js";
+import { accentColor, clamp, shiftedColor, type Rgb } from "./model.js";
 
 /**
  * "Gradient drift" background: four large soft blobs that slowly drift and breathe behind the app.
  *
- * Cost class: compositor only. No JS per frame and no canvas: the blobs are radial gradients (no
- * `filter: blur`) that animate `transform` alone, so each one is a cached GPU layer that is only
- * re-positioned. Paused (`animation-play-state`) while the window is hidden or blurred for 5 s, and
- * static under `prefers-reduced-motion` or speed 0. Pointer and density do not apply.
+ * Cost class: tiny canvas. The blobs are radial gradients drawn on a canvas at about a fifth of the CSS
+ * resolution (they are pure soft gradients, so the CSS upscale looks the same) at 20 fps or less. The first
+ * version animated four huge CSS layers with `transform`: no JavaScript, but the compositor then ticked at the
+ * display rate (120 Hz on rig) and blended four viewport-sized layers over the app every frame, which is what
+ * actually made typing and streaming stutter (docs/artwork-perf.md). The Blur setting is baked in (bigger, flatter
+ * blobs), never a CSS filter.
  */
 
-export const DRIFT_CSS = `
-#t3p-bg-drift i{position:absolute;display:block;width:var(--t3p-bgd-size);height:var(--t3p-bgd-size);margin:calc(var(--t3p-bgd-size)/-2) 0 0 calc(var(--t3p-bgd-size)/-2);border-radius:50%;background:radial-gradient(circle closest-side,var(--c) 0%,transparent 100%);opacity:var(--t3p-bgd-opacity);will-change:transform;animation:var(--k) var(--d) ease-in-out infinite alternate;animation-delay:var(--delay)}
-#t3p-bg-drift i:nth-child(1){left:18%;top:22%;--c:var(--t3p-bgd-1);--k:t3p-bgd-a;--d:calc(var(--t3p-bgd-dur)*1);--delay:0s}
-#t3p-bg-drift i:nth-child(2){left:82%;top:28%;--c:var(--t3p-bgd-2);--k:t3p-bgd-b;--d:calc(var(--t3p-bgd-dur)*1.25);--delay:calc(var(--t3p-bgd-dur)*-0.4)}
-#t3p-bg-drift i:nth-child(3){left:30%;top:86%;--c:var(--t3p-bgd-3);--k:t3p-bgd-c;--d:calc(var(--t3p-bgd-dur)*1.5);--delay:calc(var(--t3p-bgd-dur)*-0.9)}
-#t3p-bg-drift i:nth-child(4){left:76%;top:82%;--c:var(--t3p-bgd-4);--k:t3p-bgd-d;--d:calc(var(--t3p-bgd-dur)*1.8);--delay:calc(var(--t3p-bgd-dur)*-1.3)}
-#t3p-bg-drift[data-paused] i{animation-play-state:paused}
-#t3p-bg-drift[data-still] i{animation:none}
-@keyframes t3p-bgd-a{from{transform:translate3d(-6vw,-4vh,0) scale(1)}to{transform:translate3d(9vw,8vh,0) scale(1.2)}}
-@keyframes t3p-bgd-b{from{transform:translate3d(5vw,-6vh,0) scale(1.1)}to{transform:translate3d(-10vw,7vh,0) scale(.9)}}
-@keyframes t3p-bgd-c{from{transform:translate3d(-8vw,4vh,0) scale(.95)}to{transform:translate3d(8vw,-8vh,0) scale(1.18)}}
-@keyframes t3p-bgd-d{from{transform:translate3d(6vw,6vh,0) scale(1.15)}to{transform:translate3d(-7vw,-6vh,0) scale(.92)}}
-@media (prefers-reduced-motion:reduce){#t3p-bg-drift i{animation:none}}
-`;
+/** Per blob: start position (share of the viewport), motion from/to (vw, vh, scale), period and phase multipliers. */
+interface Blob {
+  x: number;
+  y: number;
+  from: readonly [number, number, number];
+  to: readonly [number, number, number];
+  period: number;
+  delay: number;
+}
+const BLOBS: readonly Blob[] = [
+  { x: 0.18, y: 0.22, from: [-6, -4, 1], to: [9, 8, 1.2], period: 1, delay: 0 },
+  { x: 0.82, y: 0.28, from: [5, -6, 1.1], to: [-10, 7, 0.9], period: 1.25, delay: -0.4 },
+  { x: 0.3, y: 0.86, from: [-8, 4, 0.95], to: [8, -8, 1.18], period: 1.5, delay: -0.9 },
+  { x: 0.76, y: 0.82, from: [6, 6, 1.15], to: [-7, -6, 0.92], period: 1.8, delay: -1.3 },
+];
+/** Seconds for one leg of the shortest blob at the default speed (time is already multiplied by the speed). */
+export const DRIFT_LEG_S = 50;
 
-export class GradientDrift extends BgLayer {
+const ease = (t: number): number => (t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t));
+
+/** Blob center (CSS px) and radius at simulation time `t` for a `w` x `h` viewport. Pure, for tests. */
+export function blobAt(i: number, t: number, w: number, h: number, sizeVmax: number): { x: number; y: number; r: number } {
+  const b = BLOBS[i]!;
+  const leg = DRIFT_LEG_S * b.period;
+  const p = (((t + b.delay * DRIFT_LEG_S) / leg) % 2 + 2) % 2;
+  const k = ease(p < 1 ? p : 2 - p);
+  const lerp = (j: number): number => b.from[j]! + (b.to[j]! - b.from[j]!) * k;
+  const vmax = Math.max(w, h) / 100;
+  return { x: b.x * w + (lerp(0) * w) / 100, y: b.y * h + (lerp(1) * h) / 100, r: (sizeVmax * vmax * lerp(2)) / 2 };
+}
+
+export class GradientDrift extends CanvasBg {
+  #blobColors: Rgb[] = [];
+  #opacity = 0.54;
+  #size = 45;
+
   protected css(): string {
-    return DRIFT_CSS;
-  }
-
-  protected create(): HTMLElement {
-    const root = document.createElement("div");
-    for (let i = 0; i < 4; i++) root.appendChild(document.createElement("i"));
-    return root;
+    return "";
   }
 
   protected override configure(): void {
-    const root = this.root;
-    if (!root) return;
-    const { intensity, density, followAccent, hue } = this.cfg;
-    const colors = followAccent
-      ? [accentColor(hue), shiftedColor(hue, 35), shiftedColor(hue, -30), shiftedColor(hue, 70)]
-      : [rgbaString(FIXED_PALETTE[0], 1), rgbaString(FIXED_PALETTE[1], 1), rgbaString(FIXED_PALETTE[2], 1), rgbaString(FIXED_PALETTE[1], 1)];
-    colors.forEach((c, i) => root.style.setProperty(`--t3p-bgd-${i + 1}`, c));
-    root.style.setProperty("--t3p-bgd-opacity", String(Math.round(clamp(intensity, 0, 100) * 0.9) / 100));
-    root.style.setProperty("--t3p-bgd-size", `${Math.round(32 + clamp(density, 0, 100) * 0.26)}vmax`);
-    // Seconds for one drift leg at the shortest blob: 50 s at the default speed.
-    root.style.setProperty("--t3p-bgd-dur", `${Math.round((50 / Math.max(this.params.speed, 0.05)) * 10) / 10}s`);
+    this.#bake();
+    super.configure();
   }
 
-  protected run(): void {
-    this.root?.removeAttribute("data-paused");
-    this.root?.removeAttribute("data-still");
+  /** Blur is baked into the blobs: up to 50 % bigger and flatter (the energy spreads), no filter involved. */
+  #bake(): void {
+    const { intensity, density } = this.cfg;
+    const blur = this.effectiveBlur();
+    this.#opacity = Math.round(clamp(intensity, 0, 100) * 0.9 * (1 - blur * 0.012)) / 100;
+    this.#size = Math.round((32 + clamp(density, 0, 100) * 0.26) * (1 + blur * 0.025));
   }
 
-  protected halt(): void {
-    this.root?.setAttribute("data-paused", "");
+  protected override applyBlur(): void {
+    this.#bake();
   }
 
-  protected still(): void {
-    this.root?.setAttribute("data-still", "");
+  /** The blur is baked into the blobs: no in-canvas blur pass. */
+  protected override canvasBlur(): number {
+    return 0;
+  }
+
+  /** The blobs are already soft: no extra resolution drop under a blur. */
+  protected override blurResolution(): number {
+    return 1;
+  }
+
+  protected override paletteChanged(): void {
+    const { followAccent, hue } = this.cfg;
+    const exprs = followAccent ? [accentColor(hue), shiftedColor(hue, 35), shiftedColor(hue, -30), shiftedColor(hue, 70)] : null;
+    const fixed: Rgb[] = [FIXED_PALETTE[0], FIXED_PALETTE[1], FIXED_PALETTE[2], FIXED_PALETTE[1]];
+    this.#blobColors = exprs ? exprs.map((e, i) => this.resolve(e) ?? fixed[i]!) : fixed;
+  }
+
+  protected layout(): void {}
+
+  protected step(): void {}
+
+  protected draw(ctx: CanvasRenderingContext2D): void {
+    if (this.#blobColors.length === 0) return;
+    ctx.globalAlpha = this.#opacity;
+    for (let i = 0; i < BLOBS.length; i++) {
+      const { x, y, r } = blobAt(i, this.time, this.w, this.h, this.#size);
+      const c = this.#blobColors[i]!;
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, rgbaString(c, 1));
+      g.addColorStop(1, rgbaString(c, 0));
+      ctx.fillStyle = g;
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /** Test hook: blob diameter (vmax) and opacity after the baked-in blur. */
+  get blobStyle(): { size: number; opacity: number } {
+    return { size: this.#size, opacity: this.#opacity };
+  }
+
+  /** Test hook: resolved blob colors. */
+  get colorsNow(): readonly Rgb[] {
+    return this.#blobColors;
   }
 }

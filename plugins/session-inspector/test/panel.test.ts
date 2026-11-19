@@ -8,7 +8,7 @@ const approval = fixtureRecords("tool-approval.json");
 const THREAD = "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11";
 
 function summary(id: string, over: Partial<ThreadSummary> = {}): ThreadSummary {
-  return { threadId: id, title: `Thread ${id}`, projectId: "p", providerInstanceId: "codex", model: "gpt-6.1-sol", updatedAt: "2026-11-19T10:00:00.000Z", running: false, raw: {}, ...over };
+  return { threadId: id, title: `Thread ${id}`, projectId: "p", providerInstanceId: "codex", model: "gpt-6.1-sol", updatedAt: "2026-11-19T10:00:00.000Z", running: false, settled: false, raw: {}, ...over };
 }
 
 function fakeApi(opts: { records?: Record<string, TimelineRecord[]>; current?: string | null; threads?: ThreadSummary[] } = {}) {

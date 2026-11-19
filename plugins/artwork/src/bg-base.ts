@@ -1,4 +1,6 @@
-import { bgColors, bgParams, FrameGovernor, gradientBands, MAX_DPR, MAX_PIXELS, renderScale, type BgConfig, type BgParams, type BgPresetKind } from "./bg-model.js";
+import { activity } from "./bg-activity.js";
+import { bgColors, bgParams, blitBlurred, blurPx, blurRenderFactor, BlurShed, FrameGovernor, gradientBands, type BgConfig, type BgParams, type BgPresetKind } from "./bg-model.js";
+import { QualityGovernor, qualityProfile, startTier, tierScale, type BgTier, type QualityProfile } from "./bg-perf.js";
 import { parseRgb, type Rgb } from "./model.js";
 import { markSurfaces } from "./ocean.js";
 
@@ -9,17 +11,24 @@ import { markSurfaces } from "./ocean.js";
  * - the opaque viewport-sized app layers are made transparent while it runs (`markSurfaces`), exactly
  *   like Ocean and the Custom background;
  * - pauses at once while the document is hidden and after the window has been blurred for 5 s;
- * - draws one still frame under `prefers-reduced-motion` or speed 0;
+ * - draws one still frame under `prefers-reduced-motion`, speed 0 or the Static quality;
+ * - freezes on its current frame while the user types or scrolls and while the chat streams (`pauseWhileTyping`),
+ *   so the compositor only has the app's own frames to produce (see `bg-perf.ts` for why that is the real cost);
+ * - quality `auto`: a `QualityGovernor` steps the tier down (and back up) from real frame delivery;
  * - `stop()` removes the root, style, attributes, timers and listeners.
  */
 
 export const BLUR_PAUSE_MS = 5000;
 export const THEME_POLL_MS = 1000;
+/** Surfaces and theme are re-checked every this many polls (each check forces a style and layout flush). */
+export const SURFACE_EVERY = 2;
 
 export interface BgHost {
   config(): BgConfig;
   /** The adaptive-quality governor gave up (still too slow after reducing). The layer has stopped. */
   onAutoStop?(kind: BgPresetKind): void;
+  /** The auto quality moved to another tier. */
+  onTier?(kind: BgPresetKind, tier: BgTier): void;
 }
 
 export const bgIds = (kind: BgPresetKind): { root: string; style: string; attr: string; clear: string } => ({
@@ -59,6 +68,16 @@ export abstract class BgLayer {
   #hidden = false;
   #blurred = false;
   #autoStopped = false;
+  #frozen = false;
+  #unsubscribe: (() => void) | null = null;
+  #polls = 0;
+  /** Adaptive quality for `auto`; null for a fixed tier. */
+  protected quality: QualityGovernor | null = null;
+  /** Current render tier. */
+  tier: BgTier = "high";
+  #blurSeen = -1;
+  /** Drops the blur when frames get slow (a changed blur setting arms it again). */
+  protected readonly blurShed = new BlurShed();
 
   constructor(
     readonly kind: BgPresetKind,
@@ -84,9 +103,18 @@ export abstract class BgLayer {
     }
     if (this.#autoStopped) return;
     this.cfg = cfg;
-    this.params = bgParams(this.kind, cfg);
+    if (cfg.quality === "auto") this.quality ??= new QualityGovernor();
+    else this.quality = null;
+    this.tier = this.quality ? this.quality.tier : startTier(cfg.quality);
+    this.params = bgParams(this.kind, cfg, this.tier);
+    if (cfg.blur !== this.#blurSeen) {
+      this.#blurSeen = cfg.blur;
+      this.blurShed.reset();
+    }
     if (!this.root) this.#start();
+    this.#syncActivity();
     this.configure();
+    this.applyBlur();
     this.#markSurfaces();
     this.syncRunning();
   }
@@ -101,6 +129,10 @@ export abstract class BgLayer {
     window.removeEventListener("blur", this.#onBlur);
     window.removeEventListener("focus", this.#onFocus);
     document.removeEventListener("visibilitychange", this.#onVisibility);
+    this.#unsubscribe?.();
+    this.#unsubscribe = null;
+    this.#frozen = false;
+    this.quality = null;
     this.teardown();
     this.root?.remove();
     this.#style?.remove();
@@ -108,6 +140,8 @@ export abstract class BgLayer {
     this.#style = null;
     this.#hidden = false;
     this.#blurred = false;
+    this.#blurSeen = -1;
+    this.blurShed.reset();
     const { attr, clear } = bgIds(this.kind);
     for (const el of Array.from(document.querySelectorAll(`[${clear}]`))) el.removeAttribute(clear);
     document.documentElement.removeAttribute(attr);
@@ -136,13 +170,31 @@ export abstract class BgLayer {
   /** Draw one still frame. */
   protected abstract still(): void;
   protected teardown(): void {}
-  /** Called when the page theme may have changed (about once a second). */
+  /** The blur radius in px that applies now (0 when off or shed). */
+  protected effectiveBlur(): number {
+    return blurPx(this.cfg.blur, this.blurShed.shed);
+  }
+  /** Applies {@link effectiveBlur} to the layer. Called after every `configure`. */
+  protected applyBlur(): void {}
+  /** Called when the page theme may have changed (about every two seconds, never while the user is busy). */
   protected themeTick(): void {}
+  /** The render tier changed (auto quality): re-size the backing store etc. `this.params` is fresh. */
+  protected tierChanged(): void {}
+
+  /** The current tier's profile. */
+  protected get profile(): QualityProfile {
+    return qualityProfile(this.kind, this.tier);
+  }
 
   // ---- shared state --------------------------------------------------------------------------------
 
   protected get paused(): boolean {
-    return this.#hidden || this.#blurred;
+    return this.#hidden || this.#blurred || this.#frozen;
+  }
+
+  /** Frozen because the user is typing, scrolling or the chat streams. */
+  get frozen(): boolean {
+    return this.#frozen;
   }
 
   protected reduced(): boolean {
@@ -182,10 +234,56 @@ export abstract class BgLayer {
     window.addEventListener("blur", this.#onBlur);
     window.addEventListener("focus", this.#onFocus);
     document.addEventListener("visibilitychange", this.#onVisibility);
-    this.#poll = setInterval(() => {
-      this.#markSurfaces();
-      this.themeTick();
-    }, THEME_POLL_MS);
+    this.#poll = setInterval(() => this.#tick(), THEME_POLL_MS);
+  }
+
+  #tick(): void {
+    if (this.quality) {
+      const verdict = this.quality.tick(performance.now());
+      if (verdict === "down" && this.effectiveBlur() > 0) {
+        // Frames are late: the blur goes first, the tier stays (the next bad window lowers it).
+        this.quality.level -= 1;
+        this.blurShed.shed = true;
+        this.applyBlur();
+      } else if (verdict !== "keep") this.#setTier(this.quality.tier);
+    }
+    // markSurfaces and the palette read computed styles (a forced style/layout flush): not while the user is busy.
+    if (this.#frozen || ++this.#polls % SURFACE_EVERY !== 0) return;
+    this.#markSurfaces();
+    this.themeTick();
+  }
+
+  #setTier(tier: BgTier): void {
+    if (tier === this.tier || !this.root) return;
+    this.tier = tier;
+    this.params = bgParams(this.kind, this.cfg, tier);
+    this.host.onTier?.(this.kind, tier);
+    this.tierChanged();
+    this.syncRunning();
+  }
+
+  /** Long animation frames anywhere on the page, for the auto quality; only while we animate (not our fault otherwise). */
+  protected noteBlocking(ms: number): void {
+    if (!this.paused) this.quality?.blocking(ms);
+  }
+
+  #syncActivity(): void {
+    const want = this.cfg.pauseWhileTyping;
+    if (want && !this.#unsubscribe) {
+      this.#unsubscribe = activity.subscribe({
+        busy: (on) => {
+          if (on === this.#frozen) return;
+          this.#frozen = on;
+          this.syncRunning();
+        },
+        blocking: (ms) => this.noteBlocking(ms),
+      });
+      this.#frozen = activity.busy;
+    } else if (!want && this.#unsubscribe) {
+      this.#unsubscribe();
+      this.#unsubscribe = null;
+      this.#frozen = false;
+    }
   }
 
   #markSurfaces(): void {
@@ -237,9 +335,6 @@ export abstract class CanvasBg extends BgLayer {
   protected py = 0;
   protected pointerAt = -1e9;
   protected readonly governor = new FrameGovernor();
-  /** Render resolution caps (subclasses lower them). */
-  protected maxDpr = MAX_DPR;
-  protected maxPixels = MAX_PIXELS;
   /** Palette: 3 base colors and gradient bands, re-read about once a second. */
   protected colors: readonly [Rgb, Rgb, Rgb] = bgColors(null, false);
   protected bands: Rgb[] = [];
@@ -249,12 +344,17 @@ export abstract class CanvasBg extends BgLayer {
 
   #raf = 0;
   #last = 0;
+  /** Time of the previous rAF callback (drawn or skipped), for the frame-delivery gaps. */
+  #lastCb = 0;
   #acc = 0;
   #costSum = 0;
   #costN = 0;
   #paletteKey = "";
   #resizeTimer: ReturnType<typeof setTimeout> | null = null;
   #probe: CanvasRenderingContext2D | null = null;
+  /** Offscreen canvas the preset draws into while a blur is on; it is blitted blurred onto the visible canvas. */
+  #src: HTMLCanvasElement | null = null;
+  #srcCtx: CanvasRenderingContext2D | null = null;
 
   protected create(): HTMLElement {
     const canvas = document.createElement("canvas");
@@ -278,15 +378,56 @@ export abstract class CanvasBg extends BgLayer {
     if (this.#resizeTimer) clearTimeout(this.#resizeTimer);
     this.#resizeTimer = null;
     this.ctx = null;
+    this.#src = null;
+    this.#srcCtx = null;
     this.#probe = null;
     this.#paletteKey = "";
+    this.#appliedBlur = -1;
     this.governor.reset();
     this.#costSum = 0;
     this.#costN = 0;
   }
 
   protected override configure(): void {
+    if (this.ctx && this.root && Math.abs(this.#scaleFor() - this.scale) > 1e-3) this.#resize();
     this.refreshPalette(true);
+  }
+
+  protected override tierChanged(): void {
+    if (Math.abs(this.#scaleFor() - this.scale) > 1e-3) this.#resize();
+  }
+
+  #scaleFor(): number {
+    const w = document.documentElement.clientWidth || window.innerWidth;
+    return Math.max(0.05, tierScale(w, window.innerHeight, window.devicePixelRatio || 1, this.profile) * this.blurResolution());
+  }
+
+  /** Share of the tier resolution rendered under the current blur (detail is lost anyway). Drift bakes its blur in. */
+  protected blurResolution(): number {
+    return blurRenderFactor(this.effectiveBlur());
+  }
+
+  /** Blur radius drawn into the canvas (0 for presets that bake their blur in, like Gradient drift). */
+  protected canvasBlur(): number {
+    return this.effectiveBlur();
+  }
+
+  #appliedBlur = -1;
+  /**
+   * Blur is drawn into the canvas, never a CSS `filter`: a filtered layer is re-run through the filter
+   * on every composite of the page above it (typing, streaming), even while this canvas is frozen
+   * (+15 GPU points on rig 4K). The preset draws into an offscreen canvas at reduced resolution and each
+   * drawn frame is blitted once through `ctx.filter = blur()`; a frozen layer costs nothing.
+   */
+  protected override applyBlur(): void {
+    const px = this.canvasBlur();
+    this.canvas.style.filter = "";
+    this.canvas.style.transform = "";
+    this.canvas.style.willChange = "";
+    if (px !== this.#appliedBlur) {
+      this.#appliedBlur = px;
+      if (this.w > 0 && this.ctx) this.#resize();
+    }
   }
 
   protected override themeTick(): void {
@@ -308,6 +449,7 @@ export abstract class CanvasBg extends BgLayer {
   protected run(): void {
     if (this.#raf) return;
     this.#last = 0;
+    this.#lastCb = 0;
     this.#acc = 0;
     this.#raf = requestAnimationFrame(this.#loop);
   }
@@ -324,13 +466,17 @@ export abstract class CanvasBg extends BgLayer {
   /** Paints a frame without advancing time. */
   protected paintOnce(): void {
     if (!this.ctx || this.bands.length === 0) return;
-    this.ctx.clearRect(0, 0, this.w, this.h);
-    this.draw(this.ctx);
+    const target = this.#srcCtx && this.#src ? this.#srcCtx : this.ctx;
+    target.clearRect(0, 0, this.w, this.h);
+    this.draw(target);
+    if (target === this.#srcCtx && this.#src) blitBlurred(this.canvas, this.#src, this.canvasBlur(), this.scale);
   }
 
   readonly #loop = (ms: number): void => {
     this.#raf = requestAnimationFrame(this.#loop);
-    const interval = 1000 / this.params.maxFps;
+    const gap = this.#lastCb ? ms - this.#lastCb : 0;
+    this.#lastCb = ms;
+    const interval = 1000 / Math.max(1, this.params.maxFps);
     if (this.#last && ms - this.#last < interval - 1.5) return;
     const elapsed = this.#last ? ms - this.#last : interval;
     this.#last = ms;
@@ -357,8 +503,14 @@ export abstract class CanvasBg extends BgLayer {
       this.#costSum = 0;
       this.#costN = 0;
     }
+    this.quality?.frame(cost, gap);
     const verdict = this.governor.push(cost);
-    if (verdict === "reduced") this.layout(this.w, this.h);
+    if (verdict === "reduced" && this.effectiveBlur() > 0) {
+      // Slow frames: the blur goes first, the density stays.
+      this.governor.level -= 1;
+      this.blurShed.shed = true;
+      this.applyBlur();
+    } else if (verdict === "reduced") this.layout(this.w, this.h);
     else if (verdict === "stop") this.autoStop();
   };
 
@@ -386,15 +538,33 @@ export abstract class CanvasBg extends BgLayer {
     const h = window.innerHeight;
     this.w = w;
     this.h = h;
-    this.scale = renderScale(w, h, window.devicePixelRatio || 1, this.maxDpr, this.maxPixels);
+    this.scale = this.#scaleFor();
     this.canvas.width = Math.max(1, Math.ceil(w * this.scale));
     this.canvas.height = Math.max(1, Math.ceil(h * this.scale));
     ctx.setTransform(this.scale, 0, 0, this.scale, 0, 0);
+    this.#appliedBlur = this.canvasBlur();
+    if (this.#appliedBlur > 0) {
+      const src = this.#src ?? document.createElement("canvas");
+      src.width = this.canvas.width;
+      src.height = this.canvas.height;
+      const sctx = src.getContext("2d", { alpha: true });
+      sctx?.setTransform(this.scale, 0, 0, this.scale, 0, 0);
+      this.#src = sctx ? src : null;
+      this.#srcCtx = sctx;
+    } else {
+      this.#src = null;
+      this.#srcCtx = null;
+    }
     this.layout(w, h);
     if (!this.#raf) this.paintOnce();
   }
 
   // ---- palette -------------------------------------------------------------------------------------
+
+  /** Any CSS color expression (`var()`, relative colors) resolved on the page, then to rgb. */
+  protected resolve(expr: string): Rgb | null {
+    return this.toRgb(computedColor(expr));
+  }
 
   /** Any CSS color to rgb: parsed directly, or resolved through a 1x1 canvas (oklch, color-mix, names). */
   protected toRgb(css: string): Rgb | null {

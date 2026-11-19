@@ -1,3 +1,6 @@
+import { activity } from "./bg-activity.js";
+import { QualityGovernor, qualityProfile, startTier, tierScale, type BgTier } from "./bg-perf.js";
+import { blitBlurred, blurPx, blurRenderFactor, BlurShed } from "./bg-model.js";
 import { oceanPalette, oceanParams, parseRgb, type OceanConfig, type OceanParams, type Rgb } from "./model.js";
 
 /**
@@ -8,7 +11,10 @@ import { oceanPalette, oceanParams, parseRgb, type OceanConfig, type OceanParams
  *   never loses a click; pointer and click input come from `window` listeners.
  * - Ink colors come from the app's computed `--foreground`, the glow from the artwork accent (or the
  *   app's `--primary`), re-read about once a second so a theme switch follows.
- * - Pauses while the document is hidden, draws one still frame for reduced motion or speed 0.
+ * - Pauses while the document is hidden, draws one still frame for reduced motion, speed 0 or the Static quality.
+ * - Quality tiers (`bg-perf.ts`): frame rate 30/20/12 fps and the backing store at 1.25/1/0.75 px per CSS px instead
+ *   of the full device ratio; `auto` steps down from real frame delivery. With `pauseWhileTyping` it freezes on the
+ *   current frame while the user types or scrolls and while the chat streams.
  */
 
 const CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -95,11 +101,14 @@ export function markSurfaces(anchor: Element, attr: string): void {
 
 export interface OceanHost {
   config(): OceanConfig;
+  onTier?(tier: BgTier): void;
 }
 
 export class Ocean {
   #canvas: HTMLCanvasElement | null = null;
+  /** Where the letters are drawn: the visible canvas, or {@link #src} while a blur is on. */
   #ctx: CanvasRenderingContext2D | null = null;
+  #src: HTMLCanvasElement | null = null;
   #style: HTMLStyleElement | null = null;
   #probe: CanvasRenderingContext2D | null = null;
   #raf = 0;
@@ -110,6 +119,9 @@ export class Ocean {
   #glow: string[] = [];
   #paletteKey = "";
   #hue = -1;
+  #blur = 0;
+  #blurSeen = -1;
+  #shed = new BlurShed();
 
   #cols = 0;
   #rows = 0;
@@ -128,6 +140,12 @@ export class Ocean {
   #cost = 0;
   #calmUntil = 0;
   #noise = new Uint8Array(512);
+  #tier: BgTier = "high";
+  #quality: QualityGovernor | null = null;
+  #frozen = false;
+  #unsubscribe: (() => void) | null = null;
+  #polls = 0;
+  #lastCb = 0;
 
   constructor(private readonly host: OceanHost) {
     const p = [...Array(256).keys()];
@@ -146,6 +164,71 @@ export class Ocean {
     return this.#canvas;
   }
 
+  get tier(): BgTier {
+    return this.#tier;
+  }
+
+  get frozen(): boolean {
+    return this.#frozen;
+  }
+
+  get #fps(): number {
+    return qualityProfile("ocean", this.#tier).fps;
+  }
+
+  /** Animate now: animated, not static, not reduced, visible, not frozen by input. */
+  #shouldRun(): boolean {
+    return this.#params.animated && this.#fps > 0 && !this.#reduced() && !document.hidden && !this.#frozen;
+  }
+
+  /** Starts or stops the loop; a still frame when it cannot animate at all. */
+  #sync(): void {
+    if (!this.#canvas) return;
+    if (!this.#params.animated || this.#fps === 0 || this.#reduced()) {
+      this.#stopLoop();
+      this.#frame(4000);
+    } else if (!this.#shouldRun()) this.#stopLoop();
+    else if (!this.#raf) {
+      this.#lastCb = 0;
+      this.#raf = requestAnimationFrame(this.#loop);
+    }
+  }
+
+  #syncActivity(want: boolean): void {
+    if (want && !this.#unsubscribe) {
+      this.#unsubscribe = activity.subscribe({
+        busy: (on) => {
+          if (on === this.#frozen) return;
+          this.#frozen = on;
+          this.#sync();
+        },
+        blocking: (ms) => {
+          if (this.#shouldRun()) this.#quality?.blocking(ms);
+        },
+      });
+      this.#frozen = activity.busy;
+    } else if (!want && this.#unsubscribe) {
+      this.#unsubscribe();
+      this.#unsubscribe = null;
+      this.#frozen = false;
+    }
+  }
+
+  #setTier(tier: BgTier): void {
+    if (tier === this.#tier) return;
+    const scale = this.#dpr;
+    this.#tier = tier;
+    this.host.onTier?.(tier);
+    if (Math.abs(this.#scaleFor() - scale) > 1e-3) this.#resize();
+    this.#sync();
+  }
+
+  #scaleFor(): number {
+    const w = document.documentElement.clientWidth || window.innerWidth;
+    const blur = blurRenderFactor(blurPx(this.#blur, this.#shed.shed));
+    return Math.max(0.05, tierScale(w, window.innerHeight, window.devicePixelRatio || 1, qualityProfile("ocean", this.#tier)) * blur);
+  }
+
   /** Applies the current config: starts, retunes or stops. Cheap, call it on every setting change. */
   update(): void {
     const cfg = this.host.config();
@@ -156,19 +239,33 @@ export class Ocean {
     this.#params = oceanParams(cfg);
     this.#ripplesOn = cfg.ripples;
     this.#hue = cfg.hue;
-    if (!this.#canvas) this.#start();
+    this.#blur = cfg.blur ?? 0;
+    if (this.#blur !== this.#blurSeen) {
+      this.#blurSeen = this.#blur;
+      this.#shed.reset();
+    }
+    const quality = cfg.quality ?? "high";
+    if (quality === "auto") this.#quality ??= new QualityGovernor();
+    else this.#quality = null;
+    const tier = this.#quality ? this.#quality.tier : startTier(quality);
+    const started = !this.#canvas;
+    if (started) {
+      this.#tier = tier;
+      this.#start();
+    } else this.#setTier(tier);
+    this.#syncActivity(cfg.pauseWhileTyping ?? false);
+    this.#applyBlur();
     this.#refreshPalette(true);
     this.#clearSurfaces();
-    if (!this.#params.animated || this.#reduced()) {
-      this.#stopLoop();
-      this.#frame(4000);
-    } else if (!this.#raf && !document.hidden) {
-      this.#raf = requestAnimationFrame(this.#loop);
-    }
+    this.#sync();
   }
 
   stop(): void {
     this.#stopLoop();
+    this.#unsubscribe?.();
+    this.#unsubscribe = null;
+    this.#frozen = false;
+    this.#quality = null;
     if (this.#poll) clearInterval(this.#poll);
     this.#poll = null;
     window.removeEventListener("resize", this.#onResize);
@@ -180,10 +277,14 @@ export class Ocean {
     this.#style?.remove();
     this.#canvas = null;
     this.#ctx = null;
+    this.#src = null;
     this.#style = null;
     this.#probe = null;
     this.#ripples = [];
     this.#paletteKey = "";
+    this.#blurSeen = -1;
+    this.#appliedBlur = -1;
+    this.#shed.reset();
     for (const el of Array.from(document.querySelectorAll(`[${OCEAN_CLEAR_ATTR}]`))) el.removeAttribute(OCEAN_CLEAR_ATTR);
     document.documentElement.removeAttribute(OCEAN_ATTR);
   }
@@ -218,10 +319,38 @@ export class Ocean {
     window.addEventListener("scroll", this.#onScroll, { capture: true, passive: true });
     document.addEventListener("visibilitychange", this.#onVisibility);
     this.#poll = setInterval(() => {
+      if (this.#quality) {
+        const verdict = this.#quality.tick(performance.now());
+        if (verdict === "down" && blurPx(this.#blur, this.#shed.shed) > 0) {
+          // Frames are late: the blur goes first, the tier stays (the next bad window lowers it).
+          this.#quality.level -= 1;
+          this.#shed.shed = true;
+          this.#applyBlur();
+        } else if (verdict !== "keep") this.#setTier(this.#quality.tier);
+      }
+      // Both read computed styles (a forced style/layout flush): every other second, never while the user is busy.
+      if (this.#frozen || ++this.#polls % 2 !== 0) return;
       this.#refreshPalette(false);
       this.#clearSurfaces();
     }, THEME_POLL_MS);
     this.#resize();
+  }
+
+  #appliedBlur = -1;
+  /**
+   * Blur is drawn into the canvas, not a CSS filter (a filtered layer is re-filtered on every composite of
+   * the app above it, even frozen). Letters go to an offscreen canvas at reduced resolution; each frame that
+   * changed something is blitted once through `ctx.filter = blur()`. Shed when frames are slow.
+   */
+  #applyBlur(): void {
+    const canvas = this.#canvas;
+    if (!canvas) return;
+    canvas.style.filter = "";
+    canvas.style.transform = "";
+    canvas.style.willChange = "";
+    const px = blurPx(this.#blur, this.#shed.shed);
+    if (px !== this.#appliedBlur && this.#appliedBlur !== -1) this.#resize();
+    this.#appliedBlur = px;
   }
 
   #stopLoop(): void {
@@ -231,8 +360,7 @@ export class Ocean {
 
   readonly #onVisibility = (): void => {
     if (!this.#canvas) return;
-    if (document.hidden) this.#stopLoop();
-    else if (this.#params.animated && !this.#reduced() && !this.#raf) this.#raf = requestAnimationFrame(this.#loop);
+    this.#sync();
   };
   readonly #onResize = (): void => this.#resize();
   readonly #onScroll = (): void => {
@@ -298,7 +426,8 @@ export class Ocean {
     this.#glow = glow;
     // Force a full repaint with the new colors.
     this.#painted.fill(255);
-    this.#ctx?.clearRect(0, 0, this.#canvas.width, this.#canvas.height);
+    const target = this.#src ?? this.#canvas;
+    this.#ctx?.clearRect(0, 0, target.width, target.height);
     if (!this.#raf) this.#frame(4000);
   }
 
@@ -329,13 +458,26 @@ export class Ocean {
 
   #resize(): void {
     const canvas = this.#canvas;
-    const ctx = this.#ctx;
-    if (!canvas || !ctx) return;
-    this.#dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (!canvas) return;
+    this.#dpr = this.#scaleFor();
     const w = document.documentElement.clientWidth || window.innerWidth;
     const h = window.innerHeight;
     canvas.width = Math.ceil(w * this.#dpr);
     canvas.height = Math.ceil(h * this.#dpr);
+    this.#appliedBlur = blurPx(this.#blur, this.#shed.shed);
+    let ctx: CanvasRenderingContext2D | null;
+    if (this.#appliedBlur > 0) {
+      const src = this.#src ?? document.createElement("canvas");
+      src.width = canvas.width;
+      src.height = canvas.height;
+      ctx = src.getContext("2d", { alpha: true });
+      this.#src = ctx ? src : null;
+    } else {
+      this.#src = null;
+      ctx = canvas.getContext("2d", { alpha: true });
+    }
+    this.#ctx = ctx;
+    if (!ctx) return;
     ctx.setTransform(this.#dpr, 0, 0, this.#dpr, 0, 0);
     ctx.font = FONT_CSS;
     ctx.textBaseline = "top";
@@ -355,18 +497,24 @@ export class Ocean {
 
   readonly #loop = (ms: number): void => {
     this.#raf = requestAnimationFrame(this.#loop);
+    const gap = this.#lastCb ? ms - this.#lastCb : 0;
+    this.#lastCb = ms;
     const scrolling = ms < this.#calmUntil;
-    if (ms - this.#last < (scrolling ? Math.max(50, this.#cost * 5) : 33)) return;
+    const interval = 1000 / Math.max(1, this.#fps) - 1.5;
+    if (ms - this.#last < (scrolling ? Math.max(50, this.#cost * 5, interval) : interval)) return;
     this.#last = ms;
     const began = performance.now();
     this.#frame(ms);
     this.#cost = performance.now() - began;
+    this.#quality?.frame(this.#cost, gap);
+    if (this.#shed.push(this.#cost, this.#blur > 0)) this.#applyBlur();
   };
 
   #frame(ms: number): void {
     const ctx = this.#ctx;
-    const canvas = this.#canvas;
+    const canvas = this.#src ?? this.#canvas;
     if (!ctx || !canvas || this.#ink.length === 0) return;
+    let drew = false;
     const { drift: driftSpeed, shimmer, rippleSpeed } = this.#params;
     const cols = this.#cols;
     const rows = this.#rows;
@@ -392,7 +540,8 @@ export class Ocean {
     }
     this.#pAmp *= 0.93;
 
-    if (shimmer > 0) for (let k = (grid.length * shimmer) | 0; k > 0; k--) grid[(Math.random() * grid.length) | 0] = (Math.random() * CHARS.length) | 0;
+    const perFrame = shimmer * (30 / Math.max(1, this.#fps || 30));
+    if (shimmer > 0) for (let k = (grid.length * perFrame) | 0; k > 0; k--) grid[(Math.random() * grid.length) | 0] = (Math.random() * CHARS.length) | 0;
 
     const drift = t * driftSpeed;
     for (let r = 0; r < rows; r++) {
@@ -431,6 +580,7 @@ export class Ocean {
         this.#dirty[changed++] = c;
       }
       if (!changed) continue;
+      drew = true;
       const top = Math.floor(cy * dpr);
       const height = (Math.floor((cy + CELL_H) * dpr) - top) / dpr;
       if (changed > cols / 8) {
@@ -460,6 +610,7 @@ export class Ocean {
         }
       }
     }
+    if (drew && this.#src && this.#canvas) blitBlurred(this.#canvas, this.#src, blurPx(this.#blur, this.#shed.shed), this.#dpr);
   }
 
   #splash(x: number, y: number): void {

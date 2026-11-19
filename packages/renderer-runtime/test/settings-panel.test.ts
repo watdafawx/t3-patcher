@@ -237,3 +237,42 @@ describe("t3.ui.settingsPanel", () => {
     expect(() => ns.ui.settingsPanel(document.body)).toThrow(/not available/);
   });
 });
+
+describe("showWhen in the settings panel", () => {
+  const SW: SettingSchema[] = [
+    { key: "mode", type: "enum", default: "a", label: "Mode", options: [{ value: "a" }, { value: "b" }, { value: "c" }] },
+    { key: "onlyA", type: "boolean", default: false, label: "Only A", showWhen: { key: "mode", equals: "a" } },
+    { key: "bOrC", type: "range", default: 1, min: 0, max: 5, label: "B or C", showWhen: { key: "mode", in: ["b", "c"] } },
+    { key: "always", type: "boolean", default: false, label: "Always" },
+  ];
+  const hidden = (key: string): boolean => q<HTMLElement>(`[data-t3p-setting-row="${key}"]`).hidden;
+
+  it("hides rows by the current value and follows changes, keeping the stored value", async () => {
+    const { settings } = fakeSettings(SW);
+    mountSettingsPanel(document.body, settings);
+    expect([hidden("onlyA"), hidden("bOrC"), hidden("always")]).toEqual([false, true, false]);
+    await settings.set("mode", "b");
+    expect([hidden("onlyA"), hidden("bOrC")]).toEqual([true, false]);
+    await settings.set("mode", "c");
+    expect(hidden("bOrC")).toBe(false);
+    await settings.set("mode", "a");
+    expect([hidden("onlyA"), hidden("bOrC")]).toEqual([false, true]);
+    expect(settings.get("bOrC")).toBe(1);
+  });
+});
+
+describe("group and showWhen schema fields", () => {
+  const base = { key: "k", type: "boolean", default: false, label: "K" } as const;
+  it("accepts a group and a showWhen rule", () => {
+    expect(checkSchema({ ...base, group: "Background" })).toBeNull();
+    expect(checkSchema({ ...base, showWhen: { key: "m", equals: "x" } })).toBeNull();
+    expect(checkSchema({ ...base, showWhen: { key: "m", in: ["x", "y"] } })).toBeNull();
+  });
+  it("rejects a bad group or showWhen", () => {
+    expect(checkSchema({ ...base, group: 5 })).toMatch(/group/);
+    expect(checkSchema({ ...base, group: "x".repeat(65) })).toMatch(/group/);
+    expect(checkSchema({ ...base, showWhen: { equals: "x" } })).toMatch(/showWhen/);
+    expect(checkSchema({ ...base, showWhen: { key: "m", in: "x" } })).toMatch(/showWhen/);
+    expect(checkSchema({ ...base, showWhen: null })).toMatch(/showWhen/);
+  });
+});

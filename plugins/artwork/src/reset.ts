@@ -3,7 +3,7 @@ import type { T3Api } from "@t3p/api";
 import { CUSTOM_IDS, type CustomId, type CustomTarget } from "./custom.js";
 
 /** Every artwork setting the reset touches (schema defaults come back through `settings.reset`). */
-export const RESET_KEYS = ["preset", "intensity", "speed", "hue", "fadeHeight", "blur", "angle", "scrim", "artworkName", "mainGlow", "oceanOn", "oceanIntensity", "oceanSpeed", "oceanRipples", "bgKind", "bgIntensity", "bgSpeed", "bgDensity", "bgPointer", "bgFollowAccent", "bgLowPower", "logoMode", "logoText", "logoHeight", "allowRemoteAssets"];
+export const RESET_KEYS = ["preset", "intensity", "speed", "hue", "fadeHeight", "blur", "angle", "scrim", "artworkName", "mainGlow", "oceanOn", "oceanIntensity", "oceanSpeed", "oceanRipples", "bgKind", "bgIntensity", "bgSpeed", "bgDensity", "bgDim", "bgBlur", "bgPointer", "bgFollowAccent", "bgLowPower", "bgQuality", "bgPauseWhileTyping", "logoMode", "logoText", "logoHeight", "allowRemoteAssets"];
 
 export interface ResetCustom {
   update(id: CustomId, patch: Partial<CustomTarget>): unknown;

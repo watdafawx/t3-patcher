@@ -226,6 +226,17 @@ describe("takeover and restore", () => {
     expect(document.getElementById("t3p-ocean")).not.toBeNull();
   });
 
+  it("custom background removes the dim overlay and gives it back when custom is off", async () => {
+    await start(fakeT3({ oceanOn: true, bgKind: "drift", bgDim: 30, bgBlur: 8 }));
+    expect(document.getElementById("t3p-bg-dim")).not.toBeNull();
+    await toggle("background", true);
+    expect(document.getElementById("t3p-bg-dim")).toBeNull();
+    expect(document.getElementById("t3p-bg-drift")).toBeNull();
+    await toggle("background", false);
+    expect(document.getElementById("t3p-bg-dim")!.style.opacity).toBe("0.3");
+    expect(document.getElementById("t3p-bg-dim")!.previousElementSibling).toBe(document.getElementById("t3p-bg-drift"));
+  });
+
   it("custom background also takes over the Antigravity, Gradient drift and Starfield presets", async () => {
     for (const kind of ["antigravity", "drift", "starfield"]) {
       await start(fakeT3({ oceanOn: true, bgKind: kind }));

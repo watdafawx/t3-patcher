@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  conditionHolds,
   effectivePermissions,
   emptyState,
   grantPermission,
   isAllowedEventChannel,
   isAllowedInvokeChannel,
+  settingVisible,
   isValidEntryPath,
   isValidPluginId,
   matchesT3Version,
@@ -167,5 +169,23 @@ describe("ipc channel allowlist", () => {
     expect(isAllowedInvokeChannel("t3p:native:fs.write")).toBe(false);
     expect(isAllowedEventChannel("t3p:event")).toBe(true);
     expect(isAllowedEventChannel("t3p:ping")).toBe(false);
+  });
+});
+
+describe("setting visibility", () => {
+  const get = (values: Record<string, boolean | string | number>) => (key: string) => values[key];
+  it("shows a setting with no rule", () => {
+    expect(settingVisible({}, get({}))).toBe(true);
+  });
+  it("equals and in compare the controlling value", () => {
+    expect(settingVisible({ showWhen: { key: "k", equals: "x" } }, get({ k: "x" }))).toBe(true);
+    expect(settingVisible({ showWhen: { key: "k", equals: "x" } }, get({ k: "y" }))).toBe(false);
+    expect(settingVisible({ showWhen: { key: "k", in: ["x", "z"] } }, get({ k: "z" }))).toBe(true);
+    expect(settingVisible({ showWhen: { key: "k", in: ["x", "z"] } }, get({ k: "q" }))).toBe(false);
+    expect(settingVisible({ showWhen: { key: "k", equals: true } }, get({ k: true }))).toBe(true);
+  });
+  it("a rule with neither equals nor in never hides, and an unknown key hides an equals rule", () => {
+    expect(conditionHolds({ key: "k" }, get({}))).toBe(true);
+    expect(settingVisible({ showWhen: { key: "gone", equals: "x" } }, get({}))).toBe(false);
   });
 });

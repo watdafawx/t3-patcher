@@ -142,7 +142,7 @@ const plugin: PluginModule = {
           .slice(0, MAX_THREADS);
         const current = t3.threads.current();
         if (current && !threads.some((t) => t.threadId === current)) {
-          threads.push({ threadId: current, title: "", projectId: null, providerInstanceId: null, model: null, updatedAt: null, running: false, raw: null });
+          threads.push({ threadId: current, title: "", projectId: null, providerInstanceId: null, model: null, updatedAt: null, running: false, settled: false, raw: null });
         }
         const seen = new Set<string>();
         await Promise.all(

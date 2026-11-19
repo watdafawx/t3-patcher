@@ -1,4 +1,4 @@
-import { GRANT_ATTR, GRANT_PERMS_ATTR, isHighRisk, parsePermissions, permissionInfo, permissionScope, type SettingSchema, type SettingValue } from "@t3p/api";
+import { GRANT_ATTR, GRANT_PERMS_ATTR, isHighRisk, parsePermissions, permissionInfo, permissionScope, settingVisible, type SettingSchema, type SettingValue } from "@t3p/api";
 
 import type { ManagedPlugin } from "../manager.js";
 import { clear, ensureStyles, h } from "./dom.js";
@@ -121,23 +121,35 @@ const GENERAL = "General";
 export const WAITING_RESET_MS = 30_000;
 
 /**
- * Groups a plugin's settings for collapsible sections: keys that share a first camelCase word
- * (`oceanOn`, `oceanSpeed` share "ocean") form a group when at least two do; the rest go to "General".
+ * Groups a plugin's settings for collapsible sections. A schema with `group` goes to that section
+ * (sections in order of first appearance). The rest use the old heuristic: keys that share a first
+ * camelCase word (`oceanOn`, `oceanSpeed` share "ocean") form a group when at least two do, else "General".
+ * Without any explicit `group` the order is "General" first, then the heuristic groups.
  */
 export function groupSchemas(schemas: SettingSchema[]): SettingGroup[] {
   const word = (key: string): string => (/^[a-z0-9]+/.exec(key)?.[0] ?? key).toLowerCase();
+  const loose = schemas.filter((s) => !s.group?.trim());
   const counts = new Map<string, number>();
-  for (const s of schemas) counts.set(word(s.key), (counts.get(word(s.key)) ?? 0) + 1);
+  for (const s of loose) counts.set(word(s.key), (counts.get(word(s.key)) ?? 0) + 1);
   const general: SettingSchema[] = [];
   const groups = new Map<string, SettingSchema[]>();
+  const explicit = schemas.some((s) => s.group?.trim());
   for (const s of schemas) {
+    const named = s.group?.trim();
+    if (named) {
+      groups.set(named, [...(groups.get(named) ?? []), s]);
+      continue;
+    }
     const w = word(s.key);
-    if ((counts.get(w) ?? 0) >= 2) groups.set(w, [...(groups.get(w) ?? []), s]);
+    if ((counts.get(w) ?? 0) >= 2) {
+      const title = w.charAt(0).toUpperCase() + w.slice(1);
+      groups.set(title, [...(groups.get(title) ?? []), s]);
+    } else if (explicit) groups.set(GENERAL, [...(groups.get(GENERAL) ?? []), s]);
     else general.push(s);
   }
   const out: SettingGroup[] = [];
   if (general.length > 0) out.push({ title: GENERAL, schemas: general });
-  for (const [w, list] of groups) out.push({ title: w.charAt(0).toUpperCase() + w.slice(1), schemas: list });
+  for (const [title, list] of groups) out.push({ title, schemas: list });
   return out;
 }
 
@@ -295,6 +307,26 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
     }) as HTMLInputElement;
   };
 
+  /** Values just committed on this page; they win over the (async) manager value for visibility rules. */
+  const committed = new Map<string, SettingValue>();
+  const valueOf = (plugin: ManagedPlugin, key: string): SettingValue | undefined => {
+    const k = `${plugin.id}/${key}`;
+    if (committed.has(k)) return committed.get(k);
+    try {
+      return manager.getSetting(plugin.id, key);
+    } catch {
+      return undefined;
+    }
+  };
+  /** Hides rows whose `showWhen` does not hold. Hidden rows keep their stored value. */
+  const applyVisibility = (plugin: ManagedPlugin): void => {
+    const byKey = new Map(safeSchemas(manager, plugin.id).map((x) => [x.key, x]));
+    for (const row of Array.from(detail.querySelectorAll<HTMLElement>("[data-t3p-setting-row]"))) {
+      const schema = byKey.get(row.getAttribute("data-t3p-setting-row") ?? "");
+      if (schema) row.hidden = !settingVisible(schema, (key) => valueOf(plugin, key));
+    }
+  };
+
   const settingRow = (plugin: ManagedPlugin, schema: SettingSchema): HTMLElement => {
     let value: SettingValue;
     try {
@@ -306,6 +338,8 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
     const handle = createControl(schema, value, {
       onCommit: (next) => {
         if (ref.reset) ref.reset.hidden = next === schema.default;
+        committed.set(`${plugin.id}/${schema.key}`, next);
+        applyVisibility(plugin);
         manager.setSetting(plugin.id, schema.key, next).catch((error: unknown) => onNotice(`${plugin.id}: ${String(error instanceof Error ? error.message : error)}`));
       },
     });
@@ -323,6 +357,8 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
           () => {
             handle.set(schema.default);
             reset.hidden = true;
+            committed.set(`${plugin.id}/${schema.key}`, schema.default);
+            applyVisibility(plugin);
           },
           (e: unknown) => onNotice(String(e)),
         );
@@ -331,7 +367,7 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
     ref.reset = reset;
     return h(
       "div",
-      { class: "t3p-setting", "data-t3p-setting-row": schema.key },
+      { class: "t3p-setting", "data-t3p-setting-row": schema.key, hidden: !settingVisible(schema, (key) => valueOf(plugin, key)) },
       h("label", null, ...highlight(schema.label, query)),
       h("div", { class: "t3p-pg-ctl" }, handle.el, reset),
       schema.description ? h("small", null, ...highlight(schema.description, query)) : null,
@@ -651,6 +687,7 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
 
   const offManager = manager.onChange(() => {
     waiting = null;
+    committed.clear();
     renderList();
     renderDetail();
   });

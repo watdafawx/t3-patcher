@@ -1,6 +1,7 @@
 import {
   type BeforeStartOptions,
   type DispatchResult,
+  isThreadSettled,
   type ModelSelection,
   type OrchestrationCommand,
   type ProviderSnapshot,
@@ -205,6 +206,7 @@ interface ShellThreadWire {
   modelSelection?: { model?: unknown } | null;
   updatedAt?: unknown;
   status?: unknown;
+  settledOverride?: unknown;
 }
 
 interface ShellStreamItemWire {
@@ -327,6 +329,7 @@ export class ThreadShellStore {
       model: typeof thread.modelSelection?.model === "string" ? thread.modelSelection.model : null,
       updatedAt: typeof thread.updatedAt === "string" ? thread.updatedAt : null,
       running: typeof thread.status === "string" && RUNNING_STATUSES.has(thread.status),
+      settled: isThreadSettled(thread),
       raw: thread,
     });
   }
@@ -397,7 +400,8 @@ export function createThreadsApi(deps: ThreadsDeps): T3Threads {
       need();
       assertId(threadId, "threadId");
       const rpc = await client();
-      return (await rpc.call("orchestration.getThreadProjection", { threadId })) as ThreadProjection;
+      const wire = (await rpc.call("orchestration.getThreadProjection", { threadId })) as Omit<ThreadProjection, "settled">;
+      return { ...wire, settled: isThreadSettled((wire as { thread?: { settledOverride?: unknown } }).thread) } as ThreadProjection;
     },
     subscribe(
       threadId: string,

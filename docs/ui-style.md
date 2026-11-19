@@ -65,6 +65,7 @@ The Plugins page is the reference layout for a list plus a detail pane:
 
 - Left: a `t3p-input` search box and a `role="listbox"` of rows (initial, name, count badge, status dot). The active row uses `--accent`; the dot uses `--success`, `--warning`, `--destructive`.
 - Right: only the selected item. A header card (name, version, pills, switch), then sections: a button with `aria-expanded` and a chevron, body with `t3p-setting` rows built by `createControl` from `setting-controls.ts`.
+- Sections come from the optional `group` on each setting schema (first-appearance order; settings without one fall back to the key-prefix heuristic). `showWhen: { key, equals | in }` hides a row while another setting does not match; hidden rows stay in the model, keep their values. The count badge still counts them.
 - Search matches names and setting text and wraps hits in `<mark class="t3p-hl">` (tinted from `--warning`). A section that holds a match opens even when collapsed.
 - Keyboard: up/down/home/end in the list select and focus, `/` focuses the search (not while typing elsewhere), Escape clears it.
 - Under 640px the panes show one at a time (`@container (max-width:639px)`, state in `data-t3p-view="list|detail"`) with a Back button. Use a container query, not a viewport query: the page sits beside the app sidebar.

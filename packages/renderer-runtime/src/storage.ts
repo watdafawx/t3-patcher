@@ -143,6 +143,12 @@ export function checkSchema(schema: unknown): string | null {
   const s = schema as Record<string, unknown>;
   if (typeof s.key !== "string" || s.key.length === 0 || s.key.length > 128 || s.key === "__proto__") return "key must be a non-empty string (max 128)";
   if (typeof s.label !== "string" || s.label.length === 0) return `setting ${s.key}: label is required`;
+  if (s.group !== undefined && (typeof s.group !== "string" || s.group.length > 64)) return `setting ${s.key}: group must be a string (max 64)`;
+  if (s.showWhen !== undefined) {
+    const w = s.showWhen as Record<string, unknown> | null;
+    if (!w || typeof w !== "object" || typeof w.key !== "string" || w.key.length === 0) return `setting ${s.key}: showWhen needs a key`;
+    if (w.in !== undefined && !Array.isArray(w.in)) return `setting ${s.key}: showWhen.in must be an array`;
+  }
   switch (s.type) {
     case "boolean":
       return typeof s.default === "boolean" ? null : `setting ${s.key}: default must be a boolean`;

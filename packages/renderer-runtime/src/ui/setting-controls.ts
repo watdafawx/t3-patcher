@@ -1,4 +1,4 @@
-import type { SettingSchema, SettingValue, SettingsPanelOptions, T3Settings } from "@t3p/api";
+import { settingVisible, type SettingSchema, type SettingValue, type SettingsPanelOptions, type T3Settings } from "@t3p/api";
 
 import { h } from "./dom.js";
 
@@ -166,7 +166,26 @@ export function mountSettingsPanel(host: HTMLElement, settings: T3Settings, opti
     });
   }
 
-  const off = settings.onChange((change) => handles.get(change.key)?.refresh(change.value));
+  /** Hides rows whose `showWhen` does not hold (the value stays stored). */
+  const rows = new Map<string, HTMLElement>(Array.from(root.children).map((el) => [el.getAttribute("data-t3p-setting-row") ?? "", el as HTMLElement]));
+  const readValue = (key: string): SettingValue | undefined => {
+    try {
+      return settings.get(key);
+    } catch {
+      return undefined;
+    }
+  };
+  const syncVisibility = (): void => {
+    for (const schema of schemas) {
+      const row = rows.get(schema.key);
+      if (row) row.hidden = !settingVisible(schema, readValue);
+    }
+  };
+  syncVisibility();
+  const off = settings.onChange((change) => {
+    handles.get(change.key)?.refresh(change.value);
+    syncVisibility();
+  });
   host.appendChild(root);
   return () => {
     disposed = true;

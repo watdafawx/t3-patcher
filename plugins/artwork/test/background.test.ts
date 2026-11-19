@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Antigravity } from "../src/antigravity.js";
 import { BLUR_PAUSE_MS, bgIds, type BgHost } from "../src/bg-base.js";
-import { BG_KINDS, bgColors, bgParams, FIXED_PALETTE, FrameGovernor, gradientBands, hslToRgb, isBgKind, renderScale, rgbToHsl, rng, type BgConfig, type BgPresetKind } from "../src/bg-model.js";
+import { activity } from "../src/bg-activity.js";
+import { BG_KINDS, BLUR_MAX, BlurShed, DIM_MAX, bgColors, bgParams, blurPx, blurBlit, blurRenderFactor, dimOpacity, FIXED_PALETTE, FrameGovernor, gradientBands, hslToRgb, isBgKind, rgbToHsl, rng, type BgConfig, type BgPresetKind } from "../src/bg-model.js";
+import { qualityProfile, tierScale } from "../src/bg-perf.js";
 import { GradientDrift } from "../src/drift.js";
 import { Starfield } from "../src/starfield.js";
 
@@ -16,19 +18,24 @@ describe("background model", () => {
     expect(bgParams("antigravity", { ...base, speed: 0 }).animated).toBe(false);
     expect(bgParams("antigravity", { ...base, density: 999 }).count).toBe(2900);
     expect(bgParams("starfield", { ...base, density: -5 }).count).toBe(80);
+    // quality tiers set the frame rate; static never animates; low power still caps at 30
+    expect(bgParams("antigravity", base, "balanced").maxFps).toBe(30);
+    expect(bgParams("antigravity", base, "low").maxFps).toBe(15);
+    expect(bgParams("antigravity", base, "static")).toMatchObject({ animated: false, maxFps: 0 });
+    expect(bgParams("drift", { ...base, lowPower: true }, "high").maxFps).toBe(30);
+    expect(bgParams("antigravity", { ...base, quality: "auto" }).maxFps).toBe(30); // auto starts at balanced
   });
 
-  it("caps the render scale: dpr <= 1.5 and a pixel budget (4K renders near 1080p-class)", () => {
-    expect(renderScale(1280, 720, 1)).toBe(1);
-    expect(renderScale(1280, 720, 2)).toBe(1.5);
-    // 4K at 200%: 1920x1080 css, dpr 2 -> capped by dpr and pixels
-    const s = renderScale(1920, 1080, 2);
-    expect(s).toBeLessThanOrEqual(1.5);
-    expect(1920 * s * 1080 * s).toBeLessThanOrEqual(2_500_000 + 1);
-    // true 4K css size at dpr 1
-    expect(renderScale(3840, 2160, 1) * 3840).toBeLessThan(2200);
-    expect(renderScale(0, 0, 2)).toBe(1);
-    expect(renderScale(8000, 8000, 3)).toBe(0.5);
+  it("caps the render scale per tier: never above the device ratio, within the pixel budget", () => {
+    const high = qualityProfile("antigravity", "high");
+    expect(tierScale(1280, 720, 1, high)).toBe(1);
+    expect(tierScale(1280, 720, 2, high)).toBe(1); // dpr 2 still renders 1 px per CSS px
+    // 4K at 175%: 2195x1187 css
+    const s = tierScale(2195, 1187, 1.75, qualityProfile("antigravity", "balanced"));
+    expect(2195 * s * 1187 * s).toBeLessThanOrEqual(1_500_000 + 1);
+    // soft blobs render at a fifth of the css resolution
+    expect(tierScale(2195, 1187, 1.75, qualityProfile("drift", "balanced"))).toBeCloseTo(0.2);
+    expect(tierScale(0, 0, 2, high)).toBe(1);
   });
 
   it("converts hsl and rgb and spreads the accent hue", () => {
@@ -79,11 +86,18 @@ describe("background model", () => {
 function fakeCtx() {
   const calls: Record<string, number> = {};
   const count = (name: string) => () => void (calls[name] = (calls[name] ?? 0) + 1);
+  const filters: string[] = [];
   return {
     calls,
+    filters,
+    set filter(v: string) {
+      filters.push(v);
+    },
+    save: count("save"),
+    restore: count("restore"),
+    drawImage: count("drawImage"),
     setTransform: vi.fn(),
     clearRect: count("clearRect"),
-    fillRect: vi.fn(),
     beginPath: count("beginPath"),
     moveTo: count("moveTo"),
     lineTo: count("lineTo"),
@@ -91,6 +105,9 @@ function fakeCtx() {
     rect: count("rect"),
     fill: count("fill"),
     getImageData: () => ({ data: new Uint8ClampedArray([1, 2, 3, 255]) }),
+    createRadialGradient: () => ({ addColorStop: vi.fn() }),
+    fillRect: count("fillRect"),
+    globalAlpha: 1,
     lineCap: "",
     lineWidth: 0,
     strokeStyle: "",
@@ -117,7 +134,7 @@ const setHidden = (hidden: boolean): void => {
 };
 
 beforeEach(() => {
-  cfg = { on: true, intensity: 60, speed: 50, density: 50, pointer: true, followAccent: true, hue: -1, lowPower: false };
+  cfg = { on: true, intensity: 60, speed: 50, density: 50, pointer: true, followAccent: true, hue: -1, lowPower: false, quality: "high", pauseWhileTyping: false, dim: 0, blur: 0 };
   raf = new Map();
   nextId = 1;
   reduced = false;
@@ -195,7 +212,7 @@ describe.each(kinds)("%s lifecycle", (kind) => {
     expect(bg.running).toBe(false);
     const types = winRemoved.mock.calls.map((c) => c[0]);
     expect(types).toEqual(expect.arrayContaining(["blur", "focus"]));
-    if (kind !== "drift") expect(types).toEqual(expect.arrayContaining(["resize", "pointermove"]));
+    expect(types).toEqual(expect.arrayContaining(["resize", "pointermove"]));
     // pointer input after stop is harmless
     expect(() => window.dispatchEvent(new Event("pointermove"))).not.toThrow();
   });
@@ -213,7 +230,7 @@ describe.each(kinds)("%s lifecycle", (kind) => {
   it("pauses while the document is hidden and resumes when visible", () => {
     const bg = make(kind);
     bg.update();
-    const animating = (): boolean => (kind === "drift" ? !root()!.hasAttribute("data-paused") : raf.size > 0);
+    const animating = (): boolean => raf.size > 0;
     expect(animating()).toBe(true);
     setHidden(true);
     document.dispatchEvent(new Event("visibilitychange"));
@@ -227,7 +244,7 @@ describe.each(kinds)("%s lifecycle", (kind) => {
   it("pauses only after the window was blurred for more than 5 s", () => {
     const bg = make(kind);
     bg.update();
-    const animating = (): boolean => (kind === "drift" ? !root()!.hasAttribute("data-paused") : raf.size > 0);
+    const animating = (): boolean => raf.size > 0;
     window.dispatchEvent(new Event("blur"));
     vi.advanceTimersByTime(BLUR_PAUSE_MS - 100);
     expect(animating()).toBe(true);
@@ -246,17 +263,40 @@ describe.each(kinds)("%s lifecycle", (kind) => {
     reduced = true;
     const bg = make(kind);
     bg.update();
-    if (kind === "drift") expect(root()!.hasAttribute("data-still")).toBe(true);
-    else expect(raf.size).toBe(0);
+    expect(raf.size).toBe(0);
     reduced = false;
     cfg.speed = 0;
     bg.update();
-    if (kind === "drift") expect(root()!.hasAttribute("data-still")).toBe(true);
-    else expect(raf.size).toBe(0);
+    expect(raf.size).toBe(0);
     cfg.speed = 50;
     bg.update();
-    if (kind === "drift") expect(root()!.hasAttribute("data-still")).toBe(false);
-    else expect(raf.size).toBe(1);
+    expect(raf.size).toBe(1);
+    // the Static quality is one still frame too
+    cfg.quality = "static";
+    bg.update();
+    expect(raf.size).toBe(0);
+    bg.stop();
+  });
+
+  it("pause while typing: a key press freezes the frame, it resumes after the quiet period", () => {
+    let clock = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => clock);
+    cfg.pauseWhileTyping = true;
+    const bg = make(kind);
+    bg.update();
+    expect(raf.size).toBe(1);
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "a" }));
+    expect(bg.frozen).toBe(true);
+    expect(raf.size).toBe(0);
+    clock += 2000;
+    vi.advanceTimersByTime(2000);
+    expect(bg.frozen).toBe(false);
+    expect(raf.size).toBe(1);
+    // off: input never freezes
+    cfg.pauseWhileTyping = false;
+    bg.update();
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "a" }));
+    expect(raf.size).toBe(1);
     bg.stop();
   });
 });
@@ -279,7 +319,12 @@ describe("canvas presets", () => {
     bg.update();
     const canvas = document.querySelector("canvas") as HTMLCanvasElement;
     const css = document.documentElement.clientWidth || window.innerWidth;
-    expect(canvas.width / css).toBeLessThanOrEqual(1.5 + 0.01);
+    expect(canvas.width / css).toBeLessThanOrEqual(1 + 0.01);
+    // a cheaper tier re-sizes the backing store at once
+    cfg.quality = "low";
+    bg.update();
+    expect(canvas.width / css).toBeLessThanOrEqual(0.5 + 0.01);
+    cfg.quality = "high";
     const before = bg.particleCount;
     cfg.density = 100;
     bg.update();
@@ -382,29 +427,146 @@ describe("canvas presets", () => {
     bg.stop();
   });
 
-  it("follow accent off uses the fixed palette (Gradient drift writes no accent variable)", () => {
+  it("follow accent off uses the fixed palette for the drift blobs", () => {
     cfg.followAccent = false;
     const bg = new GradientDrift("drift", host);
     bg.update();
-    const root = document.getElementById(bgIds("drift").root)!;
-    expect(root.style.getPropertyValue("--t3p-bgd-1")).toContain("rgba(245,166,35");
+    expect(bg.colorsNow[0]).toEqual(FIXED_PALETTE[0]);
     cfg.followAccent = true;
     bg.update();
-    expect(root.style.getPropertyValue("--t3p-bgd-1")).toContain("var(--primary");
-    cfg.hue = 200;
-    bg.update();
-    expect(root.style.getPropertyValue("--t3p-bgd-1")).toContain("oklch(0.74 0.15 200)");
+    expect(bg.colorsNow[0]).not.toEqual(FIXED_PALETTE[0]);
     bg.stop();
   });
 
-  it("gradient drift is compositor-only: transform animation, no JS timers or frames while running", () => {
+  it("gradient drift is a tiny canvas: a fifth of the CSS resolution, 4 gradient fills per frame, at most 30 fps", () => {
+    Object.defineProperty(window, "devicePixelRatio", { configurable: true, value: 2 });
     const bg = new GradientDrift("drift", host);
     bg.update();
-    expect(document.querySelectorAll(`#${bgIds("drift").root} i`)).toHaveLength(4);
-    const css = document.getElementById(bgIds("drift").style)!.textContent!;
-    expect(css).not.toContain("filter");
-    expect(css.match(/@keyframes[^{]+\{from\{transform:[^}]*\}to\{transform:[^}]*\}\}/g)).toHaveLength(4);
-    expect(raf.size).toBe(0);
+    const canvas = document.querySelector(`#${bgIds("drift").root}`) as HTMLCanvasElement;
+    expect(canvas.tagName).toBe("CANVAS");
+    const css = document.documentElement.clientWidth || window.innerWidth;
+    expect(canvas.width / css).toBeLessThanOrEqual(0.26);
+    const c = ctxs.find((x) => x.calls.fillRect)!;
+    const before = c.calls.fillRect!;
+    flush(1000);
+    expect(c.calls.fillRect! - before).toBe(4);
+    expect(bgParams("drift", cfg).maxFps).toBeLessThanOrEqual(30);
     bg.stop();
+    Object.defineProperty(window, "devicePixelRatio", { configurable: true, value: 1 });
+  });
+
+  it("gradient drift bakes the blur into bigger, flatter blobs (no filter), and sheds it like the others", () => {
+    cfg.blur = 20;
+    const bg = new GradientDrift("drift", host);
+    bg.update();
+    const blurred = bg.blobStyle;
+    const canvas = document.querySelector(`#${bgIds("drift").root}`) as HTMLCanvasElement;
+    expect(canvas.style.filter).toBe("");
+    cfg.blur = 0;
+    bg.update();
+    expect(bg.blobStyle.size).toBeLessThan(blurred.size);
+    expect(bg.blobStyle.opacity).toBeGreaterThan(blurred.opacity);
+    expect(blurred.opacity).toBeCloseTo(0.54 * 0.76, 2);
+    bg.stop();
+  });
+
+  it("auto quality: a slow window sheds the blur first, the next one lowers the tier", () => {
+    cfg.quality = "auto";
+    cfg.blur = 8;
+    const bg = new Antigravity("antigravity", host);
+    bg.update();
+    const canvas = document.querySelector(`#${bgIds("antigravity").root}`) as HTMLCanvasElement;
+    expect(bg.tier).toBe("balanced");
+    expect(canvas.style.filter).toBe(""); // never a CSS filter
+    const blits = (): number => ctxs.reduce((n, c) => n + (c.calls.drawImage ?? 0), 0);
+    const filterSeen = (): string[] => ctxs.flatMap((c) => c.filters);
+    flush(2000);
+    expect(blits()).toBeGreaterThan(0);
+    expect(filterSeen().every((f) => /^blur\(\d+(\.\d+)?px\)$/.test(f))).toBe(true);
+    let t = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => (t += 5)); // every draw costs ~5 ms: over the 4 ms limit
+    let ms = 1000;
+    const frames = (n: number): void => {
+      for (let i = 0; i < n; i++) flush((ms += 34));
+    };
+    vi.advanceTimersByTime(1000); // the first tick opens the window
+    frames(400);
+    vi.advanceTimersByTime(1000);
+    const after = blits();
+    frames(20);
+    expect(blits()).toBe(after); // shed: frames go straight to the visible canvas, no blur pass
+    expect(canvas.style.filter).toBe("");
+    expect(bg.tier).toBe("balanced");
+    frames(400);
+    vi.advanceTimersByTime(1000);
+    expect(bg.tier).toBe("low");
+    bg.stop();
+  });
+
+  it("several layers share one activity monitor and its listeners go away with the last one", () => {
+    cfg.pauseWhileTyping = true;
+    const added = vi.spyOn(window, "addEventListener");
+    const a = new Starfield("starfield", host);
+    const b = new Antigravity("antigravity", host);
+    a.update();
+    b.update();
+    expect(added.mock.calls.filter((c) => c[0] === "keydown")).toHaveLength(1);
+    activity.poke();
+    expect(a.frozen && b.frozen).toBe(true);
+    a.stop();
+    b.stop();
+    expect(activity.busy).toBe(false);
+  });
+});
+
+describe("dim and blur model", () => {
+  it("dimOpacity maps 0 to 80 percent and clamps", () => {
+    expect(dimOpacity(0)).toBe(0);
+    expect(dimOpacity(40)).toBe(0.4);
+    expect(dimOpacity(DIM_MAX)).toBe(0.8);
+    expect(dimOpacity(500)).toBe(0.8);
+    expect(dimOpacity(-5)).toBe(0);
+    expect(dimOpacity(Number.NaN)).toBe(0);
+  });
+  it("blurPx clamps to the cap, rounds, and is 0 once shed", () => {
+    expect(blurPx(0)).toBe(0);
+    expect(blurPx(7.6)).toBe(8);
+    expect(blurPx(999)).toBe(BLUR_MAX);
+    expect(blurPx(-3)).toBe(0);
+    expect(blurPx(10, true)).toBe(0);
+    expect(blurPx(Number.NaN)).toBe(0);
+  });
+  it("the render factor only shrinks under a blur and never below half", () => {
+    expect(blurRenderFactor(0)).toBe(1);
+    expect(blurRenderFactor(6)).toBeCloseTo(0.8, 5);
+    expect(blurRenderFactor(BLUR_MAX)).toBeGreaterThanOrEqual(0.5);
+    expect(blurRenderFactor(BLUR_MAX)).toBeLessThan(1);
+    expect(blurRenderFactor(500)).toBe(0.5);
+  });
+  it("blurBlit: no blur is the plain rect, a blur oversizes it so the edge bleed is off screen", () => {
+    expect(blurBlit(0, 1, 1920, 1080)).toEqual({ sigma: 0, x: 0, y: 0, w: 1920, h: 1080 });
+    const g = blurBlit(20, 0.5, 1000, 600);
+    expect(g.sigma).toBe(10);
+    expect(g.x).toBe(-30);
+    expect(g.y).toBe(-30);
+    expect(g.w).toBe(1060);
+    expect(g.h).toBe(660);
+    expect(blurBlit(20, 1, 1000, 600).w).toBeGreaterThan(g.w);
+  });
+  it("BlurShed sheds once after a slow window and not at all when fast or off", () => {
+    const fast = new BlurShed(10, 10);
+    for (let i = 0; i < 50; i++) expect(fast.push(2, true)).toBe(false);
+    expect(fast.shed).toBe(false);
+    const slow = new BlurShed(10, 10);
+    const hits: boolean[] = [];
+    for (let i = 0; i < 25; i++) hits.push(slow.push(14, true));
+    expect(hits.filter(Boolean)).toHaveLength(1);
+    expect(hits[9]).toBe(true);
+    expect(slow.shed).toBe(true);
+    slow.reset();
+    expect(slow.shed).toBe(false);
+    const off = new BlurShed(10, 10);
+    for (let i = 0; i < 30; i++) expect(off.push(50, false)).toBe(false);
+    expect(off.shed).toBe(false);
   });
 });

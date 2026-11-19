@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { activity } from "../src/bg-activity.js";
 import { oceanPalette, oceanParams, parseRgb, type OceanConfig } from "../src/model.js";
 import { OCEAN_ATTR, OCEAN_CLEAR_ATTR, OCEAN_CANVAS_ID, OCEAN_STYLE_ID, Ocean } from "../src/ocean.js";
 
@@ -194,6 +195,38 @@ describe("ocean lifecycle", () => {
     expect(ctx.fillText).not.toHaveBeenCalled();
   });
 
+  it("quality tiers: Static draws one frame, Low shrinks the backing store; pause while typing freezes it", () => {
+    Object.defineProperty(window, "devicePixelRatio", { configurable: true, value: 2 });
+    cfg.quality = "static";
+    ocean.update();
+    expect(raf.size).toBe(0);
+    const canvas = ocean.canvas!;
+    const css = document.documentElement.clientWidth || window.innerWidth;
+    expect(canvas.width / css).toBeLessThanOrEqual(1.01);
+    cfg.quality = "low";
+    ocean.update();
+    expect(raf.size).toBe(1);
+    expect(canvas.width / css).toBeLessThanOrEqual(0.76);
+    vi.useRealTimers(); // re-install with timeouts too (the activity monitor re-checks with one)
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "setTimeout", "clearTimeout"] });
+    let clock = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => clock);
+    cfg.pauseWhileTyping = true;
+    ocean.update();
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "x" }));
+    expect(ocean.frozen).toBe(true);
+    expect(raf.size).toBe(0);
+    // clicks still ripple: a pointer press is not "busy"
+    window.dispatchEvent(new Event("pointerdown"));
+    clock += 2000;
+    vi.advanceTimersByTime(2000);
+    expect(ocean.frozen).toBe(false);
+    expect(raf.size).toBe(1);
+    ocean.stop();
+    expect(activity.busy).toBe(false);
+    Object.defineProperty(window, "devicePixelRatio", { configurable: true, value: 1 });
+  });
+
   it("repaints with new ink after the app text color changes", () => {
     const ctx = fakeCtx();
     const styles: string[] = [];
@@ -212,7 +245,7 @@ describe("ocean lifecycle", () => {
     flush(100);
     styles.length = 0;
     fg = "rgb(20, 40, 60)";
-    vi.advanceTimersByTime(1100);
+    vi.advanceTimersByTime(2100); // the theme poll reads computed styles every other second
     flush(200);
     expect(styles.some((s) => s.startsWith("rgba(20,40,60,"))).toBe(true);
   });

@@ -14,12 +14,18 @@ export interface Rules {
   maxPings: number;
   /** Caches shorter than this are not worth pinging (a ping costs more than it saves). */
   minTtlMs: number;
+  /** Power users: keep settled threads warm too. Default false. */
+  keepWarmSettled?: boolean;
 }
 
 export type Decision =
   | { action: "ping" }
   | { action: "wait"; reason: string }
-  | { action: "stop"; reason: string };
+  | { action: "stop"; reason: string }
+  /** The thread is settled: no ping, but the watch stays stored and resumes on un-settle. */
+  | { action: "settled"; reason: string };
+
+export const SETTLED_REASON = "settled: not kept warm";
 
 /** A request this long after our last ping means the user (or a run) did something. */
 export const ACTIVITY_GRACE_MS = 90_000;
@@ -33,7 +39,8 @@ export function pingsAfterActivity(watch: Watch, state: CacheState | null): numb
 }
 
 /** What to do for one watched thread right now. Never wakes a cache that is already cold. */
-export function decide(watch: Watch, state: CacheState | null, running: boolean, now: number, rules: Rules): Decision {
+export function decide(watch: Watch, state: CacheState | null, running: boolean, now: number, rules: Rules, settled = false): Decision {
+  if (settled && !rules.keepWarmSettled) return { action: "settled", reason: SETTLED_REASON };
   if (watch.until !== null && now >= watch.until) return { action: "stop", reason: "reached the time you set" };
   if (watch.pings >= rules.maxPings) return { action: "stop", reason: `${rules.maxPings} pings in a row; sending your next message is cheaper now` };
   if (!state || state.expiresAt === null) return { action: "wait", reason: "no cache expiry known yet" };

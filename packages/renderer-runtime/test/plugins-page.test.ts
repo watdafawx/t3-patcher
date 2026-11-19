@@ -106,6 +106,26 @@ describe("helpers", () => {
     expect(groupSchemas(KEEP).map((g) => g.title)).toEqual(["General"]);
     expect(groupSchemas([])).toEqual([]);
   });
+  it("groupSchemas uses an explicit group first, in order of first appearance", () => {
+    const grouped: SettingSchema[] = [
+      { key: "preset", type: "string", default: "", label: "Preset", group: "Sidebar artwork" },
+      { key: "logoMode", type: "string", default: "", label: "Logo", group: "Logo" },
+      { key: "oceanOn", type: "boolean", default: false, label: "On", group: "Background" },
+      { key: "bgKind", type: "string", default: "", label: "Kind", group: "Background" },
+      { key: "allowRemoteAssets", type: "boolean", default: false, label: "Remote", group: "Custom HTML/CSS" },
+    ];
+    expect(groupSchemas(grouped).map((g) => [g.title, g.schemas.map((s) => s.key)])).toEqual([
+      ["Sidebar artwork", ["preset"]],
+      ["Logo", ["logoMode"]],
+      ["Background", ["oceanOn", "bgKind"]],
+      ["Custom HTML/CSS", ["allowRemoteAssets"]],
+    ]);
+    // explicit group on one key, heuristic for the rest (no key shares a prefix: General)
+    const mixed: SettingSchema[] = [{ key: "a", type: "boolean", default: false, label: "A", group: "Pinned" }, { key: "b", type: "boolean", default: false, label: "B" }];
+    expect(groupSchemas(mixed).map((g) => g.title)).toEqual(["Pinned", "General"]);
+    // a blank group counts as none
+    expect(groupSchemas([{ key: "a", type: "boolean", default: false, label: "A", group: "  " }]).map((g) => g.title)).toEqual(["General"]);
+  });
   it("highlight wraps matches in mark elements", () => {
     const nodes = highlight("Ocean speed of the ocean", "ocean");
     const wrap = document.createElement("div");
@@ -538,5 +558,40 @@ describe("permissions section", () => {
     await shell.commands.run("t3p.core:review-permissions");
     expect(selectedId()).toBe("notes");
     expect(q("[data-t3p-perm-section='notes']")).not.toBeNull();
+  });
+});
+
+describe("explicit groups and showWhen", () => {
+  const BG: SettingSchema[] = [
+    { key: "preset", type: "string", default: "aurora", label: "Preset", group: "Sidebar artwork" },
+    { key: "oceanOn", type: "boolean", default: false, label: "App background", group: "Background" },
+    { key: "bgKind", type: "enum", default: "ocean", label: "Kind", group: "Background", options: [{ value: "ocean" }, { value: "drift" }] },
+    { key: "oceanSpeed", type: "range", default: 50, min: 0, max: 100, label: "Speed", group: "Background", showWhen: { key: "bgKind", equals: "ocean" } },
+    { key: "bgSpeed", type: "range", default: 50, min: 0, max: 100, label: "Speed", group: "Background", showWhen: { key: "bgKind", in: ["drift"] } },
+  ];
+  const row = (key: string): HTMLElement => q(`[data-t3p-setting-row="${key}"]`);
+
+  it("renders one section per explicit group, in order, with no Ocean or Bg sections", () => {
+    mount(fakeManager(PLUGINS(), { artwork: BG }));
+    expect(all("[data-t3p-group]").map((g) => g.getAttribute("data-t3p-group"))).toEqual(["Sidebar artwork", "Background"]);
+  });
+
+  it("hides rows whose showWhen does not hold, and flips them when the controlling setting changes", () => {
+    mount(fakeManager(PLUGINS(), { artwork: BG }));
+    expect(row("oceanSpeed").hidden).toBe(false);
+    expect(row("bgSpeed").hidden).toBe(true);
+    const kind = q<HTMLSelectElement>('select[data-t3p-setting="bgKind"]');
+    kind.value = "drift";
+    kind.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(row("oceanSpeed").hidden).toBe(true);
+    expect(row("bgSpeed").hidden).toBe(false);
+  });
+
+  it("starts from the stored value, so the right rows show on first paint", () => {
+    const f = fakeManager(PLUGINS(), { artwork: BG });
+    f.values.set("artwork/bgKind", "drift");
+    mount(f);
+    expect(row("oceanSpeed").hidden).toBe(true);
+    expect(row("bgSpeed").hidden).toBe(false);
   });
 });
