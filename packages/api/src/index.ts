@@ -12,3 +12,4 @@ export * from "./health.js";
 export * from "./guard.js";
 export * from "./permission-info.js";
 export * from "./settled.js";
+export * from "./registry.js";

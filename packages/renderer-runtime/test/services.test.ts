@@ -262,6 +262,15 @@ describe("threads.current (route reading)", () => {
     expect(threadIdFromLocation({})).toBeNull();
   });
 
+  it("open() navigates to a thread in the current environment", async () => {
+    const win = fakeWindow("#/env-1/thread-1");
+    vi.stubGlobal("window", win);
+    const { apis } = await startPlugins({ ids: ["a"] });
+    apis.a!.threads.open("thread-7");
+    expect(win.location.hash).toBe("#/env-1/thread-7");
+    expect(() => apis.a!.threads.open("")).toThrow();
+  });
+
   it("follows history changes and emits thread:focus once per change", async () => {
     const win = fakeWindow("#/env-1/thread-1");
     vi.stubGlobal("window", win);
@@ -390,6 +399,18 @@ describe("t3.threads", () => {
 
     sub.emit({ kind: "thread.updated", location: "archive", sequence: 3, thread: shellRow("t-new", "2026-01-01T15:00:00.000Z") });
     expect((await t3.threads.list()).map((t) => t.threadId)).toEqual(["t-live"]);
+  });
+
+  it("adds projectName from the shell stream's projects", async () => {
+    const { t3, fake } = await startPlugins();
+    const pending = t3.threads.list();
+    const sub = await waitForSub(fake, "orchestration.subscribeShell");
+    sub.emit({ kind: "snapshot", snapshot: { threads: [shellRow("t1", "2026-01-01T10:00:00.000Z")], projects: [{ id: "prj-1", title: "demo-app" }], archivedThreads: [] } });
+    expect((await pending)[0]!.projectName).toBe("demo-app");
+    sub.emit({ kind: "project.updated", sequence: 1, project: { id: "prj-1", title: "renamed" } });
+    expect((await t3.threads.list())[0]!.projectName).toBe("renamed");
+    sub.emit({ kind: "project.removed", sequence: 2, projectId: "prj-1" });
+    expect((await t3.threads.list())[0]!.projectName).toBeUndefined();
   });
 
   it("subscribe follows the thread with afterSequence and cancels on stop", async () => {

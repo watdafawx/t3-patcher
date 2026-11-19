@@ -11,7 +11,8 @@
       "types": "./dist/index.d.mts",
       "import": "./dist/index.mjs"
     },
-    "./plugin.schema.json": "./schema/plugin.schema.json"
+    "./plugin.schema.json": "./schema/plugin.schema.json",
+    "./registry.schema.json": "./schema/registry.schema.json"
   },
   "scripts": {
     "build": "tsdown",

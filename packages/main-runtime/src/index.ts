@@ -30,8 +30,10 @@ import { parseWirePatches } from "./patches/wire.js";
 import { PatchRegistry } from "./patches/registry.js";
 import { PatchService } from "./patches/service.js";
 import { resolvePaths } from "./paths.js";
+import { DialogGate } from "./plugins/dialog-gate.js";
 import { type DialogLike, GrantFlow } from "./plugins/grants.js";
 import { PluginHost } from "./plugins/host.js";
+import { RegistryFlow } from "./plugins/registry-flow.js";
 import { readStateForWrite, writeStateFile } from "./plugins/state-io.js";
 import { watchPluginDirs } from "./plugins/dev-watch.js";
 import { StorageStore } from "./storage/store.js";
@@ -235,9 +237,12 @@ function boot(): void {
 
   // Grants from the Plugins page: native dialog parented to the main window, state.json only on confirm.
   const dialog = electron.dialog;
+  // One T3 Patcher dialog at a time across grants and registry installs (shared cooldown).
+  const dialogGate = new DialogGate();
   const grants = dialog
     ? new GrantFlow<BrowserWindowLike>({
         dialog,
+        gate: dialogGate,
         getWindow: () => tracker.get(),
         target: (id) => host.grantTarget(id),
         readState: () => readStateForWrite(paths.state),
@@ -248,6 +253,20 @@ function boot(): void {
       })
     : null;
   if (!grants) log.warn("electron.dialog missing: granting from the Plugins page is unavailable (use t3p grant)");
+  // Registry installs from the Plugins page (WP-14A): native dialog, then the shared t3-patcher/registry lib.
+  const registryFlow = dialog
+    ? new RegistryFlow<BrowserWindowLike>({
+        dialog,
+        gate: dialogGate,
+        getWindow: () => tracker.get(),
+        homeDir: paths.home,
+        env: process.env,
+        runtimeVersion: RUNTIME_VERSION,
+        refreshed: (id) => host.refreshInstalled(id),
+        emit: (payload) => void router.emit("t3p:event", payload),
+        log: log.child("registry"),
+      })
+    : null;
 
   guard(
     log,
@@ -277,6 +296,7 @@ function boot(): void {
         storage: new StorageStore(join(paths.base, "storage"), log.child("storage")),
         setEnabled: (id, enabled) => host.setEnabled(id, enabled),
         ...(grants ? { grants } : {}),
+        ...(registryFlow ? { registry: registryFlow } : {}),
         setLoadOrder: (order) => host.setLoadOrder(order),
         pluginHealth: (plugin, ok, error) => host.reportHealth(plugin, ok, error),
         internals,

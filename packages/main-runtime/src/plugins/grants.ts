@@ -11,6 +11,7 @@ import {
 } from "@t3p/api";
 
 import type { Logger } from "../log.js";
+import { DialogGate } from "./dialog-gate.js";
 
 /**
  * Grant and revoke from the Plugins settings page (WP-12B).
@@ -62,6 +63,8 @@ export interface GrantFlowDeps<W> {
   now?(): number;
   /** Minimum gap between two dialogs; requests inside it are ignored. Default 1500 ms. */
   cooldownMs?: number;
+  /** Shared with the registry flow so only one T3 Patcher dialog is ever open. Default: a private gate. */
+  gate?: DialogGate;
 }
 
 export type GrantStatus = "granted" | "revoked" | "cancelled" | "busy" | "nothing" | "unavailable";
@@ -104,13 +107,14 @@ export function grantDialogOptions(target: GrantTarget, names: string[]): Messag
 }
 
 export class GrantFlow<W> {
-  #open = false;
-  #lastDialogAt = Number.NEGATIVE_INFINITY;
+  readonly #gate: DialogGate;
 
-  constructor(private readonly deps: GrantFlowDeps<W>) {}
+  constructor(private readonly deps: GrantFlowDeps<W>) {
+    this.#gate = deps.gate ?? new DialogGate({ ...(deps.now ? { now: deps.now } : {}), ...(deps.cooldownMs !== undefined ? { cooldownMs: deps.cooldownMs } : {}) });
+  }
 
   get dialogOpen(): boolean {
-    return this.#open;
+    return this.#gate.open;
   }
 
   /**
@@ -122,11 +126,24 @@ export class GrantFlow<W> {
     const result = (status: GrantStatus, changed: string[] = [], restartRequired = false): GrantResult => ({ status, plugin: id, changed, restartRequired });
     const log = this.deps.log;
     if (!isValidPluginId(id)) throw new Error("t3p: invalid plugin id");
-    const now = this.deps.now?.() ?? Date.now();
-    if (this.#open || now - this.#lastDialogAt < (this.deps.cooldownMs ?? 1500)) {
+    if (!this.#gate.tryEnter()) {
       log.warn(`grant request for ${id} ignored: a dialog is open or was just shown`);
       return result("busy");
     }
+    let shown = false;
+    try {
+      const out = await this.#ask(id, requested, () => {
+        shown = true;
+      });
+      return out;
+    } finally {
+      this.#gate.leave(shown);
+    }
+  }
+
+  async #ask(id: string, requested: string[] | "*", onShow: () => void): Promise<GrantResult> {
+    const result = (status: GrantStatus, changed: string[] = [], restartRequired = false): GrantResult => ({ status, plugin: id, changed, restartRequired });
+    const log = this.deps.log;
     const target = this.deps.target(id);
     if (!target) throw new Error(`t3p: unknown or invalid plugin ${id}`);
     const missing = missingPermissionNames(target.declared, target.effective);
@@ -145,17 +162,14 @@ export class GrantFlow<W> {
       return this.#finish(result("unavailable"));
     }
 
-    this.#open = true;
     let response: number;
+    onShow();
     try {
       log.info(`grant dialog for ${id}: ${names.join(", ")}`);
       response = (await this.deps.dialog.showMessageBox(window, grantDialogOptions(target, names))).response;
     } catch (error) {
       log.warn(`grant dialog for ${id} failed: ${String(error)}`);
       response = CANCEL_BUTTON;
-    } finally {
-      this.#open = false;
-      this.#lastDialogAt = this.deps.now?.() ?? Date.now();
     }
     if (response !== GRANT_BUTTON) {
       log.info(`grant for ${id} cancelled by the user`);

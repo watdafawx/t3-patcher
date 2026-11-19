@@ -12,6 +12,8 @@
 
 T3 Patcher is a mod loader and patcher for the T3 Code desktop application. It injects a runtime and plugin system into the stock installed application without requiring a fork, allowing plugins, UI modifications, and custom integrations to persist across application restarts.
 
+- **Plugin browser**: find and install plugins from a curated, hash-pinned registry in Settings > Plugins > Browse, or with `t3p plugins install <id>`. See [Install plugins](#install-plugins).
+
 ## Screenshots
 
 Stock T3 Code 0.1.10 with the six first-party plugins loaded. Dark theme unless noted.
@@ -22,6 +24,7 @@ Stock T3 Code 0.1.10 with the six first-party plugins loaded. Dark theme unless 
 | <img src="docs/assets/screenshots/cache-popover.png" alt="Cache popover" width="100%"><br>**Cache popover.** Click the status bar chip to see each live thread's prompt-cache countdown. | <img src="docs/assets/screenshots/provider-limits.png" alt="Provider limits" width="100%"><br>**Provider limits.** Session and weekly usage per provider, opened from the status bar chip (Claude shown; Codex had no data on the capture machine). |
 | <img src="docs/assets/screenshots/plugins-settings.png" alt="Plugins settings page" width="100%"><br>**Plugins settings.** Settings > Plugins (last entry in the Settings sidebar, under Archive): a searchable plugin list on the left, the selected plugin on the right (enable switch, permissions, settings in collapsible sections, reset). Press `/` to search; palette: Plugins: open <name> settings. | <img src="docs/assets/screenshots/command-palette.png" alt="Command palette" width="100%"><br>**Command palette.** Plugins register their own commands. |
 | <img src="docs/assets/screenshots/notes.png" alt="Notes plugin" width="100%"><br>**Notes.** A per-project note above the sidebar footer: dropdown of projects (the thread's own marked), autosaving text area. Light with the dropdown open, dark closed. | <img src="docs/assets/screenshots/plugin-permissions.png" alt="Plugin permissions" width="100%"><br>**Permissions.** Each permission a plugin asks for, in plain English with its risk, and Grant / Revoke buttons. Every grant is confirmed in a native T3 Patcher dialog the plugin cannot click or skip. Palette: Plugins: review permissions. |
+| <img src="docs/assets/screenshots/plugins-browse.png" alt="Browse plugins" width="100%"><br>**Browse.** Settings > Plugins > Browse: search and tag filters, the registry list, and a plugin's permissions with their risk before you install. Install opens a native T3 Patcher dialog; the plugin arrives disabled with nothing granted. Light theme, local test registry. | |
 
 ## Overview
 
@@ -164,6 +167,22 @@ Controls safe mode for emergency troubleshooting.
 
 Plugins reside in `<T3P_HOME>/.t3-patcher/plugins/<id>/` and contain a `plugin.json` manifest and compiled JavaScript assets.
 
+### Install plugins
+
+Settings > Plugins > **Browse** lists the plugins in the registry ([registry/index.json](registry/index.json)): search, filter by tag, open one for its description, permissions and screenshots, then **Install**. A native T3 Patcher dialog names the plugin, author, source and every permission, and says plainly that the plugin runs code on your PC with your user rights. Cancel is the default.
+
+From a terminal:
+
+```sh
+t3p plugins search <text>        # or: t3p plugins list
+t3p plugins info <id>
+t3p plugins install <id>         # asks first; --yes to skip the prompt
+t3p plugins update <id>          # or: --all
+t3p plugins uninstall <id>
+```
+
+A new plugin is installed **disabled with no permissions granted**. Enable it and grant what it asks for (below, or on the Installed tab). Updates keep settings, grants and stored data. The download is checked against the SHA-256 in the index before anything is unpacked, and nothing from the zip runs during install. The registry is a reviewed list, not a sandbox: once enabled and granted, a plugin is trusted code. Details: [Plugin registry](docs/registry.md), [security model section 4.7](docs/security.md#47-installing-from-the-registry).
+
 ### Managing Plugins
 
 List installed plugins, their status, declared permissions, and granted permissions:
@@ -259,6 +278,7 @@ T3 Patcher adheres to strict stability and containment principles:
 - **Atomic patch validation**: Code replacements on client chunks are verified with an Acorn parser before serving. Any patch resulting in a JavaScript syntax error is rolled back to the original unmodified chunk and reported.
 - **Security boundaries**:
   - Main-world execution: Renderer plugins execute in the main world of `t3code://app` and have access to the UI DOM and the bearer token.
+  - Registry installs: hash-pinned downloads, strict zip checks, installed disabled with no grants, confirmed in a native dialog; page scripts cannot start an install (docs/security.md section 4.7).
   - Native permissions: Main-process capabilities (`fs.read`, `sqlite.read`, `log.tail`, `spawn`, `main`, `patches`) require explicit declaration in `plugin.json` and an explicit user grant: `t3p grant`, or the Grant button in Settings > Plugins, which always asks in a native dialog the plugin cannot reach (docs/security.md section 4.6).
   - SQLite queries are executed in a dedicated forked utility process in read-only mode with query-only pragma and statement checks.
   - Process spawning requires exact allowlisted executable paths, disallows shell execution, hides windows, and scrubs environment variables.
@@ -279,6 +299,7 @@ For information on upstream version tracking and bump procedures, see [Upstream 
 ## Documentation Index
 
 - [Plugin guide](docs/plugin-guide.md): User-facing plugin configuration, CLI commands, and permission management.
+- [Plugin registry](docs/registry.md): Browse and install plugins, registry entry format, submitting a plugin, review checklist.
 - [Plugin authoring](docs/plugin-authoring.md): Developer guide, plugin scaffolding, build preset, and manifest schema.
 - [API reference](docs/api.md): Complete reference for the `t3` object generated from `@t3p/api`.
 - [Patching mechanics](docs/patching.md): Stability tiers (1/2/3), text find-and-replace engine, and runtime captures.

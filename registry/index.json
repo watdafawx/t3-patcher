@@ -1,0 +1,227 @@
+{
+  "schemaVersion": 1,
+  "plugins": [
+    {
+      "id": "artwork",
+      "name": "Artwork",
+      "description": "Animated aurora, gradient, mesh or your own image behind the sidebar header, plus a custom logo or title. Pure CSS, theme aware.",
+      "author": "T3 Patcher",
+      "homepage": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/artwork",
+      "source": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/artwork",
+      "license": "MIT",
+      "version": "0.1.0",
+      "apiVersion": "1",
+      "permissions": [],
+      "tags": [
+        "appearance",
+        "ui"
+      ],
+      "download": {
+        "url": "https://github.com/watdafawx/t3-patcher/releases/download/v0.1.2/t3p-plugin-artwork-0.1.0.zip",
+        "sha256": "2b1350a43df598fc543d0d45b0f012bb16393bcdca45781788ff1db2376947cc",
+        "size": 54260
+      }
+    },
+    {
+      "id": "cache-watch",
+      "name": "Cache watch",
+      "description": "Prompt-cache countdown per thread, a list sorted by time to expiry, and an optional warning before it expires.",
+      "author": "T3 Patcher",
+      "homepage": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/cache-watch",
+      "source": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/cache-watch",
+      "license": "MIT",
+      "version": "0.1.0",
+      "apiVersion": "1",
+      "permissions": [
+        "rpc"
+      ],
+      "tags": [
+        "usage",
+        "status-bar"
+      ],
+      "download": {
+        "url": "https://github.com/watdafawx/t3-patcher/releases/download/v0.1.2/t3p-plugin-cache-watch-0.1.0.zip",
+        "sha256": "4c7985e693a418a83fc871ad3a58acde4332734c29306bd628e8c028feb5ebf2",
+        "size": 6688
+      }
+    },
+    {
+      "id": "devtools",
+      "name": "Devtools",
+      "description": "Developer tools: a read-only patch tester against the live chunks, an RPC console, slot outlines and a plugin log viewer.",
+      "author": "T3 Patcher",
+      "homepage": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/devtools",
+      "source": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/devtools",
+      "license": "MIT",
+      "version": "0.1.0",
+      "apiVersion": "1",
+      "permissions": [
+        "rpc",
+        {
+          "log.tail": {
+            "roots": [
+              "~/.t3-patcher/logs"
+            ]
+          }
+        }
+      ],
+      "tags": [
+        "developer",
+        "logs"
+      ],
+      "download": {
+        "url": "https://github.com/watdafawx/t3-patcher/releases/download/v0.1.2/t3p-plugin-devtools-0.1.0.zip",
+        "sha256": "b5fc4ccb03f8cdf93bf91417c55ced3d6dd6351af9894733b285e1e4a20a76ec",
+        "size": 62997
+      }
+    },
+    {
+      "id": "keep-warm",
+      "name": "Keep warm",
+      "description": "Keeps a thread's prompt cache warm while you are away: a tiny message just before the cache would expire. Port of the Claude Code Cache Keep-Warm idea.",
+      "author": "T3 Patcher",
+      "homepage": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/keep-warm",
+      "source": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/keep-warm",
+      "license": "MIT",
+      "version": "0.1.0",
+      "apiVersion": "1",
+      "permissions": [
+        "rpc"
+      ],
+      "tags": [
+        "usage",
+        "cache"
+      ],
+      "download": {
+        "url": "https://github.com/watdafawx/t3-patcher/releases/download/v0.1.2/t3p-plugin-keep-warm-0.1.0.zip",
+        "sha256": "0b42b55b7b42ec33c6b1a8719075e873999e07647e7cd8386b37786d2cf63c91",
+        "size": 3707
+      }
+    },
+    {
+      "id": "media",
+      "name": "Media",
+      "description": "Now playing (Windows media session) and a YouTube player in the thread details popover, with an optional status bar chip.",
+      "author": "T3 Patcher",
+      "homepage": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/media",
+      "source": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/media",
+      "license": "MIT",
+      "version": "0.1.0",
+      "apiVersion": "1",
+      "permissions": [
+        "main",
+        "embed.youtube",
+        {
+          "spawn": {
+            "allow": [
+              "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
+              "~/.t3-patcher/plugins/media/smtc.ps1"
+            ]
+          }
+        }
+      ],
+      "tags": [
+        "media",
+        "youtube"
+      ],
+      "download": {
+        "url": "https://github.com/watdafawx/t3-patcher/releases/download/v0.1.2/t3p-plugin-media-0.1.0.zip",
+        "sha256": "4ef78f5b9a668df42df6676ac2d3900f1850593bfe78d93962c52d38794f39d3",
+        "size": 17063
+      }
+    },
+    {
+      "id": "notes",
+      "name": "Notes",
+      "description": "Quick plain-text notes tied to the project of the thread you are in, plus a General note. Autosaves, lives in the sidebar.",
+      "author": "T3 Patcher",
+      "homepage": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/notes",
+      "source": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/notes",
+      "license": "MIT",
+      "version": "0.1.0",
+      "apiVersion": "1",
+      "permissions": [
+        "rpc"
+      ],
+      "tags": [
+        "productivity",
+        "ui"
+      ],
+      "download": {
+        "url": "https://github.com/watdafawx/t3-patcher/releases/download/v0.1.2/t3p-plugin-notes-0.1.0.zip",
+        "sha256": "6b28f88abe69e51a8e64cba588200beae027bc426edbc486a9b66da91570f70b",
+        "size": 8410
+      }
+    },
+    {
+      "id": "provider-limits",
+      "name": "Provider limits",
+      "description": "Usage-limit chip, live panel and threshold warnings for every provider instance.",
+      "author": "T3 Patcher",
+      "homepage": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/provider-limits",
+      "source": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/provider-limits",
+      "license": "MIT",
+      "version": "1.0.0",
+      "apiVersion": "1",
+      "permissions": [
+        "rpc",
+        "guard"
+      ],
+      "tags": [
+        "usage",
+        "providers"
+      ],
+      "download": {
+        "url": "https://github.com/watdafawx/t3-patcher/releases/download/v0.1.2/t3p-plugin-provider-limits-1.0.0.zip",
+        "sha256": "e98d13efe3a2ba95208d94c6d2343ec20edbc58a9574f80044ffed0bdd3d7b69",
+        "size": 18514
+      }
+    },
+    {
+      "id": "provider-switcher",
+      "name": "Provider switcher",
+      "description": "Shows the focused thread's model in the thread header and switches it to another model or provider. A switch that hits an active run can be queued for when the run ends; an optional rule suggests the least-used provider when the current one passes a usage threshold.",
+      "author": "T3 Patcher",
+      "homepage": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/provider-switcher",
+      "source": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/provider-switcher",
+      "license": "MIT",
+      "version": "0.1.0",
+      "apiVersion": "1",
+      "permissions": [
+        "rpc"
+      ],
+      "tags": [
+        "providers",
+        "ui"
+      ],
+      "download": {
+        "url": "https://github.com/watdafawx/t3-patcher/releases/download/v0.1.2/t3p-plugin-provider-switcher-0.1.0.zip",
+        "sha256": "4db94548feb67916a726aebcc4102c44af3aaa22ca81eb00ce00d18afaf2015c",
+        "size": 15910
+      }
+    },
+    {
+      "id": "session-inspector",
+      "name": "Session inspector",
+      "description": "Timeline of a thread with durations and cause chains, plus an all-sessions view.",
+      "author": "T3 Patcher",
+      "homepage": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/session-inspector",
+      "source": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/session-inspector",
+      "license": "MIT",
+      "version": "0.1.0",
+      "apiVersion": "1",
+      "permissions": [
+        "rpc"
+      ],
+      "tags": [
+        "developer",
+        "sessions"
+      ],
+      "download": {
+        "url": "https://github.com/watdafawx/t3-patcher/releases/download/v0.1.2/t3p-plugin-session-inspector-0.1.0.zip",
+        "sha256": "ed159d02c55bc4f7dcb7cb7f7a7e75ba7750b84d809c26be303b76da447e6fba",
+        "size": 16172
+      }
+    }
+  ]
+}

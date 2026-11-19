@@ -41,6 +41,10 @@ For automated scripting, pass `--json`:
 t3p plugins --json
 ```
 
+### Installing from the registry
+
+Settings > Plugins > Browse, or `t3p plugins search|info|install|update|uninstall`. Installs are disabled with no grants until you enable and grant them. See [registry.md](registry.md).
+
 ### Enabling and disabling plugins
 
 To enable a plugin:

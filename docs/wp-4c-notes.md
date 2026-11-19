@@ -55,4 +55,4 @@ Rig, slot 2, patched 0.1.10, plugin copied to `p-s2/.t3-patcher/plugins/cache-wa
 
 ## Rig test threads
 
-Always use `claude-haiku-4-5` (the Haiku the rig provider offers; no effort option) for threads created on rig for testing (Michael's rule, 2026-11-19): they do no real work.
+Always use `claude-haiku-4-5` (the Haiku the rig provider offers; no effort option) for threads created on rig for testing (the maintainer's rule, 2026-11-19): they do no real work.

@@ -1,4 +1,4 @@
-import type { JsonValue, PermissionJson, PermissionSet, PluginCleanup, PluginModule, SettingSchema, SettingValue, T3Api, T3Dev } from "@t3p/api";
+import type { JsonValue, PermissionJson, PermissionSet, PluginCleanup, PluginModule, RegistryEntry, SettingSchema, SettingValue, T3Api, T3Dev } from "@t3p/api";
 
 import { Scope } from "./scope.js";
 import type { SharedRpc } from "./rpc.js";
@@ -125,6 +125,7 @@ export class PluginManager {
   readonly #data = new Map<string, PluginData>();
   readonly #settings = new Map<string, SettingsAccess>();
   readonly #changeListeners = new Set<() => void>();
+  readonly #registryListeners = new Set<(result: RegistryResultEvent) => void>();
   #dev = false;
   #order: string[] = [];
 
@@ -411,6 +412,44 @@ export class PluginManager {
     else await this.refresh();
   }
 
+  /**
+   * The registry index and what is installed (`t3p:registry:index`, read-only). Install, update and
+   * uninstall are never sent from here: the Browse tab's buttons go through the preload (trusted
+   * clicks only) and a native dialog in the main process.
+   */
+  async registry(refresh = false): Promise<RegistryView> {
+    const native = this.deps.native;
+    if (!native) throw new Error("plugin manager: window.__t3p_native is not available");
+    return (await native.invoke("t3p:registry:index", { refresh })) as RegistryView;
+  }
+
+  /** The main process finished a registry request (`t3p:event plugin-registry-result`): sync the list, then tell listeners. */
+  async registryResult(result: RegistryResultEvent): Promise<void> {
+    const id = result.plugin;
+    const running = (): boolean => {
+      const st = this.#runtime.get(id)?.status;
+      return st === "started" || st === "failed" || st === "pending";
+    };
+    try {
+      if (result.status === "uninstalled" && this.#runtime.has(id)) await this.reload(id); // stops it and forgets the removed folder
+      else if (result.status === "updated" && !result.restartRequired && running()) await this.reload(id);
+      else await this.refresh();
+    } finally {
+      for (const fn of [...this.#registryListeners]) {
+        try {
+          fn(result);
+        } catch (error) {
+          this.deps.consoleError("[t3p] registry listener failed", error);
+        }
+      }
+    }
+  }
+
+  onRegistryResult(callback: (result: RegistryResultEvent) => void): () => void {
+    this.#registryListeners.add(callback);
+    return () => void this.#registryListeners.delete(callback);
+  }
+
   /** Tells change listeners to redraw (a grant dialog closed without a change). */
   notify(): void {
     this.#changed();
@@ -473,6 +512,8 @@ export class PluginManager {
     setSetting(id: string, key: string, value: SettingValue): Promise<void>;
     resetSetting(id: string, key: string): Promise<void>;
     onChange(callback: () => void): () => void;
+    registry(refresh?: boolean): Promise<RegistryView>;
+    onRegistryResult(callback: (result: RegistryResultEvent) => void): () => void;
   }> {
     return Object.freeze({
       list: () => this.list(),
@@ -486,8 +527,33 @@ export class PluginManager {
       setSetting: (id: string, key: string, value: SettingValue) => this.settingsFor(id).set(key, value),
       resetSetting: (id: string, key: string) => this.settingsFor(id).reset(key),
       onChange: (callback: () => void) => this.onChange(callback),
+      registry: (refresh?: boolean) => this.registry(refresh === true),
+      onRegistryResult: (callback: (result: RegistryResultEvent) => void) => this.onRegistryResult(callback),
     });
   }
+}
+
+/** What `t3p:registry:index` returns (see main-runtime plugins/registry-flow.ts). */
+export interface RegistryView {
+  url: string | null;
+  source: "network" | "not-modified" | "cache" | null;
+  fetchedAt: string | null;
+  error: string | null;
+  offline: boolean;
+  plugins: RegistryEntry[];
+  installed: Record<string, { version: string | null; devLink: boolean }>;
+}
+
+/** `t3p:event` of type plugin-registry-result. */
+export interface RegistryResultEvent {
+  type?: "plugin-registry-result";
+  status: "installed" | "updated" | "uninstalled" | "cancelled" | "busy" | "nothing" | "unavailable" | "error";
+  action: "install" | "update" | "uninstall";
+  plugin: string;
+  version?: string;
+  review?: boolean;
+  restartRequired?: boolean;
+  error?: string;
 }
 
 export type { JsonValue };

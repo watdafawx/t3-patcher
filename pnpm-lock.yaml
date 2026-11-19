@@ -330,6 +330,9 @@ importers:
       '@t3p/plugin-build':
         specifier: workspace:*
         version: link:../../packages/plugin-build
+      jsdom:
+        specifier: '26'
+        version: 26.1.0
       typescript:
         specifier: ^5.9.3
         version: 5.9.3

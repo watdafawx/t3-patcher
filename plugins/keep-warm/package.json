@@ -13,6 +13,7 @@
   "devDependencies": {
     "@t3p/api": "workspace:*",
     "@t3p/plugin-build": "workspace:*",
+    "jsdom": "26",
     "typescript": "^5.9.3",
     "vitest": "^3.2.7"
   }

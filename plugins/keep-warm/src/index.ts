@@ -1,6 +1,7 @@
-import type { OrchestrationCommand, PluginModule, SettingSchema, T3Api } from "@t3p/api";
+import type { CacheState, OrchestrationCommand, PluginModule, SettingSchema, T3Api, ThreadSummary } from "@t3p/api";
 
-import { decide, nextPingAt, SETTLED_REASON, pingsAfterActivity, type Rules, type Watch } from "./model.js";
+import { buildRow, decide, nextPingAt, SETTLED_REASON, pingsAfterActivity, type ListRow, type Rules, type ThreadInfo, type Watch } from "./model.js";
+import { mountDecorator, mountStatus, type Controller } from "./ui.js";
 
 const TICK_MS = 15_000;
 /** How often settled state is re-read so the chip reacts to settle/un-settle without a reload. */
@@ -27,6 +28,9 @@ const plugin: PluginModule = {
     const notes = new Map<string, string>();
     /** Thread ids currently in T3's Settled section (from the live shell list). */
     const settledIds = new Set<string>();
+    /** Latest thread facts (title, project, model) and cache states, for the list and the sidebar icon. */
+    const infos = new Map<string, ThreadInfo>();
+    const states = new Map<string, CacheState | null>();
     const isSettled = (threadId: string): boolean => settledIds.has(threadId) && t3.settings.get<boolean>("keepWarmSettled") !== true;
     let stopped = false;
     let ticking = false;
@@ -44,6 +48,24 @@ const plugin: PluginModule = {
     };
     const redraw = (): void => {
       for (const fn of redraws) fn();
+    };
+
+    /** Remembers thread facts and drops watches whose thread is gone (archived or deleted). */
+    const absorb = (list: ThreadSummary[]): boolean => {
+      infos.clear();
+      for (const t of list) infos.set(t.threadId, { title: t.title, projectName: t.projectName ?? null, providerInstanceId: t.providerInstanceId, model: t.model });
+      let removed = false;
+      if (list.length > 0) {
+        for (const id of [...watches.keys()]) {
+          if (infos.has(id)) continue;
+          watches.delete(id);
+          notes.delete(id);
+          states.delete(id);
+          removed = true;
+        }
+      }
+      if (removed) save();
+      return removed;
     };
 
     const ping = async (threadId: string, watch: Watch): Promise<void> => {
@@ -73,9 +95,11 @@ const plugin: PluginModule = {
     /** Re-reads settled state (cheap: the list is the live shell stream) and redraws on change. */
     const refreshSettled = async (): Promise<void> => {
       try {
-        const next = new Set((await t3.threads.list()).filter((t) => t.settled).map((t) => t.threadId));
+        const list = await t3.threads.list();
         if (stopped) return;
-        const changed = next.size !== settledIds.size || [...next].some((id) => !settledIds.has(id));
+        const gone = absorb(list);
+        const next = new Set(list.filter((t) => t.settled).map((t) => t.threadId));
+        const changed = gone || next.size !== settledIds.size || [...next].some((id) => !settledIds.has(id));
         settledIds.clear();
         for (const id of next) settledIds.add(id);
         if (changed) {
@@ -92,11 +116,14 @@ const plugin: PluginModule = {
       ticking = true;
       try {
         const list = await t3.threads.list();
+        absorb(list);
         const running = new Set(list.filter((t) => t.running).map((t) => t.threadId));
         settledIds.clear();
         for (const t of list) if (t.settled) settledIds.add(t.threadId);
         for (const [threadId, watch] of [...watches]) {
+          if (!watches.has(threadId)) continue;
           const state = await t3.cache.state(threadId).catch(() => null);
+          states.set(threadId, state);
           watch.pings = pingsAfterActivity(watch, state);
           const decision = decide(watch, state, running.has(threadId), Date.now(), rules(), settledIds.has(threadId));
           if (decision.action === "stop") {
@@ -120,6 +147,43 @@ const plugin: PluginModule = {
         ticking = false;
         redraw();
       }
+    };
+
+    const setPaused = (threadId: string, paused: boolean): void => {
+      const watch = watches.get(threadId);
+      if (!watch) return;
+      watch.paused = paused;
+      if (!paused) notes.delete(threadId);
+      save();
+      redraw();
+      if (!paused) void tick();
+    };
+    const stopWatching = (threadId: string): void => {
+      if (!watches.delete(threadId)) return;
+      notes.delete(threadId);
+      states.delete(threadId);
+      save();
+      redraw();
+    };
+    const controller: Controller = {
+      redraws,
+      rows(now: number): ListRow[] {
+        const r = rules();
+        return [...watches].map(([threadId, watch]) =>
+          buildRow({ threadId, watch, info: infos.get(threadId) ?? null, state: states.get(threadId) ?? null, settled: isSettled(threadId), note: watch.paused ? "paused by you" : notes.get(threadId) ?? "" }, now, r),
+        );
+      },
+      pause: (id) => setPaused(id, true),
+      resume: (id) => setPaused(id, false),
+      stop: stopWatching,
+      stopAll(): void {
+        if (watches.size === 0) return;
+        watches.clear();
+        notes.clear();
+        states.clear();
+        save();
+        redraw();
+      },
     };
 
     const toggle = (threadId: string): void => {
@@ -172,6 +236,18 @@ const plugin: PluginModule = {
       },
     });
     disposers.push(() => reg.dispose());
+    const statusReg = t3.ui.register({
+      slot: "statusBar",
+      id: "list",
+      order: 30,
+      render: (host) => mountStatus(t3, host, controller),
+    });
+    const decoReg = t3.ui.register({
+      slot: "threadListDecorator",
+      id: "flame",
+      render: (host, ctx) => mountDecorator(host, ctx, controller),
+    });
+    disposers.push(() => statusReg.dispose(), () => decoReg.dispose());
 
     disposers.push(t3.events.on("thread:focus", () => void refreshSettled().then(redraw)));
     disposers.push(t3.settings.onChange(() => void refreshSettled().then(redraw)));
@@ -183,6 +259,7 @@ const plugin: PluginModule = {
       const stored = raw as unknown as Stored | undefined;
       if (stopped || !stored) return;
       for (const [id, w] of Object.entries(stored)) watches.set(id, w);
+      redraw();
       void refreshSettled().then(() => {
         redraw();
         void tick();

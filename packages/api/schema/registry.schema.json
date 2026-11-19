@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://t3-patcher.local/schema/registry.schema.json",
+  "title": "T3 Patcher plugin registry index",
+  "description": "registry/index.json: the curated list of installable plugins. Keep in sync with validateRegistry() in packages/api/src/registry.ts; packages/api/test/registry.test.ts fails when the two disagree. Rules the schema cannot express (unique ids, no duplicate permissions) are only in the validator.",
+  "type": "object",
+  "required": ["schemaVersion", "plugins"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "generated": { "description": "Free-form note written by tools/registry/build-registry.mjs.", "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "plugins": {
+      "type": "array",
+      "maxItems": 500,
+      "items": { "$ref": "#/definitions/entry" }
+    }
+  },
+  "definitions": {
+    "httpsUrl": {
+      "type": "string",
+      "minLength": 9,
+      "maxLength": 2048,
+      "pattern": "^https://[^/@:\\s]+(?::\\d+)?(?:[/?#]\\S*)?$"
+    },
+    "semver": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-([0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "text": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "scopePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "not": { "pattern": "\\u0000" },
+      "pattern": "^(?:~|~[\\\\/].*|[A-Za-z]:[\\\\/].*|[\\\\/](?![\\\\/]).*)$"
+    },
+    "scopeList": { "type": "array", "minItems": 1, "maxItems": 32, "items": { "$ref": "#/definitions/scopePath" } },
+    "permission": {
+      "anyOf": [
+        { "enum": ["main", "patches", "rpc", "guard", "embed.youtube"] },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "fs.read": { "type": "object", "required": ["roots"], "properties": { "roots": { "$ref": "#/definitions/scopeList" } } },
+            "sqlite.read": { "type": "object", "required": ["roots"], "properties": { "roots": { "$ref": "#/definitions/scopeList" } } },
+            "log.tail": { "type": "object", "required": ["roots"], "properties": { "roots": { "$ref": "#/definitions/scopeList" } } },
+            "spawn": { "type": "object", "required": ["allow"], "properties": { "allow": { "$ref": "#/definitions/scopeList" } } }
+          }
+        }
+      ]
+    },
+    "entry": {
+      "type": "object",
+      "required": ["id", "name", "description", "author", "homepage", "version", "apiVersion", "permissions", "tags", "download"],
+      "properties": {
+        "id": {
+          "description": "Plugin id; must equal the id in the zip's plugin.json.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-z0-9][a-z0-9-]*(\\.[a-z0-9-]+)*$",
+          "not": { "pattern": "^(con|prn|aux|nul|com[0-9¹²³]|lpt[0-9¹²³])(\\..*)?$" }
+        },
+        "name": { "allOf": [{ "$ref": "#/definitions/text" }, { "maxLength": 80 }] },
+        "description": { "allOf": [{ "$ref": "#/definitions/text" }, { "maxLength": 512 }] },
+        "author": { "allOf": [{ "$ref": "#/definitions/text" }, { "maxLength": 100 }] },
+        "homepage": { "$ref": "#/definitions/httpsUrl" },
+        "version": { "description": "Must equal the version in the zip's plugin.json.", "$ref": "#/definitions/semver" },
+        "apiVersion": { "description": "Plugin API range, as t3pApi in plugin.json.", "type": "string", "pattern": "^\\d+(\\.(\\d+|x))?$" },
+        "permissions": {
+          "description": "Exactly what plugin.json declares (the installer rejects a mismatch).",
+          "type": "array",
+          "maxItems": 16,
+          "items": { "$ref": "#/definitions/permission" }
+        },
+        "tags": {
+          "type": "array",
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,23}$" }
+        },
+        "icon": { "$ref": "#/definitions/httpsUrl" },
+        "screenshots": { "type": "array", "maxItems": 6, "items": { "$ref": "#/definitions/httpsUrl" } },
+        "minRuntime": { "$ref": "#/definitions/semver" },
+        "license": { "type": "string", "pattern": "^[A-Za-z0-9.+() -]{1,64}$" },
+        "source": { "$ref": "#/definitions/httpsUrl" },
+        "download": {
+          "type": "object",
+          "required": ["url", "sha256", "size"],
+          "properties": {
+            "url": { "allOf": [{ "$ref": "#/definitions/httpsUrl" }, { "pattern": "^[^?#]*\\.[zZ][iI][pP](?:[?#].*)?$" }] },
+            "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+            "size": { "type": "integer", "minimum": 22, "maximum": 26214400 }
+          }
+        }
+      }
+    }
+  }
+}

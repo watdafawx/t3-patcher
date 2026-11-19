@@ -25,7 +25,7 @@ function fakeNodeDir(name: string): string {
   return dir;
 }
 
-const good = () => buildTaskXml({ taskName: "t3-patcher-repair", user: "FOX\\Micha", command: "C:\\Users\\Micha\\.t3-patcher\\repair-logon.cmd" });
+const good = () => buildTaskXml({ taskName: "t3-patcher-repair", user: "FOX\\user", command: "C:\\Users\\user\\.t3-patcher\\repair-logon.cmd" });
 
 describe("logon task definition (XML)", () => {
   it("generated XML passes validation and has the intended shape", () => {
@@ -33,7 +33,7 @@ describe("logon task definition (XML)", () => {
     expect(validateTaskXml(xml)).toEqual([]);
     expect(xml).toContain("<LogonTrigger>");
     expect(xml).not.toMatch(/<(Time|Boot|Idle|Session|Calendar|Event|Registration)\w*Trigger/);
-    expect(xml.match(/<UserId>FOX\\Micha<\/UserId>/g)).toHaveLength(2); // trigger + principal
+    expect(xml.match(/<UserId>FOX\\user<\/UserId>/g)).toHaveLength(2); // trigger + principal
     expect(xml).toContain("<LogonType>InteractiveToken</LogonType>");
     expect(xml).toContain("<RunLevel>LeastPrivilege</RunLevel>");
     expect(xml).toContain("<Hidden>true</Hidden>");
@@ -70,7 +70,7 @@ describe("logon task definition (XML)", () => {
       homeDir: tree.homeDir,
       selfPath: bundle(),
       platform: "win32",
-      user: "FOX\\Micha",
+      user: "FOX\\user",
       env: { PATH: fakeNodeDir("nx") },
       schtasks: (a) => (calls.push(a), { status: 0, stderr: "" }),
     });
@@ -92,13 +92,13 @@ describe("logon task definition (XML)", () => {
       homeDir: tree.homeDir,
       selfPath: bundle(),
       platform: "win32",
-      user: "FOX\\Micha",
+      user: "FOX\\user",
       env: { PATH: fakeNodeDir("nd") },
       schtasks: () => ({ status: 0, stderr: "" }),
     });
     const ok = await find();
     expect(ok?.ok).toBe(true);
-    expect(ok?.detail).toMatch(/^valid: LogonTrigger for FOX\\Micha, InteractiveToken, LeastPrivilege, Hidden=true/);
+    expect(ok?.detail).toMatch(/^valid: LogonTrigger for FOX\\user, InteractiveToken, LeastPrivilege, Hidden=true/);
     expect(ok?.detail).toContain("<LogonTrigger>");
 
     const tampered = readFileSync(taskXmlPath(tree.homeDir)).subarray(2).toString("utf16le").replace("LeastPrivilege", "HighestAvailable");

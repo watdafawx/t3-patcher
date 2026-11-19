@@ -8,6 +8,7 @@ Two artifacts ship from one version number (`packages/installer/package.json`):
 |---|---|---|
 | A (primary) | `t3p.exe` + `t3p.exe.sha256` on the GitHub release | `.github/workflows/release.yml` on a `v*` tag |
 | B | `t3-patcher` on npm | by hand with your npm login (never from CI) |
+| Registry | `t3p-plugin-<id>-<version>.zip` per first-party plugin + `index.json` on the same GitHub release | `release.yml`, see [Plugin registry](#plugin-registry) |
 
 ## Cut a release
 
@@ -19,8 +20,9 @@ Two artifacts ship from one version number (`packages/installer/package.json`):
    git push origin main v0.1.0
    ```
 4. The **Release** workflow (windows-latest, Node 22) installs, builds, tests, lints, runs `pnpm build:exe`, checks the checksum and a `t3p.exe selftest`, then creates the GitHub release with generated notes and uploads `t3p.exe` and `t3p.exe.sha256`. The notes start with the install steps and the SmartScreen note ("unsigned: More info > Run anyway").
-5. Open the release page, check the notes, and download the exe once to smoke test it (`t3p.exe --version`, `t3p.exe status`) on a machine you do not mind.
-6. Publish to npm (needs your npm login; CI never publishes):
+5. Commit the new plugin registry index (see [Plugin registry](#plugin-registry)).
+6. Open the release page, check the notes, and download the exe once to smoke test it (`t3p.exe --version`, `t3p.exe status`) on a machine you do not mind.
+7. Publish to npm (needs your npm login; CI never publishes):
    ```sh
    npm login                    # once; the @t3p scope must be yours
    cd packages/installer
@@ -29,6 +31,24 @@ Two artifacts ship from one version number (`packages/installer/package.json`):
    ```
    `prepack` builds the runtime and copies it to `packages/installer/runtime/` (gitignored) so the package works without the repo. Use `pnpm publish`, not `npm publish`: pnpm rewrites the `workspace:*` devDependencies.
    Check the tarball any time without publishing: `cd packages/installer && npm pack --dry-run` (expect `dist/*`, `runtime/*`, `package.json`, `README.md`; no `dist/standalone`, no maps).
+
+## Plugin registry
+
+The Browse tab and `t3p plugins install` read `registry/index.json` from `main` ([registry.md](registry.md)). The release workflow builds the first-party entries:
+
+1. `node tools/registry/build-registry.mjs --write-index` zips every `plugins/*` folder except samples (`_*`) into `dist-registry/t3p-plugin-<id>-<version>.zip` (deterministic: fixed timestamps, sorted entries), computes SHA-256 and size, and writes `dist-registry/index.json` plus a commit-ready `registry/index.json` whose download URLs point at `https://github.com/watdafawx/t3-patcher/releases/download/v<version>/`.
+2. `node tools/registry/validate-registry.mjs --strict` checks it.
+3. The zips and `index.json` are uploaded to the release; `registry/index.json` is also kept as the workflow artifact `registry-index`.
+
+The workflow never pushes. After the release is published:
+
+```sh
+gh run download <run-id> -n registry-index -D registry   # or download index.json from the release page into registry/
+node tools/registry/validate-registry.mjs --strict --verify-downloads   # every zip downloads and matches its hash
+git add registry/index.json && git commit -m "chore(registry): index for v0.1.3"
+```
+
+Users see the new versions once this commit is on `main`. Do not rebuild the index locally for a release: the hashes must be those of the zips CI uploaded. Third-party entries in `registry/index.json` are carried over unchanged.
 
 ## How `t3p.exe` is built (`pnpm build:exe`)
 

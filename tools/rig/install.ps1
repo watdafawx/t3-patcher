@@ -4,7 +4,7 @@
   G:\rig-run\t3patcher\base on rig, then copy it to the requested slot dir(s) app-s<N>.
 .DESCRIPTION
   1. gh downloads T3-Code-<ver>-x64.exe from pingdotgg/t3code (cached in G:\rig-run\t3patcher\dl\), sha256 checked against the GitHub asset digest.
-  2. 7z (FOX) unpacks the installer -> $PLUGINSDIR\app-64.7z -> app files. No NSIS run, so Michael's own T3 Code install on rig is never touched.
+  2. 7z (FOX) unpacks the installer -> $PLUGINSDIR\app-64.7z -> app files. No NSIS run, so the maintainer's own T3 Code install on rig is never touched.
   3. App files mirrored to rig base\. Slot dirs are robocopied from base on rig (local NVMe).
 .EXAMPLE
   pwsh -NoProfile -File tools/rig/install.ps1                 # base + slot 1

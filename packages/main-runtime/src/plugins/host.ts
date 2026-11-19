@@ -545,6 +545,31 @@ export class PluginHost {
     return changed;
   }
 
+  /**
+   * After a registry install, update or uninstall (WP-14A): re-reads the plugin's folder and state.
+   * A new or removed renderer-only plugin shows up or disappears now. A plugin whose main code is
+   * loaded keeps running until the next start (`restartRequired`); a plugin with a main entry that
+   * is not loaded (a fresh install is disabled) gets a record but no main code runs.
+   */
+  async refreshInstalled(id: string): Promise<{ restartRequired: boolean }> {
+    if (!isValidPluginId(id)) return { restartRequired: false };
+    const old = this.records.get(id);
+    const state = readStateFile(this.deps.stateFile, this.deps.log);
+    // Main code is never swapped in-process: loaded, or an enabled plugin whose previous version had a main entry.
+    if (old && (old.mainLoaded || (old.manifest?.main && pluginState(state, id).enabled))) {
+      old.restartRequired = true;
+      return { restartRequired: true };
+    }
+    this.records.delete(id);
+    try {
+      await this.loadOne(id, state);
+    } catch (error) {
+      this.deps.log.error(`plugin ${id}: refresh after a registry change failed`, error);
+    }
+    const rec = this.records.get(id);
+    return { restartRequired: rec?.status === "active" };
+  }
+
   /** Re-reads one renderer-only plugin's manifest and state (after enable/disable or a dev file change). */
   reloadRecord(id: string, state = readStateFile(this.deps.stateFile, this.deps.log)): void {
     const old = this.records.get(id);

@@ -10,20 +10,21 @@ const summary = (over: Partial<ThreadSummary> = {}): ThreadSummary => ({
 
 function setup(initialSettled: boolean, extra: Record<string, unknown> = {}) {
   const dispatched: unknown[] = [];
-  const state = { settled: initialSettled };
+  const state = { settled: initialSettled, gone: false };
+  const regs: string[] = [];
   const settings: Record<string, unknown> = { leadMinutes: 8, maxPings: 20, minCacheMinutes: 30, keepWarmSettled: false, ...extra };
   const stored: Record<string, unknown> = { watches: { [THREAD]: { pings: 0, until: null, lastPingAt: 0 } } };
   const t3 = {
     settings: { define: () => ({ dispose() {} }), get: (k: string) => settings[k], onChange: () => () => {} },
     storage: { get: async (k: string) => stored[k], set: async (k: string, v: unknown) => void (stored[k] = v) },
-    threads: { list: async () => [summary({ settled: state.settled })], dispatch: async (c: unknown) => void dispatched.push(c) },
+    threads: { list: async () => (state.gone ? [summary({ threadId: "other" })] : [summary({ settled: state.settled })]), dispatch: async (c: unknown) => void dispatched.push(c) },
     cache: { state: async () => ({ expiresAt: Date.now() + 5 * 60_000, ttlMs: 3_600_000, source: "reported", lastRequestAt: null }) },
-    ui: { register: () => ({ dispose() {} }), toast: () => {} },
+    ui: { register: (r: { slot: string }) => (regs.push(r.slot), { dispose() {} }), toast: () => {} },
     events: { on: () => () => {} },
     log: () => {},
   } as unknown as T3Api;
   const stop = (plugin as PluginModule).start(t3) as () => void;
-  return { dispatched, state, stored, stop };
+  return { dispatched, state, stored, stop, regs };
 }
 
 describe("keep-warm plugin", () => {
@@ -55,6 +56,22 @@ describe("keep-warm plugin", () => {
     state.settled = true;
     await vi.advanceTimersByTimeAsync(5 * 60_000);
     expect(dispatched).toHaveLength(1);
+    stop();
+  });
+
+  it("drops the watch when the thread is gone from the list (archived or deleted)", async () => {
+    const { stored, stop, state } = setup(false);
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(Object.keys(stored.watches as object)).toEqual([THREAD]);
+    state.gone = true;
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(stored.watches).toEqual({});
+    stop();
+  });
+
+  it("registers the status bar list and the sidebar decorator slot", () => {
+    const { regs, stop } = setup(false);
+    expect(regs).toEqual(expect.arrayContaining(["statusBar", "threadListDecorator", "threadHeader"]));
     stop();
   });
 

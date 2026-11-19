@@ -23,6 +23,26 @@ export interface PluginStateJson {
   granted: PermissionJson[];
   /** Why the plugin is disabled when the host did it (`crash-loop`). Cleared by `t3p enable`. Optional: older files lack it. */
   disabledReason?: string;
+  /** Set when the plugin was installed from a registry (WP-14A). Optional: older files and hand-copied plugins lack it. */
+  install?: PluginInstallRecord;
+}
+
+/** Where a registry-installed plugin came from: the registry URL, the version and the zip hash that was verified. */
+export interface PluginInstallRecord {
+  source: "registry";
+  registry: string;
+  version: string;
+  sha256: string;
+  /** ISO time of the install or last update. */
+  at: string;
+}
+
+function parseInstallRecord(raw: unknown): PluginInstallRecord | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const r = raw as Record<string, unknown>;
+  if (r.source !== "registry" || typeof r.registry !== "string" || typeof r.version !== "string" || typeof r.sha256 !== "string" || typeof r.at !== "string") return undefined;
+  if (r.registry.length > 2048 || r.version.length > 64 || !/^[0-9a-f]{64}$/.test(r.sha256) || r.at.length > 64) return undefined;
+  return { source: "registry", registry: r.registry, version: r.version, sha256: r.sha256, at: r.at };
 }
 
 export interface PatcherStateJson {
@@ -72,6 +92,8 @@ export function parseState(raw: unknown): { state: PatcherStateJson; errors: str
     errors.push(...perms.errors);
     const entry: PluginStateJson = { enabled: v.enabled === true, granted: permissionsToJson(perms.set) };
     if (typeof v.disabledReason === "string" && v.enabled !== true) entry.disabledReason = v.disabledReason.slice(0, 64);
+    const install = parseInstallRecord(v.install);
+    if (install) entry.install = install;
     state.plugins[id] = entry;
   }
   return { state, errors };

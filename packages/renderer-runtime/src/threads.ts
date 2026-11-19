@@ -209,11 +209,18 @@ interface ShellThreadWire {
   settledOverride?: unknown;
 }
 
+interface ShellProjectWire {
+  id?: unknown;
+  title?: unknown;
+}
+
 interface ShellStreamItemWire {
   kind?: unknown;
   location?: unknown;
-  snapshot?: { threads?: ShellThreadWire[] };
+  snapshot?: { threads?: ShellThreadWire[]; projects?: ShellProjectWire[] };
   thread?: ShellThreadWire;
+  project?: ShellProjectWire;
+  projectId?: unknown;
   threadId?: unknown;
 }
 
@@ -233,6 +240,7 @@ function byMostRecent(a: ThreadSummary, b: ThreadSummary): number {
  */
 export class ThreadShellStore {
   readonly #threads = new Map<string, ThreadSummary>();
+  readonly #projects = new Map<string, string>();
   #ready: Promise<void> | null = null;
   #stream: { cancel(): void; done: Promise<void> } | null = null;
 
@@ -244,7 +252,7 @@ export class ThreadShellStore {
 
   async list(): Promise<ThreadSummary[]> {
     await this.#ensure();
-    return [...this.#threads.values()].sort(byMostRecent);
+    return [...this.#threads.values()].map((t) => (t.projectId && this.#projects.has(t.projectId) ? { ...t, projectName: this.#projects.get(t.projectId)! } : t)).sort(byMostRecent);
   }
 
   #ensure(): Promise<void> {
@@ -299,6 +307,8 @@ export class ThreadShellStore {
     switch (event.kind) {
       case "snapshot": {
         this.#threads.clear();
+        this.#projects.clear();
+        for (const project of event.snapshot?.projects ?? []) this.#putProject(project);
         for (const thread of event.snapshot?.threads ?? []) this.#put(thread);
         return;
       }
@@ -313,10 +323,20 @@ export class ThreadShellStore {
         if (typeof event.threadId === "string") this.#threads.delete(event.threadId);
         return;
       }
+      case "project.updated":
+        if (event.project) this.#putProject(event.project);
+        return;
+      case "project.removed":
+        if (typeof event.projectId === "string") this.#projects.delete(event.projectId);
+        return;
       default:
-        // project.updated, project.removed, synchronized, snapshot-required
+        // synchronized, snapshot-required
         return;
     }
+  }
+
+  #putProject(project: ShellProjectWire): void {
+    if (typeof project?.id === "string" && typeof project.title === "string" && project.title) this.#projects.set(project.id, project.title);
   }
 
   #put(thread: ShellThreadWire): void {
@@ -395,6 +415,18 @@ export function createThreadsApi(deps: ThreadsDeps): T3Threads {
     current(): string | null {
       need();
       return focus ? focus.id() : null;
+    },
+    open(threadId: string): void {
+      need();
+      if (typeof threadId !== "string" || !threadId) throw new TypeError("t3.threads.open: threadId must be a non-empty string");
+      const location = (win?.location ?? null) as (ThreadRouteLocation & { hash?: string }) | null;
+      if (!location) return;
+      const env = environmentIdFromLocation(location);
+      const apply = (id: string | null): void => {
+        if (id) (location as { hash: string }).hash = `#/${encodeURIComponent(id)}/${encodeURIComponent(threadId)}`;
+      };
+      if (env) apply(env);
+      else void shared.localEnvironment().then((local) => apply(local?.id ?? null), () => undefined);
     },
     async projection(threadId: string): Promise<ThreadProjection> {
       need();

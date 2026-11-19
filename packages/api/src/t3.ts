@@ -163,6 +163,8 @@ export interface ThreadSummary {
   projectId: string | null;
   providerInstanceId: string | null;
   model: string | null;
+  /** The project's title (from the shell stream), or `null`/absent when unknown. */
+  projectName?: string | null;
   /** ISO timestamp of the last activity, when known. */
   updatedAt: string | null;
   /** True while a run is active. */
@@ -199,6 +201,8 @@ export interface T3Threads {
   list(): Promise<ThreadSummary[]>;
   /** The thread the user is looking at, or `null`. Changes are announced on `t3.events` (`thread:focus`). */
   current(): string | null;
+  /** Navigates the app to a thread (`#/<environmentId>/<threadId>`, current environment). Needs `rpc`. */
+  open(threadId: string): void;
   /** Full projection of one thread. */
   projection(threadId: string): Promise<ThreadProjection>;
   /**
@@ -413,12 +417,13 @@ export type UiSlotName =
   | "settingsPage"
   | "timelineRowDecorator"
   | "contextMenuItem"
-  | "threadDetails";
+  | "threadDetails"
+  | "threadListDecorator";
 
 /** Context a slot render function gets. */
 export interface UiSlotContext {
   slot: UiSlotName;
-  /** Thread the slot belongs to, for thread-scoped slots. */
+  /** Thread the slot belongs to, for thread-scoped slots. For `threadListDecorator` it is the sidebar row's own thread. */
   threadId: string | null;
   /** Row record, for `timelineRowDecorator`. */
   record: TimelineRecord | null;

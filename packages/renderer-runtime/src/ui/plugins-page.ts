@@ -1,7 +1,8 @@
 import { GRANT_ATTR, GRANT_PERMS_ATTR, isHighRisk, parsePermissions, permissionInfo, permissionScope, settingVisible, type SettingSchema, type SettingValue } from "@t3p/api";
 
-import type { ManagedPlugin } from "../manager.js";
+import type { ManagedPlugin, RegistryResultEvent, RegistryView } from "../manager.js";
 import { clear, ensureStyles, h } from "./dom.js";
+import { type BrowseHandle, mountBrowse } from "./registry-browse.js";
 import { createControl } from "./setting-controls.js";
 
 /** The slice of `window.__t3p.manager` the page uses. */
@@ -16,11 +17,15 @@ export interface ManagerFacade {
   setSetting(id: string, key: string, value: SettingValue): Promise<void>;
   resetSetting(id: string, key: string): Promise<void>;
   onChange(callback: () => void): () => void;
+  /** Registry (WP-14A). Optional: without it the page has no Browse tab. */
+  registry?(refresh?: boolean): Promise<RegistryView>;
+  onRegistryResult?(callback: (result: RegistryResultEvent) => void): () => void;
 }
 
 /** localStorage keys (all reads and writes are in try/catch). */
 export const SELECTED_KEY = "t3p.plugins.selected";
 export const COLLAPSED_KEY = "t3p.plugins.collapsed";
+export const TAB_KEY = "t3p.plugins.tab";
 
 /** True when the plugin has main code, patches or spawn: only `t3p enable/disable` (CLI) may toggle those (WP-3A). */
 export function isTrusted(plugin: Pick<ManagedPlugin, "declared">): boolean {
@@ -203,6 +208,8 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
   let waiting: { id: string; perms: string } | null = null;
   let focusPerms = pendingFocus === "permissions";
   if (pending) root.setAttribute("data-t3p-view", "detail");
+  /** Opened for a plugin (selectPlugin / openPluginsPage): start on the Installed tab. */
+  const openedForPlugin = pending !== null;
   pending = null;
   pendingFocus = null;
 
@@ -216,7 +223,51 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
   // One anchor for the `settingsPage` slot. It is moved, never recreated, so mounted plugin UI survives redraws.
   const extra = h("div", { class: "t3p-pg-extra", "data-t3p-slot-anchor": "settingsPage" });
   const main = h("section", { class: "t3p-pg-main", "aria-label": "Plugin details" }, back, detail);
-  root.appendChild(h("div", { class: "t3p-pg" }, side, main));
+  const installedGrid = h("div", { class: "t3p-pg", "data-t3p-installed": "" }, side, main);
+
+  // ---- Installed | Browse tabs (WP-14A) -------------------------------------------------------------
+  const registry = manager.registry?.bind(manager);
+  const onRegistryResult = manager.onRegistryResult?.bind(manager);
+  let browse: BrowseHandle | null = null;
+  let tab: "installed" | "browse" = "installed";
+  const tabButtons = new Map<"installed" | "browse", HTMLButtonElement>();
+  const setTab = (next: "installed" | "browse", opts: { focus?: boolean } = {}): void => {
+    if (!browse) next = "installed";
+    tab = next;
+    root.setAttribute("data-t3p-tab", next);
+    installedGrid.hidden = next !== "installed";
+    const browseRoot = root.querySelector<HTMLElement>("[data-t3p-browse]");
+    if (browseRoot) browseRoot.hidden = next !== "browse";
+    for (const [key, btn] of tabButtons) {
+      btn.setAttribute("aria-selected", String(key === next));
+      btn.tabIndex = key === next ? 0 : -1;
+    }
+    if (opts.focus) tabButtons.get(next)?.focus();
+    writeStore(TAB_KEY, next);
+    if (next === "browse") browse?.show();
+  };
+  if (registry && onRegistryResult) {
+    const tabButton = (key: "installed" | "browse", label: string): HTMLButtonElement => {
+      const btn = h("button", { class: "t3p-pg-tab", type: "button", role: "tab", id: `t3p-pg-tab-${key}`, "data-t3p-tab-button": key, onClick: () => setTab(key) }, label) as HTMLButtonElement;
+      tabButtons.set(key, btn);
+      return btn;
+    };
+    const bar = h("div", { class: "t3p-pg-tabs", role: "tablist", "aria-label": "Plugins" }, tabButton("installed", "Installed"), tabButton("browse", "Browse"));
+    bar.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault();
+      setTab(tab === "installed" ? "browse" : "installed", { focus: true });
+    });
+    root.appendChild(bar);
+    root.appendChild(installedGrid);
+    browse = mountBrowse(root, { registry, onRegistryResult }, {
+      onNotice,
+      onReview: (id) => {
+        setTab("installed");
+        selectPlugin(id, "permissions");
+      },
+    });
+  } else root.appendChild(installedGrid);
 
   /** Shows only the selected plugin's `settingsPage` roots in the shared anchor. */
   const filterExtras = (): void => {
@@ -674,6 +725,7 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
   };
   document.addEventListener("keydown", onDocKey);
   const onSelect = (id: string, focus: "permissions" | null): void => {
+    if (tab !== "installed") setTab("installed");
     pending = null;
     pendingFocus = null;
     focusPerms = focus === "permissions";
@@ -693,7 +745,9 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
   });
   renderList();
   renderDetail();
+  setTab(!openedForPlugin && readStore(TAB_KEY) === "browse" ? "browse" : "installed");
   return () => {
+    browse?.dispose();
     offManager();
     selectors.delete(onSelect);
     document.removeEventListener("keydown", onDocKey);

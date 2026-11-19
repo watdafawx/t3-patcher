@@ -8,7 +8,7 @@ T3 Patcher is a Vencord/Spicetify-style mod loader for the **T3 Code** Electron 
 |---|---|
 | `packages/api` | `@t3p/api`: the public plugin API types (`T3Api` in `src/t3.ts`), manifest schema, permissions |
 | `packages/shim` | the ~6 KB replacement `app.asar` (fail-open bootstrap) |
-| `packages/installer` | `t3p` CLI: install, uninstall, status, doctor, repair, enable, grant, dev |
+| `packages/installer` | `t3p` CLI: install, uninstall, status, doctor, repair, enable, grant, dev, `plugins search/install/update` (registry client and safe unzip in `src/registry/`) |
 | `packages/main-runtime` | Electron main-process runtime: protocol wrap, plugin host, patch application, dev watcher |
 | `packages/preload-runtime` | preload bridge (IPC to the renderer) |
 | `packages/renderer-runtime` | runs in the page: plugin manager, `t3` API, UI slots and shared styles (`src/ui/`) |
@@ -16,6 +16,8 @@ T3 Patcher is a Vencord/Spicetify-style mod loader for the **T3 Code** Electron 
 | `packages/rpc-client`, `timeline`, `contracts-vendor` | server RPC client, activity normalisation, vendored upstream contracts |
 | `packages/plugin-build`, `create-t3p-plugin` | build preset and scaffolder for plugin authors |
 | `plugins/*` | first-party plugins (cache-watch, keep-warm, provider-limits, provider-switcher, session-inspector, devtools, artwork, notes, media) and two samples (`_sample-hello`, `_demo-slots`) |
+| `registry/index.json` | the plugin registry (Browse tab, `t3p plugins install`); format and review in `docs/registry.md` |
+| `tools/registry` | `build-registry.mjs` (first-party zips + index, run by release.yml) and `validate-registry.mjs` (run by ci.yml) |
 | `tools/compat` | compatibility checker: runs every capture and patch against an upstream release |
 | `tools/rig` | scripts to run a patched app on a spare Windows machine with a debug port (optional) |
 | `docs/` | all documentation; `docs/api.md` is generated |
@@ -75,7 +77,7 @@ Rules that matter:
 - **Tiers.** Tier 1 uses stable surfaces (server RPC, files, `data-slot` DOM anchors, CSS variables). Tier 2 uses captured app internals (`t3.internals`). Tier 3 uses raw text patches. Prefer the lowest tier that works. See `docs/patching.md`.
 - **Permissions** are declared in `plugin.json` and granted by the user (`t3p grant <id> <permission>`): `rpc`, `embed.youtube`, `fs.read`, `sqlite.read`, `log.tail`, `spawn`, `main`, `patches`. Ask for the minimum.
 - **API namespaces** on `t3`: rpc, providers, threads, timeline, environment, cache, usage, ui, commands, keybinds, patches, internals, storage, settings, native, events. Reference: `docs/api.md` (generated, do not edit by hand; run `pnpm docs:api`).
-- **UI slots**: sidebarSection, threadHeader, composerBanner, rightPanel, statusBar, settingsPage, timelineRowDecorator, contextMenuItem, threadDetails (extra section in the stock thread details popover; `t3.ui.threadDetails.hide([...labels])` hides stock rows).
+- **UI slots**: sidebarSection, threadHeader, composerBanner, rightPanel, statusBar, settingsPage, timelineRowDecorator, contextMenuItem, threadDetails (extra section in the stock thread details popover; `t3.ui.threadDetails.hide([...labels])` hides stock rows), threadListDecorator (icon on each sidebar thread row; `ctx.threadId` is the row's thread).
 - **Styling.** Use the shared `t3p-*` classes and the app's CSS variables only, never hard-coded colours. See `docs/ui-style.md`.
 - **Hot reload**: with dev mode on (`t3p dev` writes a marker, or set `T3P_DEV=1`), saving files in a linked plugin reloads it; new plugins, enable/disable and removals are picked up live. Main-process plugin code cannot be unloaded in place, so restart the app for `main` entries. Changing the core renderer runtime reloads the page after `pnpm dev:sync`.
 
@@ -115,4 +117,4 @@ Full mechanics (engine, caching, protocol interception, safety): `docs/patching.
 
 ## More docs
 
-`README.md` (install quick start, CLI reference), `docs/release.md` (tagging a release, building `t3p.exe`, npm publish), `docs/plugin-authoring.md`, `docs/patching.md`, `docs/api.md`, `docs/ui-style.md`, `docs/updating.md`, `docs/security.md`. `PLAN.md` and `docs/wp-*-notes.md` are historical design notes.
+`README.md` (install quick start, CLI reference), `docs/registry.md` (plugin registry, submitting a plugin), `docs/release.md` (tagging a release, building `t3p.exe`, npm publish), `docs/plugin-authoring.md`, `docs/patching.md`, `docs/api.md`, `docs/ui-style.md`, `docs/updating.md`, `docs/security.md`. `PLAN.md` and `docs/wp-*-notes.md` are historical design notes.

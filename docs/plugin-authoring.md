@@ -219,7 +219,7 @@ single source of truth is [`packages/api/src/t3.ts`](../packages/api/src/t3.ts).
 |---|---|---|
 | `t3.rpc` | live (needs `rpc`) | `call`, `subscribe` (resubscribes after reconnects), `http`, connection `state` |
 | `t3.providers` | stub (WP-3B) | provider list, auth state, usage limits, change events |
-| `t3.threads` | stub (WP-3B) | list, current, projection, subscribe, `setModel`, `switchProvider` with `ok`/`busy`/`unavailable` results |
+| `t3.threads` | stub (WP-3B) | list (rows carry `projectName`), current, `open(threadId)` (navigate to a thread), projection, subscribe, `setModel`, `switchProvider` with `ok`/`busy`/`unavailable` results |
 | `t3.timeline` | live (needs `rpc`) | normalized per-thread activity records with causes; `enrichFromProviderLog(records, logText)` (pure) merges provider-log frames |
 | `t3.environment` | live | `current()`: `{id, label}` of the active environment (id from the route, label from the desktop bridge for the local one; `null` when unknown) |
 | `t3.cache` | stub (WP-4C) | prompt-cache state and expiry notifications |
@@ -248,6 +248,10 @@ nothing.
 Make injected UI look native in every theme: use the shared `t3p-*` classes and app CSS
 vars only. See [ui-style.md](ui-style.md).
 
+## Publishing to the registry
+
+To make a plugin installable from Settings > Plugins > Browse, attach a zip (`plugin.json` at the root, `dist/`, README, assets) to a GitHub release and open a pull request that adds an entry to `registry/index.json`. Zip layout, entry fields, the SHA-256 command and the review checklist: [registry.md](registry.md).
+
 ## Examples and references
 
 - Minimal plugin without a build step: [`plugins/_sample-hello`](../plugins/_sample-hello).
@@ -260,7 +264,26 @@ vars only. See [ui-style.md](ui-style.md).
 
 ## UI slots
 
-`t3.ui.register({ slot, id, order, render })`. Slots: `sidebarSection`, `threadHeader`, `composerBanner`, `rightPanel`, `statusBar`, `settingsPage`, `timelineRowDecorator`, `contextMenuItem`, `threadDetails`.
+`t3.ui.register({ slot, id, order, render })`. Slots: `sidebarSection`, `threadHeader`, `composerBanner`, `rightPanel`, `statusBar`, `settingsPage`, `timelineRowDecorator`, `contextMenuItem`, `threadDetails`, `threadListDecorator`.
+
+**`threadListDecorator`** puts a small piece of UI on every sidebar thread row (a status dot, an icon). `render(host, ctx)` runs
+once per visible row and `ctx.threadId` is that row's own thread (not the focused one). Rows come and go as the list scrolls or
+re-renders; the engine re-mounts your UI when a row is re-created or re-used for another thread and runs your cleanup when the
+row leaves. One MutationObserver (shared, batched) drives all slots, so mounting is cheap: do not poll per row, keep a
+single redraw set and hide (`host.hidden = true` or an empty host) when the thread has nothing to show. The container is
+absolutely positioned inside the row surface (no layout shift, `pointer-events: none`); give your icon the class
+`t3p-tld-icon` (16px, `pointer-events: auto`) and set `title` for a tooltip. Compute the tooltip on `pointerenter` to keep it fresh.
+Anchor: `li[data-thread-item="<environmentId>:<threadId>"]` and its `[data-sidebar-row]` child (upstream `SidebarThreadRow.tsx`).
+
+```ts
+t3.ui.register({ slot: "threadListDecorator", id: "dot", render(host, ctx) {
+  const dot = Object.assign(document.createElement("span"), { className: "t3p-tld-icon", textContent: "•" });
+  host.append(dot);
+  const draw = () => { dot.hidden = !isWatched(ctx.threadId); dot.title = "Watched"; };
+  draw();
+  return subscribe(draw);          // unsubscribe on cleanup
+} });
+```
 
 **`threadDetails`** is the stock thread details popover (environment, branch, Commit & push, limits, context). It only exists
 while open, so your `render` runs each time it opens and its cleanup runs when it closes. All registrations share one

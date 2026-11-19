@@ -148,6 +148,41 @@ Verified by `main-runtime/test/grants.test.ts`, `preload-runtime/test/grant-clic
 - no window means no dialog and no grant;
 - the sender check applies to the privileged channel.
 
+### 4.7 Installing from the registry
+
+The registry ([registry.md](registry.md)) is a curated JSON index in this repo. Each entry names a zip on a GitHub release and pins it with a SHA-256 hash. Be clear about what that buys:
+
+- **The registry is a curated list, not a sandbox.** Review (the checklist in registry.md) is the only thing between a plugin author and your PC. The hash proves you get the exact zip that was reviewed, nothing more.
+- **Plugin code is trusted once you enable it and grant its permissions.** There is no sandbox beyond the permission system (section 2): a renderer plugin runs in the app's page with your T3 session (sections 3 and 4.5), and `main`, `patches` and `spawn` plugins are trusted code. The install dialog says so: "This runs code on your PC with your user rights".
+- Installing does not run anything. A fresh install is **disabled with no permissions granted**; enabling and granting are the separate, existing steps (section 4.6, `t3p enable`, `t3p grant`).
+
+How an install, update or uninstall from the Browse tab is protected (same pattern as section 4.6):
+
+1. **Page code cannot start one.** The request travels on `t3p:privileged:registry-request`, outside the bridge allowlist, so `window.__t3p_native.invoke` refuses it. Only the preload's isolated-world listener sends it, only for `isTrusted` clicks on an element with `data-t3p-registry-action` and `data-t3p-registry-id`. The router runs the sender check and a strict schema: `{ action: install|update|uninstall, id }`, nothing else. The manager facade has no install method; `t3p:registry:index` (the only registry channel the page can call) is read-only.
+2. **The page names only an action and an id.** The download URL, hash, size and permissions come from the index the **main process** fetched itself. A page script cannot supply its own URL or hash.
+3. **The user decides in a native dialog** (`main-runtime/src/plugins/registry-flow.ts`): window-modal, Cancel is the default and the Esc answer. It names the plugin, id, version, author, homepage, source, download URL, SHA-256 and registry URL, lists each declared permission with its risk, and says the code runs with the user's rights. Uninstall has its own dialog. Nothing is downloaded before the user confirms.
+4. **One dialog at a time across grants and installs.** `DialogGate` is shared by the grant and registry flows: requests while a dialog is open, or within 1.5 s after one closed, get `busy`.
+
+Download and unpack (`installer/src/registry/`, shared by the app and the CLI):
+
+- **Index**: https only (loopback http only with `T3P_REGISTRY_ALLOW_INSECURE_LOCAL=1`), at most 1 MB, 10 s timeout, schema-checked. An invalid or unreachable index never replaces the last good cached copy (`~/.t3-patcher/cache/registry/`, ETag revalidation).
+- **Zip**: https only, at most 25 MB and at most the size the index declares. Redirects are followed by hand, one hop at a time, and only to https on `github.com`, `objects.githubusercontent.com`, `release-assets.githubusercontent.com` or the registry's own host.
+- **SHA-256 and size are checked before anything is unpacked.** A mismatch writes nothing.
+- **Strict zip reader** (own code, no dependency): rejects traversal, absolute paths, drive letters, backslashes, reserved names, alternate data streams, symlinks and special files (Unix mode and the DOS reparse flag), encryption, ZIP64, unknown compression, duplicate names (case-insensitive), files below files, local/central header mismatches, more than 500 entries, more than 50 MB unpacked, a ratio over 200:1, and any size or CRC mismatch. Inflate is capped at the declared size.
+- **Unpack into a staging folder** (`~/.t3-patcher/staging/<random>`), each file created exclusively (`wx`) after a containment check. Then `plugin.json` is validated (schema, id equals the folder) and its `id`, `version` and `permissions` must equal the index entry; the renderer and main entries must exist.
+- **Atomic swap**: the old folder is renamed aside, the new one renamed in, then `state.json` is written. Any failure renames the old folder back and deletes staging. `t3p dev` links are never replaced or removed.
+- **Updates** keep the enabled flag and grants (a new permission in an update fails the permission check unless the index declares it, and is not granted either way) and never touch `~/.t3-patcher/storage/`.
+
+Verified by `api/test/registry.test.ts`, `installer/test/registry-zip.test.ts`, `installer/test/registry-install.test.ts`, `installer/test/registry-cli.test.ts`, `main-runtime/test/registry-flow.test.ts`, `preload-runtime/test/registry-clicks.test.ts` and `renderer-runtime/test/registry-browse.test.ts`:
+
+- the page bridge refuses the channel; the only page-reachable registry channel is the read-only index;
+- `.click()`, `dispatchEvent` and forged attributes on the real Browse buttons never reach the channel;
+- the schema rejects a page-supplied URL or hash; the sender check applies;
+- Cancel, a failed dialog and no window write nothing and download nothing;
+- hash, size, id, version and permission mismatches, traversal and symlink zips are refused with nothing left behind;
+- a failure after the swap rolls back to the old version; updates keep grants and storage;
+- a dialog in one flow makes the other `busy`.
+
 ## 5. Native services
 
 ### 5.1 Path defences (`fs.read`, `sqlite.read`, `log.tail`, plugin file route)
@@ -321,4 +356,6 @@ Goal: a plugin that fails on every launch must not keep failing forever.
 - Time-of-check/time-of-use swaps of a path component between the check and the open, by something with the user's rights.
 - A synchronous hang in a main plugin (section 7).
 - Upstream changes: a new window with `webviewTag`, a new main-world API, or a changed `will-attach-webview` gate. The compat checker (WP-5A) and Gate reviews must re-check these on every upstream bump.
-- Supply chain of plugins: there is no signing. Install only what you trust.
+- Supply chain of plugins: there is no signing. The registry (section 4.7) is a curated index; the SHA-256 pins the reviewed zip, but a reviewer can miss something, and an enabled, granted plugin is trusted code. Install only what you trust.
+- A compromised registry index (this repo, or a `T3P_REGISTRY_URL` you set) can list any plugin with any hash. The native dialog still shows the plugin, author, URLs and permissions, installs stay disabled with nothing granted, and Cancel is the default.
+- A plugin luring the user into a real click on an Install, Update or Uninstall button it drew (section 4.7). The result is still the native dialog for a registry entry the main process fetched.

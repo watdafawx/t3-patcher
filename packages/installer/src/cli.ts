@@ -8,7 +8,8 @@ import { doctor } from "./doctor.js";
 import { devLink, devUnlink, devMarkerPath } from "./dev.js";
 import { AppRunningError, T3pError } from "./errors.js";
 import { install, defaultRuntimeSource } from "./install.js";
-import { enable, grant, listPlugins, revoke, safeMode, statePath } from "./plugin-admin.js";
+import { enable, grant, revoke, safeMode, statePath } from "./plugin-admin.js";
+import { runPluginsCommand, stdinPrompt, UsageError } from "./registry-cli.js";
 import { ensureLogonTask, removeLogonTask } from "./logon-task.js";
 import { readManifest } from "./manifest.js";
 import { repair, repairRecorded } from "./repair.js";
@@ -29,7 +30,13 @@ Usage:
   t3p repair    [--path DIR] [--if-stale] [--force] [--runtime DIR] [--json]
   t3p status    [--path DIR] [--json]
   t3p doctor    [--path DIR] [--json]
-  t3p plugins   [--json]
+  t3p plugins   [--json]                      installed plugins (= plugins list --installed)
+  t3p plugins   list [--installed] [--tag T]... [--json]
+  t3p plugins   search <text> [--tag T]... [--json]
+  t3p plugins   info <id> [--json]
+  t3p plugins   install <id> [--yes]
+  t3p plugins   update <id> | --all [--yes]
+  t3p plugins   uninstall <id> [--yes]
   t3p grant     <id> <permission> [--root DIR]... [--allow EXE]...
   t3p revoke    <id> <permission>
   t3p enable    <id>
@@ -56,6 +63,10 @@ Options:
                 without --root/--allow the plugin's declared scope is granted
   --allow EXE   grant spawn of this absolute .exe path
   --off         safe: cancel a pending safe-mode start
+  --yes, -y     plugins install/update/uninstall: do not ask
+  --installed   plugins list: installed plugins instead of the registry
+  --all         plugins update: every installed registry plugin with an update
+  --tag T       plugins list/search: only entries with this tag (repeatable)
 
 Permissions: main, patches, rpc, guard, embed.youtube, fs.read, sqlite.read, log.tail, spawn. A plugin
 gets only what its plugin.json declares AND you grant. The app reads the state
@@ -67,8 +78,16 @@ Dev: "t3p dev <folder>" links a plugin folder into
 and turns hot reload on by writing ~/.t3-patcher/dev-mode. Restart T3 Code to
 apply the first time; later rebuilds reload by themselves.
 
+Registry: "t3p plugins install <id>" downloads a plugin from the registry,
+checks its SHA-256 against the registry entry before unpacking, and installs it
+DISABLED with NO permissions granted. Enable and grant afterwards. Plugins run
+code on your PC with your user rights: install only what you trust.
+
 Environment:
   T3P_HOME      patcher home directory (default: your OS home)
+  T3P_REGISTRY_URL  plugin registry index (https); also "registryUrl" in
+                ~/.t3-patcher/config.json. Default: the T3 Patcher repo's
+                registry/index.json
 
 Exit codes: 0 ok, 1 failure/unhealthy, 2 usage.`;
 
@@ -177,6 +196,10 @@ async function main(argv: string[]): Promise<number> {
         allow: { type: "string", multiple: true },
         off: { type: "boolean", default: false },
         unlink: { type: "boolean", default: false },
+        yes: { type: "boolean", short: "y", default: false },
+        installed: { type: "boolean", default: false },
+        all: { type: "boolean", default: false },
+        tag: { type: "string", multiple: true },
         help: { type: "boolean", short: "h", default: false },
       },
     });
@@ -199,9 +222,13 @@ async function main(argv: string[]): Promise<number> {
     allow?: string[];
     off: boolean;
     unlink: boolean;
+    yes: boolean;
+    installed: boolean;
+    all: boolean;
+    tag?: string[];
   };
   const positionals = parsed.positionals;
-  const takesPositionals = ["grant", "revoke", "enable", "disable", "dev"].includes(command);
+  const takesPositionals = ["grant", "revoke", "enable", "disable", "dev", "plugins"].includes(command);
   if (!takesPositionals && positionals.length > 0) {
     usageError(`unexpected argument "${positionals[0]}"`);
     return 2;
@@ -270,16 +297,20 @@ async function main(argv: string[]): Promise<number> {
       return result.checks.every((check) => check.ok) ? 0 : 1;
     }
     case "plugins": {
-      const list = listPlugins(homeDir);
-      if (values.json) printJson(list);
-      else if (list.length === 0) console.log("no plugins");
-      else
-        for (const p of list) {
-          console.log(`${p.enabled ? "on " : "off"}  ${p.id}${p.version ? `@${p.version}` : ""}${p.valid ? "" : ` (invalid: ${p.errors.join("; ")})`}${p.disabledReason ? ` (disabled: ${p.disabledReason}; re-enable with: t3p enable ${p.id})` : ""}`);
-          console.log(`     declared: ${JSON.stringify(p.declared ?? null)}`);
-          console.log(`     granted:  ${JSON.stringify(p.granted)}`);
+      try {
+        return await runPluginsCommand(positionals, { json: values.json, yes: values.yes, installed: values.installed, all: values.all, tag: values.tag }, {
+          homeDir,
+          out: (line) => console.log(line),
+          err: (line) => console.error(line),
+          prompt: stdinPrompt,
+        });
+      } catch (error) {
+        if (error instanceof UsageError) {
+          usageError(error.message);
+          return 2;
         }
-      return 0;
+        throw error;
+      }
     }
     case "grant":
     case "revoke": {

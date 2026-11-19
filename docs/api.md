@@ -340,6 +340,8 @@ export interface T3Threads {
   list(): Promise<ThreadSummary[]>;
   /** The thread the user is looking at, or `null`. Changes are announced on `t3.events` (`thread:focus`). */
   current(): string | null;
+  /** Navigates the app to a thread (`#/<environmentId>/<threadId>`, current environment). Needs `rpc`. */
+  open(threadId: string): void;
   /** Full projection of one thread. */
   projection(threadId: string): Promise<ThreadProjection>;
   /**
@@ -369,6 +371,7 @@ export interface T3Threads {
 
 - `list`: Threads known to the shell stream, most recently active first.
 - `current`: The thread the user is looking at, or `null`. Changes are announced on `t3.events` (`thread:focus`).
+- `open`: Navigates the app to a thread (`#/<environmentId>/<threadId>`, current environment). Needs `rpc`.
 - `projection`: Full projection of one thread.
 - `subscribe`: Snapshot then every event of a thread, gap-free across reconnects. Without `afterSequence`
 the stream starts with a snapshot.
@@ -414,6 +417,8 @@ export interface ThreadSummary {
   projectId: string | null;
   providerInstanceId: string | null;
   model: string | null;
+  /** The project's title (from the shell stream), or `null`/absent when unknown. */
+  projectName?: string | null;
   /** ISO timestamp of the last activity, when known. */
   updatedAt: string | null;
   /** True while a run is active. */
@@ -426,6 +431,7 @@ export interface ThreadSummary {
 
 #### Members
 
+- `projectName`: The project's title (from the shell stream), or `null`/absent when unknown.
 - `updatedAt`: ISO timestamp of the last activity, when known.
 - `running`: True while a run is active.
 - `settled`: True when the thread is in T3's Settled section (`settledOverride === "settled"`, see `isThreadSettled`).
@@ -853,7 +859,8 @@ export type UiSlotName =
   | "settingsPage"
   | "timelineRowDecorator"
   | "contextMenuItem"
-  | "threadDetails";
+  | "threadDetails"
+  | "threadListDecorator";
 ```
 
 ### `UiSlotContext`
@@ -863,7 +870,7 @@ Context a slot render function gets.
 ```ts
 export interface UiSlotContext {
   slot: UiSlotName;
-  /** Thread the slot belongs to, for thread-scoped slots. */
+  /** Thread the slot belongs to, for thread-scoped slots. For `threadListDecorator` it is the sidebar row's own thread. */
   threadId: string | null;
   /** Row record, for `timelineRowDecorator`. */
   record: TimelineRecord | null;
@@ -874,7 +881,7 @@ export interface UiSlotContext {
 
 #### Members
 
-- `threadId`: Thread the slot belongs to, for thread-scoped slots.
+- `threadId`: Thread the slot belongs to, for thread-scoped slots. For `threadListDecorator` it is the sidebar row's own thread.
 - `record`: Row record, for `timelineRowDecorator`.
 - `onThemeChange`: Fires when the app theme changes.
 

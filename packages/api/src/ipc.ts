@@ -14,6 +14,7 @@ export const INVOKE_CHANNELS = [
   "t3p:plugins:set-enabled",
   "t3p:plugins:set-load-order",
   "t3p:plugins:revoke",
+  "t3p:registry:index",
   "t3p:plugin-health",
   "t3p:storage:read",
   "t3p:storage:write",
@@ -51,11 +52,24 @@ export function pluginChannel(pluginId: string, name: string): string {
 export const PRIVILEGED_PREFIX = "t3p:privileged:";
 /** Ask the main process to show the native grant dialog: `{ id, permissions: string[] | "*" }`. */
 export const GRANT_REQUEST_CHANNEL = "t3p:privileged:grant-request";
-export const PRIVILEGED_CHANNELS = [GRANT_REQUEST_CHANNEL] as const;
+/**
+ * Ask the main process to install, update or uninstall a registry plugin: `{ action, id }`. It only
+ * opens a native confirmation dialog; nothing is downloaded or removed until the user confirms there.
+ */
+export const REGISTRY_REQUEST_CHANNEL = "t3p:privileged:registry-request";
+export const PRIVILEGED_CHANNELS = [GRANT_REQUEST_CHANNEL, REGISTRY_REQUEST_CHANNEL] as const;
 
 /** DOM attributes the preload's trusted-click listener reads (on the Plugins page's Grant buttons). */
 export const GRANT_ATTR = "data-t3p-grant-request";
 export const GRANT_PERMS_ATTR = "data-t3p-grant-perms";
+/** DOM attributes on the Browse tab's Install / Update / Uninstall buttons (read by the same preload listener). */
+export const REGISTRY_ACTION_ATTR = "data-t3p-registry-action";
+export const REGISTRY_ID_ATTR = "data-t3p-registry-id";
+export const REGISTRY_ACTIONS = ["install", "update", "uninstall"] as const;
+export type RegistryAction = (typeof REGISTRY_ACTIONS)[number];
+export function isRegistryAction(value: unknown): value is RegistryAction {
+  return typeof value === "string" && (REGISTRY_ACTIONS as readonly string[]).includes(value);
+}
 
 export function isPrivilegedChannel(channel: unknown): channel is string {
   return typeof channel === "string" && (PRIVILEGED_CHANNELS as readonly string[]).includes(channel);

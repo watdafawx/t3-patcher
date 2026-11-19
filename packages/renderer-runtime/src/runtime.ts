@@ -12,7 +12,7 @@ import type { T3LogLevel } from "@t3p/api";
 
 import { createEventBus } from "./events.js";
 import { createGuardClient, isGuardRequest } from "./guard.js";
-import { type ManagedPlugin, PluginManager, type PluginLoadResult } from "./manager.js";
+import { type ManagedPlugin, PluginManager, type PluginLoadResult, type RegistryResultEvent } from "./manager.js";
 import { SharedRpc, type SharedRpcDeps } from "./rpc.js";
 import { Shell } from "./shell.js";
 import { threadStore } from "./threads.js";
@@ -178,6 +178,17 @@ export function bootstrap(env: BootstrapEnv): Promise<PluginLoadResult[]> {
           const status = (payload as { status?: unknown }).status;
           if (status === "unavailable") shell.overlays.toast("t3p.core", { message: "The grant dialog could not open. Use: t3p grant " + p.plugin + " <permission>", kind: "warning" });
           manager.notify();
+          return;
+        }
+        if (p?.type === "plugin-registry-result" && typeof p.plugin === "string") {
+          const r = payload as RegistryResultEvent;
+          const name = r.plugin;
+          if (r.status === "error") shell.overlays.toast("t3p.core", { title: `Could not ${r.action} ${name}`, message: String(r.error ?? "unknown error"), kind: "error", durationMs: 10000 });
+          else if (r.status === "unavailable") shell.overlays.toast("t3p.core", { message: `The confirmation dialog could not open. Use: t3p plugins ${r.action} ${name}`, kind: "warning" });
+          else if (r.status === "installed") shell.overlays.toast("t3p.core", { title: `Installed ${name} ${r.version ?? ""}`.trim(), message: "It is disabled with no permissions. Enable it and grant permissions on the Installed tab.", kind: "success", durationMs: 8000 });
+          else if (r.status === "updated") shell.overlays.toast("t3p.core", { title: `Updated ${name} to ${r.version ?? "?"}`, message: r.restartRequired ? "Restart T3 Code to load the new version." : "Settings and permissions were kept.", kind: "success", durationMs: 8000 });
+          else if (r.status === "uninstalled") shell.overlays.toast("t3p.core", { title: `Uninstalled ${name}`, message: r.restartRequired ? "Restart T3 Code to unload its main-process code." : "Its settings were kept.", kind: "info", durationMs: 6000 });
+          manager.registryResult(r).catch((error: unknown) => env.consoleError(`[t3p] registry update of ${name} failed`, error));
           return;
         }
         if (p?.type === "plugin-files-changed" && typeof p.plugin === "string" && manager.dev) {

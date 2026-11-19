@@ -41,6 +41,7 @@ instead of writing CSS.
 | `t3p-meta` | 11px muted caption or group heading. |
 | `t3p-card` | Bordered card surface. |
 | `t3p-pgw` / `t3p-pg` | The Plugins settings page (shell-owned, do not reuse): `t3p-pgw` is the container-query wrapper, `t3p-pg` the two-column grid. `t3p-hl` highlights a search match. |
+| `t3p-tld`, `t3p-tld-icon` | `threadListDecorator` slot. `t3p-tld` is the engine's absolutely placed container in a sidebar row (never restyle it). Your icon is a `t3p-tld-icon`: 16px box, `pointer-events: auto`, `muted-foreground` colour (tint it with a theme variable such as `--warning`), `data-dim` = 45% opacity for paused/inactive, `hidden` removes it. Use `title` for the tooltip. Keep it to one 14px glyph; the row must not shift. |
 | `t3p-statusbar`, `t3p-dock*`, `t3p-tab` | Shell chrome. Plugins get these through slots, do not build them. |
 
 ## Example

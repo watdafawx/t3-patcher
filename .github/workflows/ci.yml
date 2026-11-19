@@ -37,3 +37,10 @@ jobs:
       - run: pnpm -r test
       - run: pnpm lint
       - run: pnpm run --if-present typecheck
+      # Plugin registry (docs/registry.md): schema, https URLs, unique ids, semver, sha256 format.
+      - name: Validate registry/index.json
+        run: node tools/registry/validate-registry.mjs --strict
+      # Download checks need the release assets to exist; they only warn here (network or a not-yet-published release).
+      - name: Verify registry downloads (informational)
+        continue-on-error: true
+        run: node tools/registry/validate-registry.mjs --verify-downloads

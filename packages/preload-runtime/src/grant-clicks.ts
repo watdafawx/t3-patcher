@@ -1,4 +1,15 @@
-import { GRANT_ATTR, GRANT_PERMS_ATTR, GRANT_REQUEST_CHANNEL, isPermissionName, isValidPluginId } from "@t3p/api";
+import {
+  GRANT_ATTR,
+  GRANT_PERMS_ATTR,
+  GRANT_REQUEST_CHANNEL,
+  isPermissionName,
+  isRegistryAction,
+  isValidPluginId,
+  REGISTRY_ACTION_ATTR,
+  REGISTRY_ID_ATTR,
+  REGISTRY_REQUEST_CHANNEL,
+  type RegistryAction,
+} from "@t3p/api";
 
 import type { IpcRendererLike } from "./bridge.js";
 
@@ -12,6 +23,11 @@ import type { IpcRendererLike } from "./bridge.js";
  * browser marks `isTrusted` (real mouse or keyboard input; `el.click()` and `dispatchEvent` are
  * never trusted) on an element carrying `data-t3p-grant-request`. Even then the main process only
  * shows a native confirmation dialog; nothing is granted until the user confirms there.
+ *
+ * The same listener is the only sender of the registry request channel (WP-14A): Install, Update
+ * and Uninstall buttons on the Browse tab carry `data-t3p-registry-action` and
+ * `data-t3p-registry-id`. The request names only an action and an id; the main process takes the
+ * download URL and hash from the index it fetched itself, then asks in a native dialog.
  */
 
 interface ElementLike {
@@ -54,16 +70,47 @@ export function grantRequestFromClick(event: ClickLike): GrantRequest | null {
   return { id, permissions: names };
 }
 
+export interface RegistryRequest {
+  action: RegistryAction;
+  id: string;
+}
+
+function trustedTarget(event: ClickLike, selector: string): ElementLike | null {
+  if (!event || event.isTrusted !== true) return null;
+  if (typeof event.button === "number" && event.button !== 0) return null;
+  const target = event.target as ElementLike | null;
+  if (!target || typeof target.closest !== "function") return null;
+  try {
+    return target.closest(selector);
+  } catch {
+    return null;
+  }
+}
+
+/** Reads a registry request (install, update, uninstall) from a trusted click, or null. Pure. */
+export function registryRequestFromClick(event: ClickLike): RegistryRequest | null {
+  const el = trustedTarget(event, `[${REGISTRY_ACTION_ATTR}]`);
+  if (!el) return null;
+  const action = el.getAttribute(REGISTRY_ACTION_ATTR);
+  const id = el.getAttribute(REGISTRY_ID_ATTR) ?? "";
+  if (!isRegistryAction(action) || !isValidPluginId(id)) return null;
+  return { action, id };
+}
+
 /** Installs the capture-phase click listener on the preload's `window`. Returns a remover (tests). */
 export function installGrantClicks(
   target: { addEventListener(type: string, fn: (event: ClickLike) => void, capture: boolean): void; removeEventListener(type: string, fn: (event: ClickLike) => void, capture: boolean): void },
   ipc: Pick<IpcRendererLike, "invoke">,
 ): () => void {
   const onClick = (event: ClickLike): void => {
+    // Answers reach the page as `t3p:event` pushes (plugin-grant-result, plugin-registry-result) from the main process.
     const request = grantRequestFromClick(event);
-    if (!request) return;
-    // The answer reaches the page as a `t3p:event` (plugin-grant-result) from the main process.
-    ipc.invoke(GRANT_REQUEST_CHANNEL, request).catch(() => undefined);
+    if (request) {
+      ipc.invoke(GRANT_REQUEST_CHANNEL, request).catch(() => undefined);
+      return;
+    }
+    const registry = registryRequestFromClick(event);
+    if (registry) ipc.invoke(REGISTRY_REQUEST_CHANNEL, registry).catch(() => undefined);
   };
   target.addEventListener("click", onClick, true);
   return () => target.removeEventListener("click", onClick, true);

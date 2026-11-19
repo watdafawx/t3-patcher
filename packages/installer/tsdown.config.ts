@@ -6,7 +6,7 @@ const define = { __T3P_VERSION__: JSON.stringify(pkg.version) };
 
 export default defineConfig([
   {
-    entry: ["src/index.ts", "src/cli.ts", "src/runtime-pack.ts"],
+    entry: ["src/index.ts", "src/cli.ts", "src/runtime-pack.ts", "src/registry.ts"],
     format: ["esm"],
     dts: true,
     sourcemap: true,

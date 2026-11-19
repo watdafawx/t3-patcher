@@ -17,7 +17,7 @@ interface SlotDef {
   key?(anchor: Element): string;
 }
 
-export const SLOT_NAMES: readonly UiSlotName[] = ["sidebarSection", "threadHeader", "composerBanner", "rightPanel", "statusBar", "settingsPage", "timelineRowDecorator", "contextMenuItem", "threadDetails"];
+export const SLOT_NAMES: readonly UiSlotName[] = ["sidebarSection", "threadHeader", "composerBanner", "rightPanel", "statusBar", "settingsPage", "timelineRowDecorator", "contextMenuItem", "threadDetails", "threadListDecorator"];
 
 const CARD = "[data-thread-details-card]";
 
@@ -80,6 +80,16 @@ const DEFS: Record<UiSlotName, SlotDef> = {
     place: (anchor, container) => anchor.appendChild(container),
     key: (anchor) => anchor.getAttribute("data-timeline-row-id") ?? "",
   },
+  // `li[data-thread-item="<environmentId>:<threadId>"]` is one sidebar thread row (SidebarThreadRow.tsx). Our container goes
+  // inside the row surface (`[data-sidebar-row]`, `position:relative`), absolutely placed so the row never shifts.
+  threadListDecorator: {
+    find: () => Array.from(document.querySelectorAll("li[data-thread-item]")).slice(0, MAX_ROWS),
+    place: (anchor, container) => {
+      const surface = anchor.querySelector("[data-sidebar-row]") ?? anchor;
+      if (container.parentElement !== surface) surface.appendChild(container);
+    },
+    key: (anchor) => anchor.getAttribute("data-thread-item") ?? "",
+  },
   // Open menus: `[data-slot="menu-popup"]` (base-ui) or any `[role="menu"]`.
   contextMenuItem: {
     find: () => Array.from(document.querySelectorAll('[data-slot="menu-popup"],[role="menu"]')).filter(visible),
@@ -102,6 +112,8 @@ const DEFS: Record<UiSlotName, SlotDef> = {
 };
 
 interface Mount {
+  /** `key()` of the anchor when mounted: a re-used element showing another row is torn down and rebuilt. */
+  key?: string;
   container: HTMLElement;
   /** Where registration roots go (the dock body for rightPanel, else the container). */
   host: HTMLElement;
@@ -289,7 +301,8 @@ export class SlotEngine {
 
     // Drop mounts whose anchor or container is gone (route change, re-render).
     for (const [anchor, mount] of mounts) {
-      if (!anchor.isConnected || !mount.container.isConnected) {
+      const staleKey = slot === "threadListDecorator" && mount.key !== (DEFS[slot].key?.(anchor) ?? "");
+      if (!anchor.isConnected || !mount.container.isConnected || staleKey) {
         for (const entry of [...mount.roots.keys()]) this.#unmount(mount, entry);
         mount.container.remove();
         mounts.delete(anchor);
@@ -302,6 +315,7 @@ export class SlotEngine {
     // The card re-renders under us: keep our section right after the last stock section.
     if (slot === "threadDetails") for (const [anchor, mount] of mounts) def.place(anchor, mount.container);
     const anchors = def.find();
+    if (slot === "threadListDecorator") for (const [anchor, mount] of mounts) def.place(anchor, mount.container);
     for (const anchor of anchors) {
       let mount = mounts.get(anchor);
       if (!mount) {
@@ -313,11 +327,13 @@ export class SlotEngine {
           const container =
             slot === "statusBar"
               ? h("div", { class: "t3p-statusbar", "data-t3p-root": "", "data-t3p-container": "statusBar" })
-              : slot === "threadDetails"
+              : slot === "threadListDecorator"
+                ? h("div", { class: "t3p-tld", "data-t3p-root": "", "data-t3p-container": slot })
+                : slot === "threadDetails"
                 ? h("section", { class: "t3p-td-section", "data-t3p-root": "", "data-t3p-container": slot, "aria-label": "Plugins", style: "display:flex;flex-direction:column;gap:4px" })
                 : h("div", { "data-t3p-root": "", "data-t3p-container": slot, style: slot === "threadHeader" ? "" : "display:flex;flex-direction:column;gap:4px" });
           def.place(anchor, container);
-          mount = { container, host: container, roots: new Map() };
+          mount = { key: DEFS[slot].key?.(anchor), container, host: container, roots: new Map() };
         }
         mounts.set(anchor, mount);
       }
@@ -348,6 +364,8 @@ export class SlotEngine {
       slot,
       // Live: the header stays mounted while the route moves between threads.
       get threadId() {
+        // A sidebar row belongs to its own thread, not the focused one: `<environmentId>:<threadId>`.
+        if (slot === "threadListDecorator") return key.slice(key.indexOf(":") + 1) || null;
         return deps.threadId();
       },
       record: null,

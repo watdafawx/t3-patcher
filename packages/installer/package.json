@@ -1,6 +1,6 @@
 {
   "name": "t3-patcher",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Installer CLI for T3 Patcher: a plugin loader for the T3 Code desktop app (Windows). Run with npx t3-patcher install.",
   "keywords": [
     "t3-code",
@@ -21,6 +21,10 @@
     ".": {
       "types": "./dist/index.d.mts",
       "import": "./dist/index.mjs"
+    },
+    "./registry": {
+      "types": "./dist/registry.d.mts",
+      "import": "./dist/registry.mjs"
     }
   },
   "files": [

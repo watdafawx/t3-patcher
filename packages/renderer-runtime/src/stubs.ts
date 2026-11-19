@@ -42,7 +42,7 @@ export const OWNERS = {
 
 export const stubs = {
   providers: (): T3Providers => stub("providers", OWNERS.providers, ["list", "get", "limits", "onChange", "refresh"]),
-  threads: (): T3Threads => stub("threads", OWNERS.threads, ["list", "current", "projection", "subscribe", "dispatch", "setModel", "switchProvider"]),
+  threads: (): T3Threads => stub("threads", OWNERS.threads, ["list", "current", "open", "projection", "subscribe", "dispatch", "setModel", "switchProvider"]),
   timeline: (): T3Timeline => stub("timeline", OWNERS.timeline, ["list", "subscribe", "enrichFromProviderLog"]),
   usage: (): T3Usage => stub("usage", OWNERS.usage, ["summary", "thread", "context"]),
   ui: (): T3Ui => stub("ui", OWNERS.ui, ["register", "toast", "modal", "themeVars", "dock", "threadDetails", "openSettings"]),
