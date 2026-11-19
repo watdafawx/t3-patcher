@@ -177,6 +177,7 @@ export class SlotEngine {
     if (this.#timer) return;
     this.#timer = setTimeout(() => {
       this.#timer = null;
+      if (typeof document === "undefined") return; // timer outlived its page (test teardown)
       this.sync();
     }, 40);
   }
