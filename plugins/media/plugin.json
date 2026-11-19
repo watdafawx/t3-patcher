@@ -6,6 +6,7 @@
   "tier": 1,
   "permissions": [
     "main",
+    "embed.youtube",
     { "spawn": { "allow": ["C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe", "~/.t3-patcher/plugins/media/smtc.ps1"] } }
   ],
   "t3Versions": ["*"],

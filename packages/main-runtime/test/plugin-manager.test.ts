@@ -208,7 +208,7 @@ describe("storage IPC channels", () => {
 });
 
 describe("plugin manager: enable, disable, load order", () => {
-  it("enables a renderer-only plugin live, grants rpc only when asked, and persists", async () => {
+  it("enables a renderer-only plugin live without granting anything, and persists", async () => {
     writePlugin("p1", { permissions: ["rpc"] });
     writeState({ plugins: {} });
     const h = harness();
@@ -221,22 +221,18 @@ describe("plugin manager: enable, disable, load order", () => {
     expect(h.host.records.get("p1")?.effective).toEqual({}); // enabled, rpc not granted
     expect(JSON.parse(readFileSync(stateFile, "utf8")).plugins.p1).toEqual({ enabled: true, granted: [] });
 
-    await h.call("t3p:plugins:set-enabled", { id: "p1", enabled: true, grantRpc: true });
-    expect(h.host.records.get("p1")?.effective).toEqual({ rpc: true });
-    expect(JSON.parse(readFileSync(stateFile, "utf8")).plugins.p1).toEqual({ enabled: true, granted: ["rpc"] });
-
     await expect(h.call("t3p:plugins:set-enabled", { id: "p1", enabled: false })).resolves.toEqual({ status: "disabled", restartRequired: false });
     expect(h.host.rendererDir("p1")).toBeNull();
-    expect(JSON.parse(readFileSync(stateFile, "utf8")).plugins.p1.granted).toEqual(["rpc"]); // grants are kept
   });
 
-  it("never grants rpc that the manifest did not declare", async () => {
-    writePlugin("p1", {});
-    writeState({ plugins: {} });
+  it("set-enabled can no longer carry a grant (the old grantRpc option is rejected by the schema)", async () => {
+    writePlugin("p1", { permissions: ["rpc"] });
+    writeState({ plugins: { p1: { enabled: true, granted: ["rpc"] } } });
     const h = harness();
     await h.host.loadAll({ safe: false });
-    await h.call("t3p:plugins:set-enabled", { id: "p1", enabled: true, grantRpc: true });
-    expect(JSON.parse(readFileSync(stateFile, "utf8")).plugins.p1.granted).toEqual([]);
+    await expect(h.call("t3p:plugins:set-enabled", { id: "p1", enabled: true, grantRpc: true })).rejects.toThrow(/grantRpc/);
+    await h.call("t3p:plugins:set-enabled", { id: "p1", enabled: false });
+    expect(JSON.parse(readFileSync(stateFile, "utf8")).plugins.p1.granted).toEqual(["rpc"]); // grants are kept on disable
   });
 
   it("refuses to enable main-process, patches or spawn plugins from the renderer", async () => {

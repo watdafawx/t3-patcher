@@ -20,7 +20,6 @@ import {
   pluginChannel,
   type PermissionSet,
   type PluginManifest,
-  grantPermission,
   type PermissionJson,
   permissionsToJson,
   pluginState,
@@ -344,6 +343,12 @@ export class PluginHost {
     return rec && (rec.status === "active" || rec.status === "loaded") ? rec.effective : null;
   }
 
+  /** True when any loaded, non-failed plugin holds the effective permission (declared, granted, enabled). Read live. */
+  anyHolds(name: "embed.youtube"): boolean {
+    for (const rec of this.records.values()) if ((rec.status === "active" || rec.status === "loaded") && rec.effective[name]) return true;
+    return false;
+  }
+
   list(): Array<Omit<PluginRecord, "dir" | "manifest"> & { name: string | null; version: string | null; tier: number | null; declared: PermissionJson[] }> {
     const byId = this.records;
     return this.ordered([...byId.keys()]).map((id) => byId.get(id)!).map((r) => ({
@@ -363,17 +368,50 @@ export class PluginHost {
     }));
   }
 
+  /** What the grant dialog needs to know about a plugin (valid manifest only). */
+  grantTarget(id: string): { id: string; name: string; version: string; declared: PermissionSet; effective: PermissionSet; hasMain: boolean } | null {
+    const rec = this.records.get(id);
+    if (!rec || !rec.manifest) return null;
+    // A disabled plugin has no effective set yet: compare against what state.json grants.
+    const effective =
+      rec.status === "active" || rec.status === "loaded"
+        ? rec.effective
+        : effectivePermissions(rec.manifest.permissions, pluginState(readStateFile(this.deps.stateFile, this.deps.log), id).granted, { caseInsensitive: this.deps.platform === "win32" });
+    return { id, name: rec.manifest.name, version: rec.manifest.version, declared: rec.manifest.permissions, effective, hasMain: rec.manifest.main !== undefined || rec.mainLoaded };
+  }
+
+  /**
+   * After a grant or revoke written to state.json: reload a renderer-only plugin's record now (its
+   * effective permissions change live, native calls read them per call). A plugin with main code
+   * keeps its record until the next start (`restartRequired`).
+   */
+  async applyPermissionChange(id: string): Promise<{ restartRequired: boolean }> {
+    const rec = this.records.get(id);
+    if (!rec) return { restartRequired: false };
+    if (rec.mainLoaded || rec.manifest?.main) {
+      rec.restartRequired = true;
+      return { restartRequired: true };
+    }
+    const state = readStateFile(this.deps.stateFile, this.deps.log);
+    this.records.delete(id);
+    try {
+      await this.loadOne(id, state);
+    } catch (error) {
+      this.deps.log.error(`plugin ${id}: reload after a permission change failed`, error);
+    }
+    return { restartRequired: false };
+  }
+
   /**
    * Enable or disable a plugin on behalf of the renderer plugin manager, and persist it in state.json.
    * This never grants a native permission. Rules:
    * - A plugin with a `main` entry or the `patches` permission is trusted main-process code: the
    *   renderer cannot enable it (only `t3p enable` can). Disabling it is allowed and persists, but its
    *   main code keeps running until the next start (`restartRequired`).
-   * - A renderer-only plugin is enabled or disabled live. `grantRpc` also grants the `rpc` permission
-   *   when the manifest declares it: the bearer token is reachable from the renderer anyway
-   *   (docs/security.md section 3), so this is a consent record, not a new capability.
+   * - A renderer-only plugin is enabled or disabled live.
+   * Grants go only through the native dialog (plugins/grants.ts), never through this call.
    */
-  setEnabled(id: string, enabled: boolean, options: { grantRpc?: boolean } = {}): { status: PluginStatus; restartRequired: boolean } {
+  setEnabled(id: string, enabled: boolean): { status: PluginStatus; restartRequired: boolean } {
     if (!isValidPluginId(id)) throw new Error("t3p: invalid plugin id");
     const rec = this.records.get(id);
     if (!rec || !rec.manifest) throw new Error(`t3p: unknown or invalid plugin ${id}`);
@@ -384,7 +422,6 @@ export class PluginHost {
     }
     const state = readStateFile(this.deps.stateFile, this.deps.log);
     setStateEnabled(state, id, enabled);
-    if (enabled && options.grantRpc && manifest.permissions.rpc) grantPermission(state, id, "rpc");
     writeStateFile(this.deps.stateFile, state);
     if (enabled) this.clearHealthFor(id);
     this.deps.log.info(`plugin ${id}: ${enabled ? "enabled" : "disabled"} from the renderer`);

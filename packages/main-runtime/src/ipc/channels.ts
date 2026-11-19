@@ -1,4 +1,4 @@
-import { isValidPluginId, type PermissionSet } from "@t3p/api";
+import { GRANT_REQUEST_CHANNEL, isValidPluginId, PERMISSION_NAMES, type PermissionSet } from "@t3p/api";
 
 import type { Logger } from "../log.js";
 import type { NativeServices } from "../native/index.js";
@@ -23,7 +23,12 @@ export interface CoreChannelDeps {
   /** Per-plugin storage (t3.storage and t3.settings). */
   storage?: StorageStore;
   /** Plugin manager: enable or disable, and the load order. Persisted in state.json. */
-  setEnabled?(id: string, enabled: boolean, options: { grantRpc?: boolean }): { status: string; restartRequired: boolean };
+  setEnabled?(id: string, enabled: boolean): { status: string; restartRequired: boolean };
+  /**
+   * Grants (native dialog, privileged channel only) and revokes (no dialog). See plugins/grants.ts and
+   * docs/security.md section 4.6.
+   */
+  grants?: { request(id: string, permissions: string[] | "*"): Promise<unknown>; revoke(id: string, permissions: string[]): Promise<unknown> };
   setLoadOrder?(order: string[]): string[];
   /** Crash-loop guard: the renderer reports a plugin start outcome (`t3p:plugin-health`). */
   pluginHealth?(plugin: string, ok: boolean, error?: string): boolean;
@@ -35,6 +40,7 @@ export interface CoreChannelDeps {
 
 const pluginId = s.string({ max: 64, pattern: /^[a-z0-9][a-z0-9.-]*$/ });
 const path = s.string({ min: 1, max: 4096 });
+const permissionName = s.literal<string>(...PERMISSION_NAMES);
 const sqlParam = s.union(s.union(s.string({ max: 65_536 }), s.number()), s.union(s.boolean(), s.nullValue()));
 
 export const schemas = {
@@ -48,7 +54,9 @@ export const schemas = {
     maxRows: s.optional(s.int({ min: 1 })),
     timeoutMs: s.optional(s.int({ min: 1 })),
   }),
-  setEnabled: s.object({ id: pluginId, enabled: s.boolean(), grantRpc: s.optional(s.boolean()) }),
+  setEnabled: s.object({ id: pluginId, enabled: s.boolean() }),
+  revoke: s.object({ id: pluginId, permissions: s.array(permissionName, { max: PERMISSION_NAMES.length }) }),
+  grantRequest: s.object({ id: pluginId, permissions: s.union(s.literal("*"), s.array(permissionName, { max: PERMISSION_NAMES.length })) }),
   pluginHealth: s.object({ plugin: pluginId, ok: s.boolean(), error: s.optional(s.string({ max: 500 })) }),
   setLoadOrder: s.object({ order: s.array(pluginId, { max: 200 }) }),
   internalsReport: s.object({ name: s.string({ max: 64 }), state: s.string({ max: 16 }), detail: s.optional(s.string({ max: 500 })) }),
@@ -118,7 +126,14 @@ export function registerCoreChannels(deps: CoreChannelDeps): void {
   }
   if (deps.setEnabled) {
     const setEnabled = deps.setEnabled;
-    router.handle("t3p:plugins:set-enabled", schemas.setEnabled, (p) => setEnabled(p.id, p.enabled, p.grantRpc === undefined ? {} : { grantRpc: p.grantRpc }));
+    router.handle("t3p:plugins:set-enabled", schemas.setEnabled, (p) => setEnabled(p.id, p.enabled));
+  }
+  if (deps.grants) {
+    const grants = deps.grants;
+    router.handle("t3p:plugins:revoke", schemas.revoke, (p) => grants.revoke(p.id, p.permissions));
+    // Privileged: not in the page bridge's allowlist. Only the preload's trusted-click listener sends it,
+    // and it only opens the native dialog; the user's answer there is the authorization.
+    router.handle(GRANT_REQUEST_CHANNEL, schemas.grantRequest, (p) => grants.request(p.id, p.permissions));
   }
   if (deps.setLoadOrder) {
     const setLoadOrder = deps.setLoadOrder;

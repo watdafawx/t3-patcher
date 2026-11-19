@@ -33,9 +33,15 @@ The helper `smtc.ps1` runs in one long-lived hidden PowerShell process through `
 
 Nothing, until a view asks. The renderer polls only while the popover section is open (every second) or while the chip is on (every 5 seconds). The main side starts PowerShell on the first poll and stops it 15 seconds after the last one. If SMTC cannot start, it backs off from 5 seconds up to 5 minutes.
 
-## Known limitation: YouTube error 153
+## Permission `embed.youtube` (needed for playback)
 
-Measured on rig: the embed frames fine (CSP allows it) but YouTube answers "Video player configuration error 153" because the app origin is `t3code://app`, which is not an http(s) referrer. Playback needs a real https `Referer` on requests to `youtube-nocookie.com`, which only the main process can set (Electron `webRequest`). That is not implemented yet; the embed shows YouTube's "Watch video on YouTube" button as the fallback. The thumbnail, link parsing, pop-out and recent list work.
+The app origin is `t3code://app`, which is not http(s), so the embed request carries no Referer and YouTube answers "Video player configuration error 153". With the `embed.youtube` permission the main process sets `Referer: https://www.youtube-nocookie.com/` on **one** request: the frame navigation to `https://www.youtube-nocookie.com/embed/*`. No other host or header is touched, and it stops as soon as the plugin is disabled or the grant is revoked. Grant it once:
+
+```sh
+t3p grant media embed.youtube
+```
+
+Measured on rig (slot 2, stock 0.1.10, Big Buck Bunny): with the grant the player reaches state 1 (playing); without it YouTube returns error 153. Without the grant the embed shows YouTube's error (the thumbnail, link parsing, pop-out and recent list still work). Details: docs/security.md (permissions table).
 
 ## YouTube and T3's CSP
 

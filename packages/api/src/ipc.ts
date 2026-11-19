@@ -13,6 +13,7 @@ export const INVOKE_CHANNELS = [
   "t3p:plugins:list",
   "t3p:plugins:set-enabled",
   "t3p:plugins:set-load-order",
+  "t3p:plugins:revoke",
   "t3p:plugin-health",
   "t3p:storage:read",
   "t3p:storage:write",
@@ -41,8 +42,28 @@ export function pluginChannel(pluginId: string, name: string): string {
   return `t3p:plugin:${pluginId}:${name}`;
 }
 
+/**
+ * Privileged channels: registered by the main runtime but NOT in the page bridge's allowlist, so
+ * `window.__t3p_native.invoke` refuses them and no page script (plugin or runtime) can send them.
+ * Only the preload's isolated world calls them, from its own listener for trusted user clicks
+ * (docs/security.md section 4.6).
+ */
+export const PRIVILEGED_PREFIX = "t3p:privileged:";
+/** Ask the main process to show the native grant dialog: `{ id, permissions: string[] | "*" }`. */
+export const GRANT_REQUEST_CHANNEL = "t3p:privileged:grant-request";
+export const PRIVILEGED_CHANNELS = [GRANT_REQUEST_CHANNEL] as const;
+
+/** DOM attributes the preload's trusted-click listener reads (on the Plugins page's Grant buttons). */
+export const GRANT_ATTR = "data-t3p-grant-request";
+export const GRANT_PERMS_ATTR = "data-t3p-grant-perms";
+
+export function isPrivilegedChannel(channel: unknown): channel is string {
+  return typeof channel === "string" && (PRIVILEGED_CHANNELS as readonly string[]).includes(channel);
+}
+
 export function isAllowedInvokeChannel(channel: unknown): channel is string {
   if (typeof channel !== "string" || channel.length > 160) return false;
+  if (channel.startsWith(PRIVILEGED_PREFIX)) return false;
   return (INVOKE_CHANNELS as readonly string[]).includes(channel) || PLUGIN_CHANNEL_RE.test(channel);
 }
 

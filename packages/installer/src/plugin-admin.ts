@@ -1,4 +1,4 @@
-import { clearHealth, emptyHealth, emptyState, grantPermission, HEALTH_FILE, type HealthJson, parseHealth, parseState, type PatcherStateJson, pluginState, revokePermission, setEnabled, validateManifest } from "@t3p/api";
+import { clearHealth, emptyHealth, emptyState, grantDeclared, grantPermission, HEALTH_FILE, isRootPermission, type PluginManifest, type HealthJson, parseHealth, parseState, type PatcherStateJson, pluginState, revokePermission, setEnabled, validateManifest } from "@t3p/api";
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -79,12 +79,32 @@ export interface GrantOpts {
   scope?: string[];
 }
 
+/** The installed plugin's validated manifest, or null (not installed or invalid). */
+export function readManifest(id: string, homeDir?: string): PluginManifest | null {
+  try {
+    const result = validateManifest(JSON.parse(readFileSync(join(patcherBase(homeDir), "plugins", id, "plugin.json"), "utf8")), id);
+    return result.ok ? result.manifest : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * `t3p grant`. A scoped permission (fs.read, sqlite.read, log.tail, spawn) given without --root/--allow
+ * gets exactly the scope the installed plugin declares, through `grantDeclared`: the same function the
+ * app's native grant dialog uses, so the CLI and the Plugins page write identical state.json entries.
+ */
 export function grant(opts: GrantOpts): PatcherStateJson {
   const id = requireId(opts.id);
   if (!opts.permission) throw new T3pError("missing permission name");
   const state = readState(opts.homeDir);
+  const permission = opts.permission;
+  const scope = opts.scope ?? [];
+  const scoped = isRootPermission(permission) || permission === "spawn";
+  const manifest = scoped && scope.length === 0 ? readManifest(id, opts.homeDir) : null;
   try {
-    grantPermission(state, id, opts.permission, opts.scope ?? []);
+    if (manifest && (manifest.permissions as Record<string, unknown>)[permission] !== undefined) grantDeclared(state, id, manifest.permissions, [permission]);
+    else grantPermission(state, id, permission, scope);
   } catch (error) {
     throw new T3pError((error as Error).message);
   }

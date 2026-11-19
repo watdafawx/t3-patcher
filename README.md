@@ -14,8 +14,8 @@ Stock T3 Code 0.1.10 with the six first-party plugins loaded. Dark theme unless 
 |---|---|
 | <img src="docs/assets/screenshots/overview-dark.png" alt="Overview" width="100%"><br>**Overview.** Cache timer, Keep warm and provider switcher in the thread header, limits and cache chips in the status bar, Inspector in the plugin dock. | <img src="docs/assets/screenshots/overview-light.png" alt="Overview, light theme" width="100%"><br>**Light theme.** Plugin UI reads the app's CSS variables, so every theme works with no extra code. |
 | <img src="docs/assets/screenshots/cache-popover.png" alt="Cache popover" width="100%"><br>**Cache popover.** Click the status bar chip to see each live thread's prompt-cache countdown. | <img src="docs/assets/screenshots/provider-limits.png" alt="Provider limits" width="100%"><br>**Provider limits.** Session and weekly usage per provider, opened from the status bar chip (Claude shown; Codex had no data on the capture machine). |
-| <img src="docs/assets/screenshots/plugins-settings.png" alt="Plugins settings page" width="100%"><br>**Plugins settings.** Settings > Plugins (last entry in the Settings sidebar, under Archive): enable, disable and configure each plugin. | <img src="docs/assets/screenshots/command-palette.png" alt="Command palette" width="100%"><br>**Command palette.** Plugins register their own commands. |
-| <img src="docs/assets/screenshots/notes.png" alt="Notes plugin" width="100%"><br>**Notes.** A per-project note above the sidebar footer: dropdown of projects (the thread's own marked), autosaving text area. Light with the dropdown open, dark closed. | |
+| <img src="docs/assets/screenshots/plugins-settings.png" alt="Plugins settings page" width="100%"><br>**Plugins settings.** Settings > Plugins (last entry in the Settings sidebar, under Archive): a searchable plugin list on the left, the selected plugin on the right (enable switch, permissions, settings in collapsible sections, reset). Press `/` to search; palette: Plugins: open <name> settings. | <img src="docs/assets/screenshots/command-palette.png" alt="Command palette" width="100%"><br>**Command palette.** Plugins register their own commands. |
+| <img src="docs/assets/screenshots/notes.png" alt="Notes plugin" width="100%"><br>**Notes.** A per-project note above the sidebar footer: dropdown of projects (the thread's own marked), autosaving text area. Light with the dropdown open, dark closed. | <img src="docs/assets/screenshots/plugin-permissions.png" alt="Plugin permissions" width="100%"><br>**Permissions.** Each permission a plugin asks for, in plain English with its risk, and Grant / Revoke buttons. Every grant is confirmed in a native T3 Patcher dialog the plugin cannot click or skip. Palette: Plugins: review permissions. |
 
 ## Overview
 
@@ -35,7 +35,7 @@ T3 Patcher supports Windows and T3 Code **0.1.10** (stable, Beta or Nightly chan
 
 1. Download `t3p.exe` from the [latest release](../../releases/latest) and save it anywhere (Downloads is fine).
 2. **Close T3 Code**, then double-click `t3p.exe`. Windows SmartScreen may say "Windows protected your PC": the file is not code-signed yet, so click **More info**, then **Run anyway**. (Optional check: `certutil -hashfile t3p.exe SHA256` must match the `t3p.exe.sha256` file next to it.)
-3. A console window opens and shows your T3 Code version, whether it is compatible, and the patcher status. Type `1` (Install) and press Enter. When it says "Done", press Enter to close the window and start T3 Code as usual. Plugins now load with it; manage them in **Settings > Plugins**.
+3. A console window opens and shows your T3 Code version, whether it is compatible, and the patcher status. Type `1` (Install) and press Enter. When it says "Done", press Enter to close the window and start T3 Code as usual. Plugins now load with it; manage them and grant their permissions in **Settings > Plugins**.
 
 The same exe is the command line tool: open a terminal and run `t3p.exe status`, `t3p.exe doctor`, and so on (see [CLI reference](#cli-reference)).
 
@@ -184,6 +184,8 @@ t3p grant <id> <permission> [--root DIR]... [--allow EXE]...
 t3p revoke <id> <permission>
 ```
 
+Without `--root`/`--allow`, a scoped permission gets exactly the scope the plugin declares. The same grants can be made in Settings > Plugins (each confirmed in a native dialog); both write the same `state.json`.
+
 Link a local plugin development directory with live hot reloading:
 
 ```sh
@@ -251,7 +253,7 @@ T3 Patcher adheres to strict stability and containment principles:
 - **Atomic patch validation**: Code replacements on client chunks are verified with an Acorn parser before serving. Any patch resulting in a JavaScript syntax error is rolled back to the original unmodified chunk and reported.
 - **Security boundaries**:
   - Main-world execution: Renderer plugins execute in the main world of `t3code://app` and have access to the UI DOM and the bearer token.
-  - Native permissions: Main-process capabilities (`fs.read`, `sqlite.read`, `log.tail`, `spawn`, `main`, `patches`) require explicit declaration in `plugin.json` and explicit user grants via `t3p grant`.
+  - Native permissions: Main-process capabilities (`fs.read`, `sqlite.read`, `log.tail`, `spawn`, `main`, `patches`) require explicit declaration in `plugin.json` and an explicit user grant: `t3p grant`, or the Grant button in Settings > Plugins, which always asks in a native dialog the plugin cannot reach (docs/security.md section 4.6).
   - SQLite queries are executed in a dedicated forked utility process in read-only mode with query-only pragma and statement checks.
   - Process spawning requires exact allowlisted executable paths, disallows shell execution, hides windows, and scrubs environment variables.
 

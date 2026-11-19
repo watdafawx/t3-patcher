@@ -117,7 +117,7 @@ export function disableWithReason(state: PatcherStateJson, id: string, reason: s
 export function grantPermission(state: PatcherStateJson, id: string, name: string, scope: string[] = []): PatcherStateJson {
   const entry = entryFor(state, id);
   let json: PermissionJson;
-  if (name === "main" || name === "patches" || name === "rpc" || name === "guard") json = name;
+  if (name === "main" || name === "patches" || name === "rpc" || name === "guard" || name === "embed.youtube") json = name;
   else if (isRootPermission(name)) json = { [name]: { roots: scope } } as PermissionJson;
   else if (name === "spawn") json = { spawn: { allow: scope } };
   else throw new Error(`unknown permission "${name}"`);

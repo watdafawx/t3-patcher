@@ -537,6 +537,11 @@ export interface T3Ui {
   settingsPanel(host: HTMLElement, options?: SettingsPanelOptions): T3Disposable;
   /** Tweaks to the stock thread details popover (see the `threadDetails` slot). */
   readonly threadDetails: T3UiThreadDetails;
+  /**
+   * Opens Settings > Plugins on one plugin's page (its settings, permissions and `settingsPage` UI).
+   * Default: the calling plugin. The command palette has the same entry: "Plugins: open <name> settings".
+   */
+  openSettings(pluginId?: string): void;
 }
 
 /** Options of {@link T3Ui.settingsPanel}. */

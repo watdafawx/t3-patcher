@@ -6,7 +6,7 @@ import { KeybindRegistry } from "./keybinds.js";
 import type { Scope } from "./scope.js";
 import { Fallbacks } from "./ui/fallbacks.js";
 import { Overlays } from "./ui/overlays.js";
-import { type ManagerFacade, mountPluginsPage } from "./ui/plugins-page.js";
+import { type ManagerFacade, missingPermissions, mountPluginsPage, selectPlugin } from "./ui/plugins-page.js";
 import { mountSettingsPanel } from "./ui/setting-controls.js";
 import { SlotEngine } from "./ui/slots.js";
 import { Theme } from "./ui/theme.js";
@@ -63,11 +63,47 @@ export class Shell {
     this.fallbacks = new Fallbacks({ hub: this.hub, commands: this.commands, openPluginsPage: () => this.openPluginsPage() });
     // atomRegistry has no substitute: a plugin that needs it must check `t3.internals.status()`.
     this.commands.add("t3p.core", { id: "open-plugins", title: "Plugins: open settings page", description: "t3p", keywords: ["plugins", "settings", "extensions"], run: () => this.openPluginsPage() });
+    this.commands.add("t3p.core", {
+      id: "review-permissions",
+      title: "Plugins: review permissions",
+      description: "t3p",
+      keywords: ["plugins", "permissions", "grant", "revoke", "security"],
+      run: () => this.reviewPermissions(),
+    });
+  }
+
+  /** Opens the Plugins page on the first plugin that still needs a permission (else the first plugin), scrolled to Permissions. */
+  reviewPermissions(): void {
+    const plugins = this.#manager?.list() ?? [];
+    const target = plugins.find((p) => missingPermissions(p).length > 0) ?? plugins.find((p) => p.declared.length > 0) ?? plugins[0];
+    this.openPluginsPage(target?.id, "permissions");
   }
 
   /** Called once the plugin manager exists. */
   attach(manager: ManagerFacade): void {
     this.#manager = manager;
+    // One palette entry per plugin: "Plugins: open <name> settings". Follows installs and removals.
+    const entries = new Map<string, { name: string; remove: () => void }>();
+    const sync = (): void => {
+      const now = new Map(manager.list().map((p) => [p.id, p.name]));
+      for (const [id, entry] of [...entries]) {
+        if (now.get(id) !== entry.name) {
+          entry.remove();
+          entries.delete(id);
+        }
+      }
+      for (const [id, name] of now) {
+        if (entries.has(id)) continue;
+        try {
+          const remove = this.commands.add("t3p.core", { id: `open-settings.${id}`, title: `Plugins: open ${name} settings`, description: id, keywords: ["plugins", "settings", id, name], run: () => this.openPluginsPage(id) });
+          entries.set(id, { name, remove });
+        } catch {
+          // an id the registry rejects (odd characters) just gets no palette entry
+        }
+      }
+    };
+    sync();
+    manager.onChange(sync);
   }
 
   start(win: Record<string, unknown>): void {
@@ -120,7 +156,8 @@ export class Shell {
   }
 
   /** The Plugins page: the real settings route when registered, else an overlay. */
-  openPluginsPage(): void {
+  openPluginsPage(pluginId?: string, focus: "permissions" | null = null): void {
+    if (pluginId) selectPlugin(pluginId, focus);
     if (this.hub.has("settingsNav")) {
       this.navigate("/settings/plugins");
       return;
@@ -255,6 +292,10 @@ export class Shell {
         return this.overlays.modal(plugin, options, (fn) => (close = fn)).finally(() => forget());
       },
       themeVars: () => this.theme.values(),
+      openSettings: (pluginId?: string): void => {
+        scope.assertAlive();
+        this.openPluginsPage(typeof pluginId === "string" && pluginId ? pluginId : plugin);
+      },
       settingsPanel: (host: HTMLElement, options?: SettingsPanelOptions): T3Disposable => {
         scope.assertAlive();
         if (!settings) throw new Error("t3.ui.settingsPanel: settings are not available");

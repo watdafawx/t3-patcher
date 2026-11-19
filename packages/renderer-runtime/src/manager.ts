@@ -358,11 +358,11 @@ export class PluginManager {
     await this.start(id);
   }
 
-  /** Enables a plugin (persisted in state.json by the main process) and starts it. Throws the main process' refusal. */
-  async enable(id: string, options: { grantRpc?: boolean } = {}): Promise<ManagedPlugin | null> {
+  /** Enables a plugin (persisted in state.json by the main process) and starts it. Throws the main process' refusal. Never grants. */
+  async enable(id: string): Promise<ManagedPlugin | null> {
     const native = this.deps.native;
     if (!native) throw new Error("plugin manager: window.__t3p_native is not available");
-    await native.invoke("t3p:plugins:set-enabled", { id, enabled: true, ...(options.grantRpc === undefined ? {} : { grantRpc: options.grantRpc }) });
+    await native.invoke("t3p:plugins:set-enabled", { id, enabled: true });
     await this.refresh();
     const rt = this.#rt(id);
     if (rt.status === "stopped" || rt.status === "failed") rt.status = "inactive";
@@ -381,6 +381,39 @@ export class PluginManager {
     rt.status = "inactive";
     this.#changed();
     return { restartRequired: answer.restartRequired === true };
+  }
+
+  /**
+   * Revokes permissions (no dialog: it only removes power). The main process writes state.json and
+   * pushes `plugin-permissions-changed`, which reloads the plugin here (see `permissionsChanged`).
+   * There is deliberately no `grant`: granting needs a trusted click on a Grant button, which the
+   * preload turns into a native dialog (docs/security.md section 4.6).
+   */
+  async revoke(id: string, permissions: string[]): Promise<{ restartRequired: boolean }> {
+    const native = this.deps.native;
+    if (!native) throw new Error("plugin manager: window.__t3p_native is not available");
+    const answer = (await native.invoke("t3p:plugins:revoke", { id, permissions })) as { restartRequired?: boolean } | null;
+    return { restartRequired: answer?.restartRequired === true };
+  }
+
+  /**
+   * The main process changed a plugin's grants (`t3p:event plugin-permissions-changed`): re-read the
+   * list and, unless a restart is needed, restart the plugin's renderer module so it gets a `t3` built
+   * from the new permissions.
+   */
+  async permissionsChanged(id: string, restartRequired: boolean): Promise<void> {
+    if (restartRequired || !this.#entries.has(id)) {
+      await this.refresh();
+      return;
+    }
+    const rt = this.#runtime.get(id);
+    if (rt && (rt.status === "started" || rt.status === "failed" || rt.status === "pending")) await this.reload(id);
+    else await this.refresh();
+  }
+
+  /** Tells change listeners to redraw (a grant dialog closed without a change). */
+  notify(): void {
+    this.#changed();
   }
 
   /** Persists the load order (ids first, in that order). It applies from the next page load. */
@@ -430,8 +463,9 @@ export class PluginManager {
   /** Frozen facade for `window.__t3p.manager` (settings page, devtools). */
   facade(): Readonly<{
     list(): ManagedPlugin[];
-    enable(id: string, options?: { grantRpc?: boolean }): Promise<ManagedPlugin | null>;
+    enable(id: string): Promise<ManagedPlugin | null>;
     disable(id: string): Promise<{ restartRequired: boolean }>;
+    revoke(id: string, permissions: string[]): Promise<{ restartRequired: boolean }>;
     reload(id: string): Promise<void>;
     setLoadOrder(order: string[]): Promise<string[]>;
     schemas(id: string): SettingSchema[];
@@ -442,8 +476,9 @@ export class PluginManager {
   }> {
     return Object.freeze({
       list: () => this.list(),
-      enable: (id: string, options?: { grantRpc?: boolean }) => this.enable(id, options),
+      enable: (id: string) => this.enable(id),
       disable: (id: string) => this.disable(id),
+      revoke: (id: string, permissions: string[]) => this.revoke(id, permissions),
       reload: (id: string) => this.reload(id),
       setLoadOrder: (order: string[]) => this.setLoadOrder(order),
       schemas: (id: string) => this.schemas(id),

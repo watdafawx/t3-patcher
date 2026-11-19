@@ -43,7 +43,7 @@
       "type": "array",
       "items": {
         "anyOf": [
-          { "enum": ["main", "patches", "rpc"] },
+          { "enum": ["main", "patches", "rpc", "embed.youtube"] },
           {
             "type": "object",
             "minProperties": 1,

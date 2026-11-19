@@ -52,11 +52,12 @@ Options:
   --worker-node auto|copy|skip  install/repair: copy the app's Electron exe to
                 ~/.t3-patcher/bin for the update repair worker (auto: only
                 when there is no node.exe on PATH)
-  --root DIR    grant fs.read / sqlite.read / log.tail under DIR (~ = T3P home)
+  --root DIR    grant fs.read / sqlite.read / log.tail under DIR (~ = T3P home);
+                without --root/--allow the plugin's declared scope is granted
   --allow EXE   grant spawn of this absolute .exe path
   --off         safe: cancel a pending safe-mode start
 
-Permissions: main, patches, rpc, fs.read, sqlite.read, log.tail, spawn. A plugin
+Permissions: main, patches, rpc, guard, embed.youtube, fs.read, sqlite.read, log.tail, spawn. A plugin
 gets only what its plugin.json declares AND you grant. The app reads the state
 at its next start. "t3p safe" makes the next start skip all plugins and
 patches (also: T3P_SAFE=1 or --t3p-safe on the app command line).

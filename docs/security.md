@@ -26,7 +26,7 @@ Where a plugin sits:
   - Scoped roots keep only granted roots that lie inside a declared root.
   - `spawn` keeps only granted executables equal to a declared one.
   - A plugin that is not `enabled` in `state.json` loads nothing.
-- Today the user grants through the CLI: `t3p enable <id>`, `t3p grant <id> <perm> [--root R]... [--allow EXE]...`, `t3p revoke`, `t3p disable`. A first-enable prompt is WP-3A's job.
+- The user grants through the CLI (`t3p enable <id>`, `t3p grant <id> <perm> [--root R]... [--allow EXE]...`, `t3p revoke`, `t3p disable`) or from Settings > Plugins, where every grant is confirmed in a native dialog (section 4.6). Both write the same `state.json` entries through `grantDeclared`.
 
 `~` in a scope path expands to the patcher home: `T3P_HOME` if set, else the OS home.
 
@@ -38,6 +38,7 @@ Where a plugin sits:
 | `main` | Its `main` entry is `require`d in Electron's main process, and `activate(ctx)` runs with a 5 s timeout. `ctx` adds `ipc.handle` (only its own `t3p:plugin:<id>:*` channels), `emit`, `log`, the `native` services it holds, and `patches` if granted. | **Trusted code**: full Node and Electron in the main process. The `ctx` object is a convenience, not a sandbox. `require` is not restricted. |
 | `patches` (needs `main`) | `ctx.patches.register([...])`: string find/replace on the app's client JS chunks, served through the wrapped `t3code://` protocol. | **Trusted code**: it rewrites the UI's code, so it gets everything the renderer has. |
 | `guard` | `t3.threads.beforeStart` / `ctx.threads.beforeStart`: sees the first 200 characters of every message, new thread and delegated task before it runs (plus thread ids, provider, model, source), and can hold it (up to 5 min), block it or move it to another provider/model. | Reading what the user and agents send, and stopping or rerouting it. A renderer plugin could read messages anyway (section 1); `guard` adds holding and rerouting server-side commands, including agent-driven ones the UI never shows. Granted only with `t3p grant <id> guard`. The server hook it rides on is first-party: the pipe it uses carries a per-start random token that the backend env drops at once (docs/patching.md "Server guard"). |
+| `embed.youtube` | The main process sets `Referer: https://www.youtube-nocookie.com/` on one request kind: the frame navigation to `https://www.youtube-nocookie.com/embed/*` (exact host, https, no credentials or port, resource type `subFrame`). It uses one `session.webRequest.onBeforeSendHeaders` listener whose URL filter is that single pattern, so no other request reaches the code. The grant is read live per request: disabling the plugin or revoking the grant stops it (a revoke made with the CLI while the app runs applies after the plugin host reloads, `t3p dev` or a restart). | Changes network behaviour for **one host only**: YouTube's embed endpoint sees an https Referer instead of none. It does not read, block or alter any other header, host or response, and does not touch the CSP (`frame-src` already allows `https:`). Without it the embed fails with player error 153. |
 | `fs.read` `{roots}` | `t3p:native:fs.read`: reads a file inside a root, up to 4 MiB per call, with offset and utf8/base64. | Reading every file under those roots. |
 | `sqlite.read` `{roots}` | `t3p:native:sqlite.query`: one read statement on a `.db`/`.sqlite`/`.sqlite3` file inside a root. Up to 10,000 rows (default 1,000), timeout up to 30 s (default 5 s, counted from when the query starts). At most 4 queries run at once across all plugins; up to 64 more wait in a queue and further ones are refused. | Reading those databases. Cannot write (section 5.2). |
 | `log.tail` `{roots}` | `t3p:native:log.tail`: tail of a file inside a root with a byte cursor, up to 1 MiB per call (default 64 KiB), resets on truncation. | Reading those files. |
@@ -61,9 +62,10 @@ The desktop renderer gets its server credential from `window.desktopBridge.getLo
 - `preload.cjs` is registered on the default session with `session.registerPreloadScript({ type: "frame" })`, falling back to `setPreloads`.
 - It exposes `window.__t3p_native = Object.freeze({ version, invoke, on })` through `contextBridge`.
 - `invoke` accepts only allowlisted channels, so nothing else can be sent:
-  - the fixed `t3p:ping`, `t3p:log`, `t3p:plugins:list`;
+  - the fixed `t3p:ping`, `t3p:log`, `t3p:plugins:list` and the plugin manager channels (`set-enabled`, `set-load-order`, `revoke`);
   - `t3p:native:fs.read`, `t3p:native:sqlite.query`, `t3p:native:log.tail`, `t3p:native:spawn`;
   - `t3p:plugin:<id>:<name>`.
+- It never accepts `t3p:privileged:*` (the grant request, section 4.6).
 - `on` accepts only `t3p:event` and `t3p:plugin-event`.
 - The page never sees `ipcRenderer`. Upstream's `desktop:*` channels are not reachable through this bridge. Rig check: `invoke("desktop:get-bearer")` → `channel desktop:get-bearer is not allowed`, rejected in the preload, never sent.
 
@@ -115,6 +117,36 @@ What attribution does give:
 - a plugin that was never granted anything cannot widen the set;
 - `ghost` (not loaded) and `disabled` plugins get nothing;
 - the logs say which grant was used.
+
+### 4.6 Granting from the UI (Settings > Plugins)
+
+The Plugins page lists each declared permission with what it does, its risk and whether it is granted, with **Grant**, **Revoke** and **Grant all requested** buttons. The page runs in the same JavaScript world as every renderer plugin, so the page itself can never be what authorizes a grant: a plugin could call anything the page calls, patch `fetch`, wrap the page's functions or fake its DOM. The design therefore puts the decision outside the page.
+
+1. **The user decides in a native dialog, owned by the main process.** `GrantFlow` (`main-runtime/src/plugins/grants.ts`) calls `dialog.showMessageBox(mainWindow, ...)`: window-modal, parented to the main window. It names the plugin, its id and version, and every permission with its plain-English meaning, risk and exact scope (folders or programs from `plugin.json`). Buttons: **Cancel** (default, and the Esc/close answer) and **Grant**. `state.json` is written only when the answer is **Grant**; Cancel, closing the dialog, or a dialog error writes nothing. A page cannot draw over, script or click a native dialog.
+2. **The request channel is unreachable from page code.** The request travels on `t3p:privileged:grant-request`. That name is outside the bridge allowlist (`isAllowedInvokeChannel` refuses every `t3p:privileged:*` channel), so `window.__t3p_native.invoke` rejects it in the preload and nothing is sent. No `t3.*` API, no manager facade method and no other channel grants anything. The old `grantRpc` option of `t3p:plugins:set-enabled` was removed: the schema now rejects it.
+3. **Only the preload sends it, and only for real input.** The preload runs in its own isolated world and registers a capture-phase `click` listener on `window` before any page script runs. It acts only when `event.isTrusted` is true and the target is inside an element with `data-t3p-grant-request`. Page scripts cannot produce trusted clicks: `el.click()`, `dispatchEvent` and synthetic events are all `isTrusted: false`. They also cannot reach `ipcRenderer`, remove that listener, or patch the DOM prototypes the isolated world uses. The router still runs the sender check (main window, main frame, `t3code://app`) and the strict schema (valid plugin id, known permission names or `"*"`).
+4. **The main process checks the request against the manifest.** Only permissions the plugin declares are granted, with exactly the declared scope (`grantDeclared` in `@t3p/api`, the same function `t3p grant` uses). Undeclared names are refused. A broken `state.json` is refused before the dialog opens, never overwritten.
+5. **Rate limit.** One dialog at a time. Requests while one is open, or within 1.5 s after the last one closed, get `busy` and no dialog. That stops a plugin from stacking prompts until the user clicks through.
+6. **No bypass.** `HIGH_RISK_PERMISSIONS` (`spawn`, `main`, `patches`, `fs.read`, `guard`, `embed.youtube`) is a hardcoded, frozen list that always needs the dialog. Today every UI grant shows the dialog anyway; the list is the floor that must never shrink. There is no "don't ask again" and no setting that skips the dialog.
+
+What a malicious plugin can still do, and why it is acceptable:
+
+- **Trick the user into a real click.** It can put `data-t3p-grant-request="<its id>"` on its own button. The result is still the native dialog, which says which plugin asks for what. Cancel is the default.
+- **Revoke other plugins' grants.** `t3p:plugins:revoke` is a normal page channel with no dialog, because revoking only removes power. A plugin could already disable other plugins, so this adds a nuisance, not an escalation.
+- Everything in section 3 and 4.5 still applies. A renderer plugin already has the user's T3 session, so a grant mainly controls native and main-process power (`main`, `patches`, `spawn`, `fs.read`, ...).
+
+After a grant or revoke, the main process reloads the plugin's record (renderer-only plugins: native calls see the new set at once) and pushes `t3p:event {type: "plugin-permissions-changed"}`. The page then restarts that plugin's renderer module. A plugin with a `main` entry, or a change to `main`/`patches`, needs a restart; the page says so in a toast.
+
+Verified by `main-runtime/test/grants.test.ts`, `preload-runtime/test/grant-clicks.test.ts` and `api/test/permission-info.test.ts`:
+
+- the page bridge rejects the channel without sending it;
+- no page-allowlisted channel grants, and `grantRpc` is rejected;
+- untrusted clicks are ignored;
+- confirm writes and cancel writes nothing;
+- a second request while a dialog is open gets no dialog;
+- every high-risk permission shows the dialog;
+- no window means no dialog and no grant;
+- the sender check applies to the privileged channel.
 
 ## 5. Native services
 
@@ -283,6 +315,7 @@ Goal: a plugin that fails on every launch must not keep failing forever.
 - Plugins with `main`, `patches` or `spawn`: these are trusted code by design.
 - Renderer plugins reading the bearer token or driving RPC directly (section 3). WP-3A's `t3.rpc` gating does not change this.
 - Renderer plugins impersonating each other in native calls (section 4.5).
+- A plugin luring the user into a real click on a grant button it drew, or revoking other plugins' grants (section 4.6). The native dialog still names the plugin and permissions, and Cancel is the default.
 - Data a granted plugin reads and sends elsewhere. The loader gives no network filtering; the app's CSP `connect-src` is the only limit, and only for renderer code.
 - Hard links inside a granted root pointing at files elsewhere (same volume): realpath does not reveal them.
 - Time-of-check/time-of-use swaps of a path component between the check and the open, by something with the user's rights.

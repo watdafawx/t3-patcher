@@ -9,3 +9,4 @@ export * from "./t3.js";
 export * from "./internals-status.js";
 export * from "./health.js";
 export * from "./guard.js";
+export * from "./permission-info.js";

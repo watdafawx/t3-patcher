@@ -160,6 +160,26 @@ export function bootstrap(env: BootstrapEnv): Promise<PluginLoadResult[]> {
           env.reloadPage?.();
           return;
         }
+        if (p?.type === "plugin-permissions-changed" && typeof p.plugin === "string") {
+          const id = p.plugin;
+          const restart = (payload as { restartRequired?: unknown }).restartRequired === true;
+          manager
+            .permissionsChanged(id, restart)
+            .then(() => {
+              if (restart) {
+                const name = manager.list().find((x) => x.id === id)?.name ?? id;
+                shell.overlays.toast("t3p.core", { title: "Restart T3 Code", message: `Restart T3 for main-process permissions of ${name} to take effect.`, kind: "info", durationMs: 8000 });
+              }
+            })
+            .catch((error: unknown) => env.consoleError(`[t3p] permission reload of ${id} failed`, error));
+          return;
+        }
+        if (p?.type === "plugin-grant-result" && typeof p.plugin === "string") {
+          const status = (payload as { status?: unknown }).status;
+          if (status === "unavailable") shell.overlays.toast("t3p.core", { message: "The grant dialog could not open. Use: t3p grant " + p.plugin + " <permission>", kind: "warning" });
+          manager.notify();
+          return;
+        }
         if (p?.type === "plugin-files-changed" && typeof p.plugin === "string" && manager.dev) {
           manager.reload(p.plugin).catch((error: unknown) => env.consoleError(`[t3p] hot reload of ${String(p.plugin)} failed`, error));
         }

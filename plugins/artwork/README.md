@@ -7,6 +7,7 @@ Custom artwork behind the T3 Code sidebar header, plus a restyled logo. Tier 1, 
 ## What it does
 
 - **Backdrop** behind the title row, collapse button, arrows and Search row. Presets: **Aurora** (animated glow with faint rays), **Gradient** (angle), **Mesh glow**, **Image** (your own), **None**.
+- **App background** (off by default): Ocean, Antigravity, Gradient drift or Starfield behind the whole app, one at a time. See below.
 - **Ocean background** (off by default): a drifting field of letters behind the whole app, with click ripples. Separate from the sidebar preset, so it never replaces the aurora. See below.
 - **Logo**: keep stock, custom text, custom image (height-fit), or hide the wordmark. Only the `T3 Code home` link's text/logo node is restyled; window controls, the collapse button and the back/forward arrows are never touched.
 - **Main area glow** (off by default): a very faint same-style glow behind the top of the chat header.
@@ -38,6 +39,44 @@ Turn it on with the **Ocean background** switch (dock tab, section *Ocean backgr
 - Pauses while the window is hidden, draws one still frame under `prefers-reduced-motion` or speed 0, and turning it off (or stopping the plugin) removes the canvas, style, listeners and animation frame.
 - Code: `src/ocean.ts` (canvas engine), `src/model.ts` (`oceanParams`, `oceanPalette`), adapted from a user-supplied `ocean.js`.
 
+## App backgrounds (Ocean, Antigravity, Gradient drift, Starfield)
+
+<img src="../../docs/assets/screenshots/artwork-bg-antigravity.png" alt="Antigravity" width="320"> <img src="../../docs/assets/screenshots/artwork-bg-drift.png" alt="Gradient drift" width="320"> <img src="../../docs/assets/screenshots/artwork-bg-starfield.png" alt="Starfield" width="320">
+
+Dock tab, section **Background**: a radio row **Off / Ocean / Antigravity / Gradient drift / Starfield**. Only one runs at a time; the master switch is `oceanOn` ("App background") and the kind is `bgKind`. A Custom HTML/CSS background still takes over whichever one is on and gives it back when turned off.
+
+| Setting | Meaning |
+|---|---|
+| `bgIntensity` | strength (alpha) |
+| `bgSpeed` | motion speed, 0 is one still frame |
+| `bgDensity` | particle / star count, blob size for Gradient drift |
+| `bgPointer` | Antigravity's ring follows the pointer, Starfield shifts slightly (not used by Gradient drift) |
+| `bgFollowAccent` | colors from the app accent / artwork Color; off uses the preset's own warm-to-cool palette |
+| `bgLowPower` | cap Antigravity at 30 fps |
+
+All of them share the Ocean plumbing: a fixed full-viewport root at `z-index:-1`, `pointer-events:none`, input read from `window`, the big opaque app layers made transparent (`markSurfaces`), clean removal of root, style, attributes, timers and listeners on stop.
+
+### Cost class
+
+| Preset | Cost class | Notes |
+|---|---|---|
+| **Gradient drift** | **compositor only, no JS per frame** | 4 radial-gradient blobs animating `transform` only (no `filter: blur`). Paused with `animation-play-state` when hidden or blurred. Uses a few big GPU layers (about 20 MB each at 4K). |
+| **Starfield** | JS per frame, tiny | about 200 stars, one canvas at dpr 1 and at most 1.2 MP, 30 fps, 8 batched fills. About 0.05 ms per frame. |
+| **Antigravity** | JS per frame | about 1700 dashes at the default density, one pass of arithmetic and at most 20 batched strokes. About 0.75 ms per frame measured on rig at 4K. 60 fps, or 30 with Low power. |
+| **Ocean** | JS per frame | letters on a 30 fps canvas, only changed cells repainted. |
+
+### Performance rules (Antigravity and Starfield)
+
+- Device pixel ratio capped at 1.5 and an internal pixel budget of 2.5 MP (1.2 MP for Starfield); the canvas is scaled up by CSS, so a 4K screen renders at about 1080p-class resolution.
+- Fixed 1/60 s simulation step with dt clamped (a stall advances at most 100 ms), one draw per frame.
+- Pauses at once while the document is hidden, and after the window has been blurred for more than 5 s. One still frame under `prefers-reduced-motion` or speed 0.
+- Adaptive quality: the draw cost is averaged over 60 frames. Above 10 ms the density drops one step (to 60 %, then 35 %). If it is still above 16 ms after a reduction, the background stops and a toast says so; it stays off until you switch it off and on.
+- Measuring: set `window.__t3pBgPerf = []` before turning one on; every frame's draw cost (ms) is pushed into it.
+
+### Antigravity: what the reference actually is
+
+The Google Antigravity website hero (antigravity.google) is a WebGL particle field (three.js). About a thousand Poisson-disc-spaced points live in a 256x256 float data texture that a fragment shader updates every frame (GPGPU ping-pong). A ring-shaped force field follows the pointer, easing toward it and wandering on its own when idle. Simplex noise displaces every point; points near the ring edge grow and get pulled toward it. Each point is drawn as a round-capped dash rotated away from the ring center, colored along a three-stop gradient driven by noise. It is not a video or an image. This preset is an independent 2D-canvas reimplementation of the idea (jittered grid instead of Poisson discs, analytic sine flow instead of simplex noise, batched strokes instead of shaders); no code or assets were copied. Verified on rig at 4K: about 0.75 ms draw per frame. The GPU cost of rasterizing the strokes is not included in that number.
+
 ## Custom HTML/CSS
 
 <img src="../../docs/assets/screenshots/artwork-custom.png" alt="Custom HTML/CSS section of the Artwork dock tab" width="320">
@@ -47,7 +86,7 @@ Dock tab, section **Custom HTML / CSS**. Two targets, each with an enable switch
 | Target | Where it lives | While on it replaces |
 |---|---|---|
 | **Header / logo area** | absolute layer at the top of the sidebar column, behind the title row (`z-index:-1`) | the sidebar preset (Aurora, Gradient, Mesh, Image) |
-| **App background** | fixed full-window layer behind the app, same slot as Ocean | the Ocean canvas (it comes back when you turn Custom off) |
+| **App background** | fixed full-window layer behind the app, same slot as the app backgrounds | the active app background (Ocean, Antigravity, Gradient drift or Starfield; it comes back when you turn Custom off) |
 
 - **Start from current preset** fills the editors with the active preset's generated markup and CSS (the background gets the same glow scaled to the window; the Ocean canvas cannot be exported as markup). Turning a target on with empty editors does this for you. **Reset to preset** asks, clears the editors and turns the target off, so the stock preset shows again.
 - **Live preview**: typing applies after 250 ms. Invalid input is never applied: errors show under the editors with line numbers and the last good version stays on screen.

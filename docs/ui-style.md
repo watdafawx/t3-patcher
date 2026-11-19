@@ -40,6 +40,7 @@ instead of writing CSS.
 | `t3p-menu-item` | Row in a menu with hover and focus-visible. |
 | `t3p-meta` | 11px muted caption or group heading. |
 | `t3p-card` | Bordered card surface. |
+| `t3p-pgw` / `t3p-pg` | The Plugins settings page (shell-owned, do not reuse): `t3p-pgw` is the container-query wrapper, `t3p-pg` the two-column grid. `t3p-hl` highlights a search match. |
 | `t3p-statusbar`, `t3p-dock*`, `t3p-tab` | Shell chrome. Plugins get these through slots, do not build them. |
 
 ## Example
@@ -57,3 +58,15 @@ note.style.color = "var(--warning-foreground, currentColor)";
 
 Layout is owned by the shell: status bar 22px at the bottom, dock below the app header,
 thread header slot is an inline row. Fill your slot, do not position yourself.
+
+## Master-detail pages (Settings > Plugins)
+
+The Plugins page is the reference layout for a list plus a detail pane:
+
+- Left: a `t3p-input` search box and a `role="listbox"` of rows (initial, name, count badge, status dot). The active row uses `--accent`; the dot uses `--success`, `--warning`, `--destructive`.
+- Right: only the selected item. A header card (name, version, pills, switch), then sections: a button with `aria-expanded` and a chevron, body with `t3p-setting` rows built by `createControl` from `setting-controls.ts`.
+- Search matches names and setting text and wraps hits in `<mark class="t3p-hl">` (tinted from `--warning`). A section that holds a match opens even when collapsed.
+- Keyboard: up/down/home/end in the list select and focus, `/` focuses the search (not while typing elsewhere), Escape clears it.
+- Under 640px the panes show one at a time (`@container (max-width:639px)`, state in `data-t3p-view="list|detail"`) with a Back button. Use a container query, not a viewport query: the page sits beside the app sidebar.
+- Persist only view state (selected item, collapsed sections) in `localStorage`, always in try/catch, and render fine without it.
+- The `settingsPage` slot has one anchor, moved into the detail pane. Never recreate it on redraw, or plugin UI mounted in it is torn down and rebuilt.

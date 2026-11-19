@@ -44,6 +44,19 @@ describe("state commands", () => {
     expect(existsSync(join(home, ".t3-patcher", "state.json"))).toBe(false);
   });
 
+  it("a scoped grant without --root/--allow takes the installed plugin's declared scope (same writer as the app dialog)", () => {
+    const dir = join(home, ".t3-patcher", "plugins", "p");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "plugin.json"),
+      JSON.stringify({ id: "p", version: "1.0.0", tier: 1, t3Versions: ["*"], renderer: "r.js", permissions: [{ "fs.read": { roots: ["~/data"] } }, { spawn: { allow: ["C:/Tools/git.exe"] } }] }),
+    );
+    grant({ homeDir: home, id: "p", permission: "fs.read" });
+    grant({ homeDir: home, id: "p", permission: "spawn" });
+    expect(readState(home).plugins.p!.granted).toEqual([{ "fs.read": { roots: ["~/data"] } }, { spawn: { allow: ["C:/Tools/git.exe"] } }]);
+    expect(() => grant({ homeDir: home, id: "p", permission: "log.tail" })).toThrow(); // not declared, no --root
+  });
+
   it("refuses to overwrite a state.json it cannot read", () => {
     mkdirSync(join(home, ".t3-patcher"));
     writeFileSync(join(home, ".t3-patcher", "state.json"), "{broken");

@@ -1,6 +1,8 @@
 import type { SettingValue, T3Api } from "@t3p/api";
 
 import { CUSTOM_PANEL_CSS, renderCustomSection, type CustomApi } from "./custom-panel.js";
+import { BG_KINDS, BG_LABELS, isBgKind, type BgKind } from "./bg-model.js";
+import { mountResetAll } from "./reset.js";
 import { HUE_DEFAULT_FIXED, PRESETS, PRESET_LABELS, layerVars, type ArtworkConfig, type Preset, type SavedArtwork } from "./model.js";
 
 /** Styles of the dock tab. Colors come only from app variables, so dark, light and custom themes follow. */
@@ -23,6 +25,9 @@ export const PANEL_CSS = CUSTOM_PANEL_CSS + `
 .t3p-art-hue{display:flex;flex-direction:column;gap:6px}
 .t3p-art-hue[data-follow] .t3p-range-wrap{opacity:.45;pointer-events:none}
 .t3p-art-hue-track{background:linear-gradient(90deg,oklch(.74 .15 0),oklch(.74 .15 60),oklch(.74 .15 120),oklch(.74 .15 180),oklch(.74 .15 240),oklch(.74 .15 300),oklch(.74 .15 360))}
+.t3p-art-chips{display:flex;flex-wrap:wrap;gap:6px}
+.t3p-art-chips .t3p-btn[aria-checked=true]{border-color:var(--ring,currentColor);box-shadow:0 0 0 1px var(--ring,currentColor)}
+.t3p-art-bgset[hidden]{display:none}
 .t3p-art-ln{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
 .t3p-art-ln>label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .t3p-art-imgs{display:flex;flex-direction:column;gap:4px}
@@ -32,6 +37,9 @@ export const PANEL_CSS = CUSTOM_PANEL_CSS + `
 .t3p-art-img .t3p-btn{height:24px}
 .t3p-art-thumb2{flex:none;width:44px;height:28px;border-radius:4px;object-fit:cover;background:color-mix(in srgb,var(--muted-foreground,currentColor) 14%,transparent);border:1px solid var(--border,currentColor)}
 .t3p-art-foot{display:flex;gap:6px;flex-wrap:wrap}
+.t3p-art-reset,.t3p-art-reset-confirm{display:flex;flex-direction:column;gap:8px;min-width:0}
+.t3p-art-reset-confirm{padding:8px;border:1px solid var(--destructive,var(--border,currentColor));border-radius:var(--radius-lg,var(--radius,.5rem))}
+.t3p-art-reset-confirm[hidden]{display:none}
 .t3p-art-foot .t3p-btn,.t3p-art-sec .t3p-btn{height:24px}
 `;
 
@@ -57,10 +65,20 @@ export interface PanelContext {
 
 /** Keys the generic helper renders in the "Look" and "Logo" sections. */
 export const LOOK_KEYS = ["intensity", "speed", "fadeHeight", "blur", "angle", "scrim", "mainGlow"];
-export const OCEAN_KEYS = ["oceanOn", "oceanIntensity", "oceanSpeed", "oceanRipples"];
+export const OCEAN_KEYS = ["oceanIntensity", "oceanSpeed", "oceanRipples"];
+export const ANTIGRAVITY_KEYS = ["bgIntensity", "bgSpeed", "bgDensity", "bgPointer", "bgFollowAccent", "bgLowPower"];
+export const STARFIELD_KEYS = ["bgIntensity", "bgSpeed", "bgDensity", "bgPointer", "bgFollowAccent"];
+export const DRIFT_KEYS = ["bgIntensity", "bgSpeed", "bgDensity", "bgFollowAccent"];
+const BG_KEYS_BY_KIND: Record<BgKind, string[]> = { ocean: OCEAN_KEYS, antigravity: ANTIGRAVITY_KEYS, drift: DRIFT_KEYS, starfield: STARFIELD_KEYS };
+const BG_HINTS: Record<BgKind, string> = {
+  ocean: "Letters drift behind the whole app. Click for ripples. Cost: JavaScript per frame (30 fps).",
+  antigravity: "Round-capped dashes with a ring that follows the pointer. Cost: JavaScript per frame, adapts itself when slow.",
+  drift: "Four slow soft blobs. Cost: compositor only, no JavaScript per frame.",
+  starfield: "Sparse twinkling stars at 30 fps. Cost: very small JavaScript per frame.",
+};
 export const LOGO_KEYS = ["logoMode", "logoText", "logoHeight"];
 /** Every setting the panel can reset. */
-export const ALL_KEYS = ["preset", "intensity", "speed", "hue", "fadeHeight", "blur", "angle", "scrim", "artworkName", "mainGlow", "oceanOn", "oceanIntensity", "oceanSpeed", "oceanRipples", "logoMode", "logoText", "logoHeight", "allowRemoteAssets"];
+export const ALL_KEYS = ["preset", "intensity", "speed", "hue", "fadeHeight", "blur", "angle", "scrim", "artworkName", "mainGlow", "oceanOn", "oceanIntensity", "oceanSpeed", "oceanRipples", "bgKind", "bgIntensity", "bgSpeed", "bgDensity", "bgPointer", "bgFollowAccent", "bgLowPower", "logoMode", "logoText", "logoHeight", "allowRemoteAssets"];
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string, string> = {}, ...kids: Array<Node | string>): HTMLElementTagNameMap[K] => {
   const node = document.createElement(tag);
@@ -162,9 +180,59 @@ export function renderPanel(host: HTMLElement, ctx: PanelContext): () => void {
   disposers.push(t3.ui.settingsPanel(lookSec, { keys: LOOK_KEYS, onLive: (k, v) => preview(k, v) }).dispose);
 
   // ---- ocean ---------------------------------------------------------------------------------------
-  const oceanSec = section("Ocean background");
-  oceanSec.appendChild(el("div", { class: "t3p-meta" }, "Letters drift behind the whole app. Click for ripples. Separate from the sidebar preset; uses the Color above for the glow."));
-  disposers.push(t3.ui.settingsPanel(oceanSec, { keys: OCEAN_KEYS, onLive: (k, v) => preview(k, v) }).dispose);
+  // One full-app background at a time: a radio row (Off + the four kinds) and one settings block per kind.
+  const oceanSec = section("Background");
+  const bgHint = el("div", { class: "t3p-meta" });
+  const bgRow = el("div", { class: "t3p-art-chips", role: "radiogroup", "aria-label": "Background", "data-t3p-bg": "" });
+  const bgChoices: Array<BgKind | "off"> = ["off", ...BG_KINDS];
+  const bgChips = new Map<BgKind | "off", HTMLButtonElement>();
+  let bgOn = false;
+  let bgKindNow: BgKind = "ocean";
+  /** A click's choice wins over the (async) stored value for a moment. */
+  let bgHold: ReturnType<typeof setTimeout> | undefined;
+  disposers.push(() => bgHold && clearTimeout(bgHold));
+  const holdBg = (): void => {
+    if (bgHold) clearTimeout(bgHold);
+    bgHold = setTimeout(() => {
+      bgHold = undefined;
+      syncSettings();
+    }, 600);
+  };
+  const bgBlocks = new Map<BgKind, HTMLElement>();
+  const syncBg = (): void => {
+    const sel = bgOn ? bgKindNow : "off";
+    for (const [id, b] of bgChips) b.setAttribute("aria-checked", String(id === sel));
+    for (const [k, block] of bgBlocks) block.hidden = !(bgOn && k === bgKindNow);
+    bgHint.textContent = bgOn ? BG_HINTS[bgKindNow] : "Pick a background for the whole app. Separate from the sidebar preset. Only one runs at a time.";
+  };
+  for (const id of bgChoices) {
+    const b = el("button", { type: "button", class: "t3p-btn", role: "radio", "aria-checked": "false", "data-t3p-bg-kind": id }, id === "off" ? "Off" : BG_LABELS[id]);
+    b.addEventListener("click", () => {
+      holdBg();
+      if (id === "off") {
+        bgOn = false;
+        void t3.settings.set("oceanOn", false);
+        preview("oceanOn", false);
+      } else {
+        bgOn = true;
+        bgKindNow = id;
+        void t3.settings.set("bgKind", id);
+        void t3.settings.set("oceanOn", true);
+        preview("bgKind", id);
+        preview("oceanOn", true);
+      }
+      syncBg();
+    });
+    bgChips.set(id, b);
+    bgRow.appendChild(b);
+  }
+  oceanSec.append(bgRow, bgHint);
+  for (const kind of BG_KINDS) {
+    const block = el("div", { class: "t3p-art-bgset", "data-t3p-bg-settings": kind });
+    oceanSec.appendChild(block);
+    bgBlocks.set(kind, block);
+    disposers.push(t3.ui.settingsPanel(block, { keys: BG_KEYS_BY_KIND[kind], onLive: (k, v) => preview(k, v) }).dispose);
+  }
 
   // ---- logo --------------------------------------------------------------------------------------
   const logoSec = section("Logo");
@@ -182,12 +250,13 @@ export function renderPanel(host: HTMLElement, ctx: PanelContext): () => void {
   imgSec.append(list, el("div", { class: "t3p-art-foot" }, picker("Add image...", ctx.addArt)));
 
   const foot = el("div", { class: "t3p-art-foot" });
-  foot.appendChild(
-    button("Reset to defaults", () => {
+  disposers.push(
+    mountResetAll(foot, t3, ctx.custom, () => {
       timers.forEach((t) => clearTimeout(t));
       timers.clear();
-      for (const key of ALL_KEYS) void t3.settings.reset(key).catch(() => undefined);
-    }, "ghost"),
+      for (const key of ALL_KEYS) ctx.preview(key, undefined);
+      syncSettings();
+    }),
   );
 
   root.append(presetSec, hueSec, lookSec, oceanSec, logoSec, customSec, imgSec, foot);
@@ -232,6 +301,12 @@ export function renderPanel(host: HTMLElement, ctx: PanelContext): () => void {
     const cfg = ctx.config();
     for (const [k, v] of Object.entries(layerVars(cfg))) grid.style.setProperty(k, v);
     for (const [preset, b] of swatches) b.setAttribute("aria-pressed", String(preset === cfg.preset));
+    if (!bgHold) {
+      bgOn = t3.settings.get<boolean>("oceanOn") === true;
+      const kindNow = t3.settings.get<string>("bgKind");
+      bgKindNow = isBgKind(kindNow) ? kindNow : "ocean";
+    }
+    syncBg();
     const following = cfg.hue < 0;
     hue.toggleAttribute("data-follow", following);
     follow.checked = following;

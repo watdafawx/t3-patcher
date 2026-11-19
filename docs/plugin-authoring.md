@@ -61,7 +61,7 @@ const plugin: PluginModule = {
 export default plugin;
 ```
 
-Plugin settings show up on the Plugins page, at **Settings > Plugins** in T3 Code (the last entry in the Settings sidebar, under Archive).
+Plugin settings show up on the Plugins page, at **Settings > Plugins** in T3 Code (the last entry in the Settings sidebar, under Archive). The page is master-detail: a searchable plugin list on the left, only the selected plugin on the right. Settings are grouped in collapsible sections: keys that share a first camelCase word (`oceanOn`, `oceanSpeed`) form one section, the rest go under General. The search box matches setting keys, labels and descriptions, so write them in words a user would type. Your `settingsPage` slot UI renders in your plugin's detail pane. `t3.ui.openSettings(pluginId?)` (also the palette entry "Plugins: open <name> settings") jumps to a plugin's page.
 
 ### Settings in a dock tab
 
@@ -148,7 +148,15 @@ Prefer tier 1. The manifest only *declares* the tier; it does not grant anything
 
 The names come from [`packages/api/src/permissions.ts`](../packages/api/src/permissions.ts).
 A plugin receives only what it **declares** in `plugin.json` **and** the user
-**grants** (`t3p grant <id> <permission>`), so the effective set is the intersection.
+**grants**, so the effective set is the intersection. Users grant in **Settings > Plugins**
+(the Permissions section of your plugin: Grant, Revoke, Grant all requested; palette:
+Plugins: review permissions) or with `t3p grant <id> <permission>`. Every UI grant is
+confirmed in a native T3 Patcher dialog that lists each permission with the meaning and
+risk from `PERMISSION_INFO` in `@t3p/api`, so declare the minimum and keep scopes narrow:
+the dialog shows the user your exact roots and executables. There is no API to request or
+grant a permission from plugin code, by design ([`docs/security.md`](security.md) section 4.6).
+After a grant or revoke your renderer module is restarted with the new `t3`; a plugin with a
+`main` entry (or a `main`/`patches` change) needs an app restart.
 Granting is a consent signal, not a security boundary once a plugin runs in the
 renderer; see [`docs/security.md`](security.md) section 3.
 
@@ -157,14 +165,16 @@ renderer; see [`docs/security.md`](security.md) section 3.
 | `main` | `"main"` | A `main` entry, and `t3.native.invoke` into your own main-side handlers (`ctx.ipc.handle(name, fn)`). |
 | `patches` | `"patches"` | Tier 3 text patches (`t3.patches`), and patches that must apply on first load (also needs `main`). |
 | `rpc` | `"rpc"` | `t3.rpc.call`, `subscribe` and `http` against the T3 server, using the shared bearer-authenticated socket. |
-| `guard` | `"guard"` | `t3.threads.beforeStart` (and `ctx.threads.beforeStart` in a main entry): see, block or redirect every turn start, delegated sub-sessions included. Grant with `t3p grant <id> guard`; the plugins page does not grant it. See [`docs/patching.md`](patching.md) "Server guard". |
+| `guard` | `"guard"` | `t3.threads.beforeStart` (and `ctx.threads.beforeStart` in a main entry): see, block or redirect every turn start, delegated sub-sessions included. Grant in Settings > Plugins or with `t3p grant <id> guard`. See [`docs/patching.md`](patching.md) "Server guard". |
+| `embed.youtube` | `"embed.youtube"` | Main process adds a Referer to the `youtube-nocookie.com/embed/*` frame request so the embed plays (otherwise error 153). One host, nothing else. Grant in Settings > Plugins or with `t3p grant <id> embed.youtube`. |
 | `fs.read` | `{ "fs.read": { "roots": ["~/.t3/caches"] } }` | `t3.native.fsRead` under the listed roots. |
 | `sqlite.read` | `{ "sqlite.read": { "roots": ["~/.t3"] } }` | Read-only queries through `t3.native.sqliteQuery` (`statev2.sqlite`; never opened for write). |
 | `log.tail` | `{ "log.tail": { "roots": ["~/logs"] } }` | `t3.native.logTail` under the listed roots. |
 | `spawn` | `{ "spawn": { "allow": ["C:/Tools/git.exe"] } }` | `t3.native.spawn` of exactly the listed executables, argv arrays, no shell. |
 
 Scope paths are absolute (`C:/x`, `/x`) or start with `~/`, at most 1024 chars and 32
-entries. No UNC or device paths, no NUL.
+entries. No UNC or device paths, no NUL. `t3p grant <id> fs.read` without `--root` grants
+exactly the roots your manifest declares (the same as the Grant button).
 
 Grants live in `<T3P_HOME>/.t3-patcher/state.json`. The renderer refuses to enable a
 plugin that declares `main`, `patches` or `spawn`; use `t3p enable <id>` (and

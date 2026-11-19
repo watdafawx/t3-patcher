@@ -123,12 +123,76 @@ describe("artwork dock tab", () => {
     await start(fake);
     expect(fake.panels.map((p) => p.keys)).toEqual([
       ["intensity", "speed", "fadeHeight", "blur", "angle", "scrim", "mainGlow"],
-      ["oceanOn", "oceanIntensity", "oceanSpeed", "oceanRipples"],
+      ["oceanIntensity", "oceanSpeed", "oceanRipples"],
+      ["bgIntensity", "bgSpeed", "bgDensity", "bgPointer", "bgFollowAccent", "bgLowPower"],
+      ["bgIntensity", "bgSpeed", "bgDensity", "bgFollowAccent"],
+      ["bgIntensity", "bgSpeed", "bgDensity", "bgPointer", "bgFollowAccent"],
       ["logoMode", "logoText", "logoHeight"],
     ]);
     const schemas = fake.t3.settings.getSchemas();
     for (const key of ["intensity", "speed", "fadeHeight", "blur", "angle", "logoHeight"]) expect(schemas.find((s) => s.key === key)?.type).toBe("range");
     for (const p of fake.panels) for (const key of p.keys!) expect(schemas.some((s) => s.key === key)).toBe(true);
+  });
+
+  describe("background kind (radio)", () => {
+    const chip = (id: string): HTMLButtonElement => document.querySelector(`[data-t3p-bg-kind="${id}"]`) as HTMLButtonElement;
+    const roots = (): string[] => ["t3p-ocean", "t3p-bg-antigravity", "t3p-bg-drift", "t3p-bg-starfield"].filter((id) => document.getElementById(id));
+
+    it("shows Off plus four kinds as a radio group, Off checked by default", async () => {
+      await start(fakeT3());
+      expect([...document.querySelectorAll("[data-t3p-bg-kind]")].map((b) => b.getAttribute("data-t3p-bg-kind"))).toEqual(["off", "ocean", "antigravity", "drift", "starfield"]);
+      expect(document.querySelector("[data-t3p-bg]")!.getAttribute("role")).toBe("radiogroup");
+      expect(chip("off").getAttribute("aria-checked")).toBe("true");
+      expect(chip("ocean").getAttribute("aria-checked")).toBe("false");
+      expect(roots()).toEqual([]);
+    });
+
+    it("picking a kind turns the app background on with that kind; only one runs at a time", async () => {
+      const fake = fakeT3();
+      await start(fake);
+      chip("antigravity").click();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(fake.sets).toEqual(expect.arrayContaining([["bgKind", "antigravity"], ["oceanOn", true]]));
+      expect(chip("antigravity").getAttribute("aria-checked")).toBe("true");
+      expect(roots()).toEqual(["t3p-bg-antigravity"]);
+      chip("starfield").click();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(roots()).toEqual(["t3p-bg-starfield"]);
+      chip("drift").click();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(roots()).toEqual(["t3p-bg-drift"]);
+      chip("ocean").click();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(roots()).toEqual(["t3p-ocean"]);
+      chip("off").click();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(roots()).toEqual([]);
+      expect(fake.t3.settings.get("oceanOn")).toBe(false);
+      expect(chip("off").getAttribute("aria-checked")).toBe("true");
+    });
+
+    it("shows only the settings block of the active kind", async () => {
+      await start(fakeT3({ oceanOn: true, bgKind: "starfield" }));
+      const visible = [...document.querySelectorAll<HTMLElement>("[data-t3p-bg-settings]")].filter((b) => !b.hidden).map((b) => b.getAttribute("data-t3p-bg-settings"));
+      expect(visible).toEqual(["starfield"]);
+      chip("off").click();
+      expect([...document.querySelectorAll<HTMLElement>("[data-t3p-bg-settings]")].every((b) => b.hidden)).toBe(true);
+    });
+
+    it("an old install with only oceanOn=true still gets the Ocean", async () => {
+      await start(fakeT3({ oceanOn: true }));
+      expect(roots()).toEqual(["t3p-ocean"]);
+    });
+
+    it("stopping the plugin removes whichever background is running", async () => {
+      const fake = fakeT3({ oceanOn: true, bgKind: "drift" });
+      await start(fake);
+      expect(roots()).toEqual(["t3p-bg-drift"]);
+      (stop as () => void)();
+      stop = undefined;
+      expect(roots()).toEqual([]);
+      expect(document.documentElement.getAttribute("data-t3p-bg-drift")).toBeNull();
+    });
   });
 
   it("slider moves preview live (onLive) before any write", async () => {
@@ -206,16 +270,97 @@ describe("artwork dock tab", () => {
     expect(document.querySelector("[data-t3p-images]")!.textContent).toContain("No saved images");
   });
 
-  it("Reset to defaults resets every artwork setting but keeps images", async () => {
-    const fake = fakeT3({ preset: "mesh", intensity: 10, hue: 50 }, { arts: [{ id: "a1", name: "Dusk", bytes: 1 }], "art:a1": PNG });
+  const q = (sel: string): HTMLElement => document.querySelector(sel) as HTMLElement;
+  const clickReset = async (clear = false): Promise<void> => {
+    q("[data-t3p-reset-start]").click();
+    expect(q("[data-t3p-reset-confirm]").hidden).toBe(false);
+    if (clear) {
+      const tick = q("[data-t3p-reset-clear]") as HTMLInputElement;
+      tick.checked = true;
+    }
+    q("[data-t3p-reset-yes]").click();
+    await vi.advanceTimersByTimeAsync(300);
+  };
+
+  it("Reset all needs a second click and keeps images", async () => {
+    const fake = fakeT3({ preset: "mesh", intensity: 10, hue: 50, oceanOn: true }, { arts: [{ id: "a1", name: "Dusk", bytes: 1 }], "art:a1": PNG });
     await start(fake);
-    const reset = [...document.querySelectorAll("button")].find((b) => b.textContent === "Reset to defaults") as HTMLButtonElement;
-    reset.click();
+    expect(q("[data-t3p-reset-start]").textContent).toBe("Reset all to defaults");
+    expect(q("[data-t3p-reset-confirm]").hidden).toBe(true);
+    q("[data-t3p-reset-start]").click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fake.values.size).toBe(4); // nothing reset yet
+    q("[data-t3p-reset-yes]").click();
     await vi.advanceTimersByTimeAsync(0);
     expect(fake.values.size).toBe(0);
     expect(fake.t3.settings.get("preset")).toBe("aurora");
+    expect(fake.t3.settings.get("oceanOn")).toBe(false);
     expect(fake.store.has("art:a1")).toBe(true);
     expect(sw("aurora").getAttribute("aria-pressed")).toBe("true");
+    expect(q("[data-t3p-reset-confirm]").hidden).toBe(true);
+  });
+
+  it("Cancel aborts the reset", async () => {
+    const fake = fakeT3({ preset: "mesh" });
+    await start(fake);
+    q("[data-t3p-reset-start]").click();
+    q("[data-t3p-reset-no]").click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fake.t3.settings.get("preset")).toBe("mesh");
+    expect(q("[data-t3p-reset-confirm]").hidden).toBe(true);
+  });
+
+  async function setupCustom(fake: ReturnType<typeof fakeT3>): Promise<void> {
+    const box = q('[data-t3p-custom-target="header"]');
+    const html = box.querySelector("[data-t3p-ct-html]") as HTMLTextAreaElement;
+    const css = box.querySelector("[data-t3p-ct-css]") as HTMLTextAreaElement;
+    html.value = "<div class=\"x\"></div>";
+    css.value = ".x{opacity:.5}";
+    html.dispatchEvent(new Event("input"));
+    const enable = box.querySelector("[data-t3p-ct-enable]") as HTMLInputElement;
+    enable.checked = true;
+    enable.dispatchEvent(new Event("change"));
+    await vi.advanceTimersByTimeAsync(600);
+    expect((fake.store.get("custom") as { header: { enabled: boolean } }).header.enabled).toBe(true);
+  }
+
+  it("Reset all turns custom off but keeps its code unless the tick is set", async () => {
+    const fake = fakeT3({ oceanOn: true });
+    await start(fake);
+    await setupCustom(fake);
+    await clickReset(false);
+    await vi.advanceTimersByTimeAsync(600);
+    const header = (fake.store.get("custom") as { header: { enabled: boolean; html: string; css: string } }).header;
+    expect(header.enabled).toBe(false);
+    expect(header.html).toContain("class");
+    expect(header.css).toContain(".x");
+    expect(fake.t3.settings.get("oceanOn")).toBe(false);
+  });
+
+  it("Reset all with the tick clears the custom code and applies at once", async () => {
+    const fake = fakeT3({ preset: "none", intensity: 5 });
+    await start(fake);
+    await setupCustom(fake);
+    await clickReset(true);
+    await vi.advanceTimersByTimeAsync(600);
+    const header = (fake.store.get("custom") as { header: { enabled: boolean; html: string; css: string } }).header;
+    expect(header).toEqual({ enabled: false, html: "", css: "" });
+    expect(fake.values.size).toBe(0);
+    expect(document.querySelector("[data-t3p-custom]")).toBeNull();
+    expect((q('[data-t3p-custom-target="header"] [data-t3p-ct-html]') as HTMLTextAreaElement).value).toBe("");
+  });
+
+  it("the settings page card has the same reset control", async () => {
+    const fake = fakeT3({ preset: "mesh" });
+    await start(fake, false);
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    fake.regs.find((r) => r.slot === "settingsPage")!.render(host, {} as never);
+    await vi.advanceTimersByTimeAsync(0);
+    (host.querySelector("[data-t3p-reset-start]") as HTMLElement).click();
+    (host.querySelector("[data-t3p-reset-yes]") as HTMLElement).click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fake.t3.settings.get("preset")).toBe("aurora");
   });
 
   it("follows settings changed elsewhere (Settings > Plugins)", async () => {
@@ -233,7 +378,7 @@ describe("artwork dock tab", () => {
     // unmount the way the slot engine does: run the cleanup render returned
     const cleanup = fake.regs.find((r) => r.slot === "rightPanel")!.render(document.createElement("div"), {} as never) as () => void;
     cleanup();
-    expect(fake.panels.slice(3).every((p) => p.disposed)).toBe(true);
+    expect(fake.panels.slice(6).every((p) => p.disposed)).toBe(true);
   });
 });
 

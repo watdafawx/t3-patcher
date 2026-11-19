@@ -783,6 +783,11 @@ export interface T3Ui {
   settingsPanel(host: HTMLElement, options?: SettingsPanelOptions): T3Disposable;
   /** Tweaks to the stock thread details popover (see the `threadDetails` slot). */
   readonly threadDetails: T3UiThreadDetails;
+  /**
+   * Opens Settings > Plugins on one plugin's page (its settings, permissions and `settingsPage` UI).
+   * Default: the calling plugin. The command palette has the same entry: "Plugins: open <name> settings".
+   */
+  openSettings(pluginId?: string): void;
 }
 ```
 
@@ -800,6 +805,8 @@ does not cover the app, so changes are visible while you tune. Every edit goes t
 follow changes made elsewhere. `keys` limits and orders the rows (default: all defined settings).
 Dispose to remove the controls.
 - `threadDetails`: Tweaks to the stock thread details popover (see the `threadDetails` slot).
+- `openSettings`: Opens Settings > Plugins on one plugin's page (its settings, permissions and `settingsPage` UI).
+Default: the calling plugin. The command palette has the same entry: "Plugins: open <name> settings".
 
 ### `UiSlotRegistration`
 

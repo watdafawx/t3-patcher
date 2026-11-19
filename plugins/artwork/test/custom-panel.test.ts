@@ -226,6 +226,20 @@ describe("takeover and restore", () => {
     expect(document.getElementById("t3p-ocean")).not.toBeNull();
   });
 
+  it("custom background also takes over the Antigravity, Gradient drift and Starfield presets", async () => {
+    for (const kind of ["antigravity", "drift", "starfield"]) {
+      await start(fakeT3({ oceanOn: true, bgKind: kind }));
+      expect(document.getElementById(`t3p-bg-${kind}`)).not.toBeNull();
+      await toggle("background", true);
+      expect(document.getElementById(`t3p-bg-${kind}`)).toBeNull();
+      expect(document.documentElement.hasAttribute(`data-t3p-bg-${kind}`)).toBe(false);
+      await toggle("background", false);
+      expect(document.getElementById(`t3p-bg-${kind}`)).not.toBeNull();
+      (stop as () => void)();
+      stop = undefined;
+    }
+  });
+
   it("leaves aurora presets and Ocean untouched when custom is never enabled", async () => {
     await start(fakeT3({ oceanOn: true, preset: "mesh" }));
     expect(layer().getAttribute("data-preset")).toBe("mesh");

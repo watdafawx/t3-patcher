@@ -1,4 +1,3 @@
-import type { PermissionSet } from "@t3p/api";
 import { vi } from "vitest";
 
 import type { BootstrapEnv } from "../src/runtime.js";
@@ -49,7 +48,6 @@ export function fakeNative(entries: PluginListEntry[], opts: { dev?: boolean; li
         if (p.enabled) {
           e.status = "loaded";
           e.rendererUrl = `t3code://app/__t3p/plugins/${e.id}/r.js`;
-          if (p.grantRpc) e.effective = { ...e.effective, rpc: true } as PermissionSet;
         } else {
           e.status = "disabled";
           e.rendererUrl = null;

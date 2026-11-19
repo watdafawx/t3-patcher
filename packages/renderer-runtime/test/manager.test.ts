@@ -6,7 +6,8 @@ import { entry, envFor, fakeImporter, fakeNative } from "./helpers.js";
 
 type Manager = {
   list(): Array<{ id: string; status: string; error: string | null; hostStatus: string }>;
-  enable(id: string, o?: { grantRpc?: boolean }): Promise<unknown>;
+  enable(id: string): Promise<unknown>;
+  revoke(id: string, permissions: string[]): Promise<unknown>;
   disable(id: string): Promise<{ restartRequired: boolean }>;
   reload(id: string): Promise<void>;
   setLoadOrder(order: string[]): Promise<string[]>;
@@ -236,6 +237,34 @@ describe("plugin manager", () => {
       }
     });
 
+    it("a t3p:event plugin-permissions-changed restarts the plugin live (any mode); restartRequired only refreshes", async () => {
+      const native = fakeNative([entry("p")], { dev: false });
+      let runs = 0;
+      const { importModule } = fakeImporter({ p: () => (runs++, { start: () => undefined }) });
+      const env = envFor(native, importModule);
+      await bootstrap(env);
+      native.entries[0]!.effective = { rpc: true };
+      native.push("t3p:event", { type: "plugin-permissions-changed", plugin: "p", status: "granted", permissions: ["rpc"], restartRequired: false });
+      await flush();
+      await flush();
+      expect(runs).toBe(2);
+      expect(mgr(env.win).list()[0]!.effective).toEqual({ rpc: true });
+      native.push("t3p:event", { type: "plugin-permissions-changed", plugin: "p", status: "granted", permissions: ["main"], restartRequired: true });
+      await flush();
+      await flush();
+      expect(runs).toBe(2);
+    });
+
+    it("revoke sends t3p:plugins:revoke; the manager has no grant method", async () => {
+      const native = fakeNative([entry("p")]);
+      const { importModule } = fakeImporter({ p: { start: () => undefined } });
+      const env = envFor(native, importModule);
+      await bootstrap(env);
+      await mgr(env.win).revoke("p", ["rpc"]);
+      expect(native.calls).toContainEqual(["t3p:plugins:revoke", { id: "p", permissions: ["rpc"] }]);
+      expect(Object.keys(mgr(env.win)).some((k) => /grant/i.test(k))).toBe(false);
+    });
+
     it("a reload that fails leaves the plugin failed and the others running; a later reload recovers", async () => {
       const native = fakeNative([entry("p"), entry("q")], { dev: true });
       let broken = false;
@@ -267,9 +296,9 @@ describe("plugin manager", () => {
       await bootstrap(env);
       expect(starts).toEqual([]);
       expect(mgr(env.win).list()[0]!.status).toBe("inactive");
-      await mgr(env.win).enable("p", { grantRpc: true });
+      await mgr(env.win).enable("p");
       expect(starts).toEqual(["p"]);
-      expect(native.calls).toContainEqual(["t3p:plugins:set-enabled", { id: "p", enabled: true, grantRpc: true }]);
+      expect(native.calls).toContainEqual(["t3p:plugins:set-enabled", { id: "p", enabled: true }]);
       expect(mgr(env.win).list()[0]!.status).toBe("started");
       await expect(mgr(env.win).disable("p")).resolves.toEqual({ restartRequired: false });
       expect(native.calls).toContainEqual(["t3p:plugins:set-enabled", { id: "p", enabled: false }]);

@@ -10,7 +10,7 @@
  * (see {@link effectivePermissions}).
  */
 
-export const PERMISSION_NAMES = ["main", "patches", "rpc", "fs.read", "sqlite.read", "log.tail", "spawn", "guard"] as const;
+export const PERMISSION_NAMES = ["main", "patches", "rpc", "fs.read", "sqlite.read", "log.tail", "spawn", "guard", "embed.youtube"] as const;
 export type PermissionName = (typeof PERMISSION_NAMES)[number];
 
 /** Permissions that are scoped to filesystem roots. */
@@ -35,6 +35,8 @@ export interface PermissionSet {
   rpc?: true;
   /** `t3.threads.beforeStart`: hold, block or redirect turn starts (WP-6C). */
   guard?: true;
+  /** Main process sets a Referer on requests to https://www.youtube-nocookie.com/embed/* (one host, nothing else). */
+  "embed.youtube"?: true;
   "fs.read"?: RootsScope;
   "sqlite.read"?: RootsScope;
   "log.tail"?: RootsScope;
@@ -47,6 +49,7 @@ export type PermissionJson =
   | "patches"
   | "rpc"
   | "guard"
+  | "embed.youtube"
   | { "fs.read": RootsScope }
   | { "sqlite.read": RootsScope }
   | { "log.tail": RootsScope }
@@ -110,8 +113,8 @@ export function parsePermissions(value: unknown, where = "permissions"): { set: 
   }
   value.forEach((entry, index) => {
     const at = `${where}[${index}]`;
-    if (entry === "main" || entry === "patches" || entry === "rpc" || entry === "guard") {
-      set[entry as "main" | "patches" | "rpc" | "guard"] = true;
+    if (entry === "main" || entry === "patches" || entry === "rpc" || entry === "guard" || entry === "embed.youtube") {
+      set[entry as "main" | "patches" | "rpc" | "guard" | "embed.youtube"] = true;
       return;
     }
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
@@ -153,6 +156,7 @@ export function permissionsToJson(set: PermissionSet): PermissionJson[] {
   if (set.patches) out.push("patches");
   if (set.rpc) out.push("rpc");
   if (set.guard) out.push("guard");
+  if (set["embed.youtube"]) out.push("embed.youtube");
   for (const name of ROOT_PERMISSIONS) {
     const scope = set[name];
     if (scope) out.push({ [name]: { roots: [...scope.roots] } } as PermissionJson);
@@ -194,6 +198,7 @@ export function effectivePermissions(
   if (declared.patches && granted.patches) out.patches = true;
   if (declared.rpc && granted.rpc) out.rpc = true;
   if (declared.guard && granted.guard) out.guard = true;
+  if (declared["embed.youtube"] && granted["embed.youtube"]) out["embed.youtube"] = true;
   for (const name of ROOT_PERMISSIONS) {
     const d = declared[name];
     const g = granted[name];

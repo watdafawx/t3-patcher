@@ -2,8 +2,13 @@ import type { PluginModule, SettingSchema, SettingValue, T3Api } from "@t3p/api"
 
 import { CUSTOM_KEY, CustomLayers, emptyBundle, parseBundle, serializeBundle, type CustomId } from "./custom.js";
 import { backgroundTemplate, headerTemplate } from "./custom-templates.js";
+import { Antigravity } from "./antigravity.js";
+import { BG_KINDS, BG_LABELS, isBgKind, type BgConfig, type BgKind, type BgPresetKind } from "./bg-model.js";
+import { GradientDrift } from "./drift.js";
 import { Ocean } from "./ocean.js";
+import { Starfield } from "./starfield.js";
 import { PANEL_CSS, renderPanel } from "./panel.js";
+import { mountResetAll } from "./reset.js";
 import {
   LOGO_MODES,
   MAX_IMAGE_EDGE,
@@ -106,7 +111,14 @@ const settings: SettingSchema[] = [
     description: "Restyle the T3 Code wordmark. Window controls, collapse button and arrows are never touched.",
     options: LOGO_MODES.map((value) => ({ value, label: { keep: "Keep stock", text: "Custom text", image: "Custom image", hide: "Hide" }[value] })),
   },
-  { key: "oceanOn", type: "boolean", default: false, label: "Ocean background", description: "A drifting field of letters behind the whole app, with click ripples. Independent of the sidebar artwork." },
+  { key: "oceanOn", type: "boolean", default: false, label: "App background", description: "Turns the full-app background on. Which one is the Background kind below (Ocean, Antigravity, Gradient drift or Starfield). Independent of the sidebar artwork." },
+  { key: "bgKind", type: "enum", default: "ocean", label: "Background kind", description: "Only one full-app background runs at a time.", options: BG_KINDS.map((value) => ({ value, label: BG_LABELS[value] })) },
+  { key: "bgIntensity", type: "range", default: 60, min: 0, max: 100, label: "Background intensity", description: "How strong the Antigravity, Gradient drift and Starfield backgrounds are." },
+  { key: "bgSpeed", type: "range", default: 50, min: 0, max: 100, label: "Background speed", description: "Motion speed of Antigravity, Gradient drift and Starfield. 0 is a still frame." },
+  { key: "bgDensity", type: "range", default: 50, min: 0, max: 100, label: "Background density", description: "How many particles (Antigravity, Starfield) or how large the blobs (Gradient drift). The app lowers it by itself when frames get slow." },
+  { key: "bgPointer", type: "boolean", default: true, label: "Pointer reactive", description: "Antigravity's ring follows the pointer and the Starfield shifts slightly with it. Gradient drift ignores the pointer." },
+  { key: "bgFollowAccent", type: "boolean", default: true, label: "Follow accent color", description: "Colors come from the app accent (or the artwork Color). Off uses each background's own palette." },
+  { key: "bgLowPower", type: "boolean", default: false, label: "Low power", description: "Caps Antigravity at 30 fps for laptops on battery. Starfield always runs at 30 fps; Gradient drift costs no JavaScript." },
   { key: "oceanIntensity", type: "range", default: 60, min: 0, max: 100, label: "Ocean intensity", description: "How bright the letters are. Their color follows the app text color." },
   { key: "oceanSpeed", type: "range", default: 50, min: 0, max: 100, label: "Ocean speed", description: "Drift, shimmer and ripple speed. 0 is a still frame. Also still under reduced motion and paused while the window is hidden." },
   { key: "oceanRipples", type: "boolean", default: true, label: "Ocean ripples", description: "Clicks send a ripple through the letters and the pointer lights them up. Clicks always still reach the app." },
@@ -158,7 +170,7 @@ const plugin: PluginModule = {
     let customLoaded = false;
 
     const oceanConfig = (): OceanConfig => ({
-      on: get<boolean>("oceanOn") && !custom.active("background"),
+      on: get<boolean>("oceanOn") && bgKind() === "ocean" && !custom.active("background"),
       intensity: get<number>("oceanIntensity"),
       speed: get<number>("oceanSpeed"),
       ripples: get<boolean>("oceanRipples"),
@@ -166,6 +178,32 @@ const plugin: PluginModule = {
     });
     const ocean = new Ocean({ config: oceanConfig });
     disposers.push(() => ocean.stop());
+
+    const bgKind = (): BgKind => {
+      const k = get<string>("bgKind");
+      return isBgKind(k) ? k : "ocean";
+    };
+    const bgConfig = (kind: BgPresetKind): BgConfig => ({
+      on: get<boolean>("oceanOn") && bgKind() === kind && !custom.active("background"),
+      intensity: get<number>("bgIntensity"),
+      speed: get<number>("bgSpeed"),
+      density: get<number>("bgDensity"),
+      pointer: get<boolean>("bgPointer"),
+      followAccent: get<boolean>("bgFollowAccent"),
+      hue: get<number>("hue"),
+      lowPower: get<boolean>("bgLowPower"),
+    });
+    const onAutoStop = (kind: BgPresetKind): void => {
+      t3.ui.toast({
+        title: "Artwork",
+        message: `${BG_LABELS[kind]} background stopped: frames were still slow after lowering the density. Lower Background density, or turn on Low power, then switch it on again.`,
+        kind: "warning",
+        durationMs: 9000,
+      });
+    };
+    const bgHost = (kind: BgPresetKind) => ({ config: () => bgConfig(kind), onAutoStop });
+    const backgrounds = [new Antigravity("antigravity", bgHost("antigravity")), new GradientDrift("drift", bgHost("drift")), new Starfield("starfield", bgHost("starfield"))];
+    disposers.push(() => backgrounds.forEach((b) => b.stop()));
 
     // ---- layers ------------------------------------------------------------------------------
     const makeLayer = (main: boolean): HTMLElement => {
@@ -289,6 +327,7 @@ const plugin: PluginModule = {
 
     const applyAll = (): void => {
       ocean.update();
+      for (const b of backgrounds) b.update();
       applyLayers();
       ensure();
     };
@@ -603,6 +642,10 @@ const plugin: PluginModule = {
           logoRow.appendChild(picker(logoUrl ? "Replace logo..." : "Choose logo...", setLogo));
           if (logoUrl) logoRow.appendChild(button("Clear", () => void clearLogo(), "ghost"));
           root.appendChild(logoRow);
+          const resetHost = document.createElement("div");
+          resetHost.style.marginTop = "8px";
+          root.appendChild(resetHost);
+          mountResetAll(resetHost, t3, customApi, () => void refresh());
         };
         listeners.add(draw);
         draw();

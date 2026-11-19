@@ -19,6 +19,7 @@ import { InternalsStatus } from "./internals/status.js";
 import { createIpcRouter, type IpcMainLike } from "./ipc/router.js";
 import { classifyMainWindow, createSenderCheck, MainWindowTracker, preloadMatcher, type WebPrefsLike, type WindowLike } from "./ipc/sender.js";
 import { createFileLogger, guard, type Logger } from "./log.js";
+import { installEmbedReferer, type WebRequestLike } from "./embed/referer.js";
 import { createNativeServices, type NativeServices } from "./native/index.js";
 import { scrubEnv } from "./native/spawn.js";
 import { type UtilityProcessLike, utilityProcessLauncher } from "./native/sqlite.js";
@@ -29,7 +30,9 @@ import { parseWirePatches } from "./patches/wire.js";
 import { PatchRegistry } from "./patches/registry.js";
 import { PatchService } from "./patches/service.js";
 import { resolvePaths } from "./paths.js";
+import { type DialogLike, GrantFlow } from "./plugins/grants.js";
 import { PluginHost } from "./plugins/host.js";
+import { readStateForWrite, writeStateFile } from "./plugins/state-io.js";
 import { watchPluginDirs } from "./plugins/dev-watch.js";
 import { StorageStore } from "./storage/store.js";
 import { serveVirtual } from "./protocol/virtual.js";
@@ -60,9 +63,11 @@ interface ElectronLike {
       registerPreloadScript?(script: { type: "frame"; filePath: string; id?: string }): string;
       getPreloads?(): string[];
       setPreloads?(preloads: string[]): void;
+      webRequest?: WebRequestLike;
     };
   };
   autoUpdater: { once(event: string, fn: () => void): unknown };
+  dialog?: DialogLike<BrowserWindowLike>;
   utilityProcess?: UtilityProcessLike;
 }
 
@@ -228,6 +233,22 @@ function boot(): void {
   });
   if (turnGuard) guard(log, "guard IPC channels", () => registerGuardChannels(router, turnGuard.broker, (id) => host.permissionsFor(id), guardLog), undefined);
 
+  // Grants from the Plugins page: native dialog parented to the main window, state.json only on confirm.
+  const dialog = electron.dialog;
+  const grants = dialog
+    ? new GrantFlow<BrowserWindowLike>({
+        dialog,
+        getWindow: () => tracker.get(),
+        target: (id) => host.grantTarget(id),
+        readState: () => readStateForWrite(paths.state),
+        writeState: (state) => writeStateFile(paths.state, state),
+        applied: (id) => host.applyPermissionChange(id),
+        emit: (payload) => void router.emit("t3p:event", payload),
+        log: log.child("grants"),
+      })
+    : null;
+  if (!grants) log.warn("electron.dialog missing: granting from the Plugins page is unavailable (use t3p grant)");
+
   guard(
     log,
     "core IPC channels",
@@ -254,7 +275,8 @@ function boot(): void {
         patchReport: () => patches.report(),
         dev: dev.dev,
         storage: new StorageStore(join(paths.base, "storage"), log.child("storage")),
-        setEnabled: (id, enabled, options) => host.setEnabled(id, enabled, options),
+        setEnabled: (id, enabled) => host.setEnabled(id, enabled),
+        ...(grants ? { grants } : {}),
         setLoadOrder: (order) => host.setLoadOrder(order),
         pluginHealth: (plugin, ok, error) => host.reportHealth(plugin, ok, error),
         internals,
@@ -281,6 +303,14 @@ function boot(): void {
   if (dev.dev) {
     guard(log, "dev watcher", () => watchPluginDirs({ pluginsDir: paths.plugins, stateFile: paths.state, runtimeDir: paths.runtime, router, host, log: log.child("dev") }), undefined);
   }
+  // embed.youtube: Referer on the YouTube nocookie embed frame only, gated live on the permission.
+  app.whenReady().then(
+    () => {
+      const webRequest = electron.session.defaultSession.webRequest;
+      if (webRequest) guard(log, "embed.youtube referer hook", () => installEmbedReferer(webRequest, () => host.anyHolds("embed.youtube")), undefined);
+    },
+    (error: unknown) => log.error("embed hook whenReady failed", error),
+  );
   const pluginsReady = host.loadAll({ safe: false }).catch((error: unknown) => log.error("plugin host failed", error));
 
   guard(

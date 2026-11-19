@@ -1,4 +1,4 @@
-import { IPC_PREFIX, isAllowedEventChannel, isAllowedInvokeChannel } from "@t3p/api";
+import { IPC_PREFIX, isAllowedEventChannel, isAllowedInvokeChannel, isPrivilegedChannel } from "@t3p/api";
 
 import type { Logger } from "../log.js";
 import type { Validator } from "./schema.js";
@@ -55,7 +55,7 @@ export function createIpcRouter(deps: IpcRouterDeps): IpcRouter {
 
   return {
     handle<T>(channel: string, schema: Validator<T>, fn: IpcHandlerFn<T>): () => void {
-      if (!channel.startsWith(IPC_PREFIX) || !isAllowedInvokeChannel(channel)) throw new Error(`t3p: channel ${channel} is not allowed`);
+      if (!channel.startsWith(IPC_PREFIX) || !(isAllowedInvokeChannel(channel) || isPrivilegedChannel(channel))) throw new Error(`t3p: channel ${channel} is not allowed`);
       if (registered.has(channel)) throw new Error(`t3p: channel ${channel} is already registered`);
       registered.add(channel);
       deps.ipcMain.handle(channel, async (event, ...args) => {
