@@ -19,6 +19,7 @@ const CHECK_NAMES = [
   "runtime present",
   "exe signature",
   "crash-loop guard",
+  "logon task definition",
   "internal: atomRegistry",
   "internal: router",
   "internal: shortcutDispatcher",

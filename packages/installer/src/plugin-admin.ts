@@ -170,3 +170,8 @@ export function safeMode(opts: { homeDir?: string; off?: boolean }): { marker: s
   writeFileSync(marker, `requested ${new Date().toISOString()}\n`);
   return { marker, pending: true };
 }
+
+/** Is a safe-mode start still pending (marker written, app not started yet)? */
+export function safeModePending(homeDir?: string): boolean {
+  return existsSync(join(patcherBase(homeDir), "safe-mode"));
+}

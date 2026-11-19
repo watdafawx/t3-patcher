@@ -29,6 +29,7 @@
   "devDependencies": {
     "@t3p/installer": "workspace:*",
     "@t3p/plugin-build": "workspace:*",
+    "@types/node": "22",
     "tsdown": "^0.23.7",
     "typescript": "^5.9.3",
     "vitest": "^3.2.7"

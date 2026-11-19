@@ -102,6 +102,8 @@ Not verified on a real app:
 - provider-limits' modal against live usage data (unit tests only).
 - The server-side log line `[t3p guard] info: turn guard patched ...`: the backend's stderr is not written to any log file on rig. The block result above proves the chunk was patched.
 
+**WP-11A update:** the modal is gone. provider-limits now asks with a toast or a composer banner, proposes the user's favorite models by headroom (`src/model.ts`) and treats closing the prompt as Keep going. See `plugins/provider-limits/README.md`.
+
 ## 4. Limits
 
 - WSL and remote (SSH) backends are not guarded: the hook rides on the local backend spawn only.

@@ -35,7 +35,8 @@ describe("logon task", () => {
       schtasks: (a) => (calls.push(a), { status: 0, stderr: "" }),
     });
     expect(r).toBe("registered");
-    expect(calls[0]).toEqual(expect.arrayContaining(["/Create", "/SC", "ONLOGON", "/F"]));
+    expect(calls[0]).toEqual(expect.arrayContaining(["/Create", "/XML", "/F"]));
+    expect(calls[0]).not.toContain("ONLOGON");
     expect(calls[0][calls[0].indexOf("/TN") + 1]).toBe("t-test");
     const wrapper = join(tree.homeDir, ".t3-patcher", "repair-logon.cmd");
     const text = readFileSync(wrapper, "utf8");
@@ -43,6 +44,27 @@ describe("logon task", () => {
     expect(text).toContain("repair --if-stale");
     expect(text).not.toContain(tree.installDir);
     expect(existsSync(join(tree.homeDir, ".t3-patcher", "t3p.cjs"))).toBe(true);
+  });
+
+  it("single-file t3p.exe: copies itself, needs no node, wrapper runs the exe", () => {
+    const exe = join(tree.root, "t3p.exe");
+    writeFileSync(exe, "exe bytes");
+    const calls: string[][] = [];
+    const r = ensureLogonTask({
+      homeDir: tree.homeDir,
+      selfExe: exe,
+      platform: "win32",
+      env: { PATH: "" },
+      schtasks: (a) => (calls.push(a), { status: 0, stderr: "" }),
+    });
+    expect(r).toBe("registered");
+    const copy = join(tree.homeDir, ".t3-patcher", "t3p.exe");
+    expect(readFileSync(copy, "utf8")).toBe("exe bytes");
+    const text = readFileSync(join(tree.homeDir, ".t3-patcher", "repair-logon.cmd"), "utf8");
+    expect(text).toContain(`"${copy}" repair --if-stale --json`);
+    expect(text).not.toContain("ELECTRON_RUN_AS_NODE");
+    removeLogonTask({ homeDir: tree.homeDir, platform: "win32", schtasks: () => ({ status: 0, stderr: "" }) });
+    expect(existsSync(copy)).toBe(false);
   });
 
   it("uses the Electron copy with RUN_AS_NODE and NO_ASAR when no node is on PATH", () => {

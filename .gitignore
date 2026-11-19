@@ -4,3 +4,5 @@ dist/
 *.log
 *.tsbuildinfo
 .claude/worktrees/
+dist-exe/
+packages/installer/runtime/

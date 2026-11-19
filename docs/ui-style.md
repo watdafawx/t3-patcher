@@ -30,6 +30,7 @@ instead of writing CSS.
 | `t3p-glass` | Translucent blurred surface (stock dropdown look). Combine with a popover or modal. |
 | `t3p-popover` | Fixed floating panel above the app. Supports `[hidden]`. |
 | `t3p-toast` / `t3p-toasts` | Toast and its stack. `data-kind="success\|warning\|error"` adds a tone bar. |
+| `t3p-banner` | Full-width rounded notice for the `composerBanner` slot (180 ms slide/fade up, none under reduced motion). Set `data-t3p-phase="entering\|leaving"` to animate; `data-kind="warning\|error"` adds a tone bar. |
 | `t3p-overlay` / `t3p-modal` | Backdrop and dialog. |
 | `t3p-btn` | 28px outline button. `data-primary` filled, `data-variant="ghost"` borderless. |
 | `t3p-chip` | Ghost-muted inline button (status bar). `data-compact` 20px, `data-tone` colors the text. |

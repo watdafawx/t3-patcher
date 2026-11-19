@@ -8,6 +8,7 @@ import { CAPTURE_NAMES, CRASH_LOOP_REASON, INTERNALS_STATUS_FILE, type Internals
 import { errorMessage } from "./errors.js";
 import { describeFuses, fusesAreSafe, readFusesFromExe } from "./fuses.js";
 import { junctionInfo, layoutPaths } from "./layout.js";
+import { describeTaskXml, taskXmlPath, validateTaskXml } from "./logon-task.js";
 import { installKey, readManifest, sha256File } from "./manifest.js";
 import { status } from "./status.js";
 import { SUPPORTED_VERSIONS, type DoctorCheck, type DoctorOpts, type SignatureCheck } from "./types.js";
@@ -77,6 +78,26 @@ function crashLoopCheck(home: string): DoctorCheck {
   return disabled.length === 0
     ? { name: "crash-loop guard", ok: true, detail: "no plugin disabled by the guard" }
     : { name: "crash-loop guard", ok: true, detail: `warning: disabled after repeated failed starts: ${disabled.join(", ")} (re-enable with: t3p enable <id>)` };
+}
+
+/**
+ * The logon repair task definition written at registration (UTF-16, BOM). Absent is fine (not
+ * registered, or not Windows); present but invalid is a failure. The detail carries the whole
+ * definition on one line so `t3p doctor` shows exactly what was registered.
+ */
+function logonTaskCheck(home: string): DoctorCheck {
+  const file = taskXmlPath(home);
+  let xml: string;
+  try {
+    const raw = readFileSync(file);
+    xml = raw[0] === 0xff && raw[1] === 0xfe ? raw.subarray(2).toString("utf16le") : raw.toString("utf8");
+  } catch {
+    return { name: "logon task definition", ok: true, detail: "none registered (Windows only; created by t3p install)" };
+  }
+  const problems = validateTaskXml(xml);
+  if (problems.length > 0) return { name: "logon task definition", ok: false, detail: `${file}: ${problems.join("; ")}` };
+  const oneLine = xml.replace(/\s*\r?\n\s*/g, "");
+  return { name: "logon task definition", ok: true, detail: `valid: ${describeTaskXml(xml)} | ${file} | ${oneLine}` };
 }
 
 /**
@@ -183,6 +204,7 @@ export async function doctor(opts: DoctorOpts = {}): Promise<{ checks: DoctorChe
   }
 
   checks.push(crashLoopCheck(home));
+  checks.push(logonTaskCheck(home));
   checks.push(...internalsChecks(join(home, ".t3-patcher", INTERNALS_STATUS_FILE)));
 
   const shimLog = tail(join(home, ".t3-patcher", "logs", "shim.log"), 5);

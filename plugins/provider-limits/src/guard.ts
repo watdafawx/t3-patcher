@@ -1,12 +1,15 @@
 /**
- * Turn guard decisions for provider-limits (WP-6C): before a turn starts on a provider that is
- * nearly out of quota, ask the user to switch to the fallback model, keep going, or cancel.
- *
- * Pure: no DOM, no `t3`. index.ts wires it to `t3.threads.beforeStart` and `t3.ui.modal`.
+ * Turn guard decisions for provider-limits (WP-6C, reworked in WP-11A): before a turn starts on a
+ * provider that is nearly out of quota, offer to switch to a healthy favorite model, keep going, or
+ * cancel. Pure: no DOM, no `t3`. index.ts wires it to `t3.threads.beforeStart` and `t3.ui.toast`.
  */
 import type { ProviderSnapshot, TurnStartContext, TurnStartDecision } from "@t3p/api";
 
-import { providerLabel, windowsOf } from "./limits.js";
+import { formatCountdown, parseIso, providerLabel } from "./limits.js";
+import { chooseFallback, type FallbackPick, type FallbackTarget, type FavoriteModel, formatPct, parseFallback, type Remaining, remainingOf, type SkippedCandidate } from "./model.js";
+
+export { parseFallback, remainingOf };
+export type { FallbackTarget, Remaining };
 
 /** How long a thread remembers "switch" or "keep going". */
 export const CHOICE_MEMORY_MS = 10 * 60 * 1000;
@@ -15,55 +18,10 @@ export const DEFAULT_GUARD_THRESHOLD = 5;
 export interface GuardSettings {
   /** Ask when the remaining percent of the target provider's tightest window is below this. 0 = off. */
   thresholdPercent: number;
-  /** `<providerInstanceId>:<model>`, or just `<model>` (same provider). Empty = no switch offered. */
+  /** Manual override, `<providerInstanceId>:<model>` or `<model>` (same provider). Tried first. Empty = none. */
   fallback: string;
-}
-
-export interface FallbackTarget {
-  provider: string | null;
-  model: string;
-}
-
-/** Parses `instanceId:model` (split at the first `:`) or a bare model. Null when empty or malformed. */
-export function parseFallback(value: unknown): FallbackTarget | null {
-  if (typeof value !== "string") return null;
-  const text = value.trim();
-  if (!text) return null;
-  const colon = text.indexOf(":");
-  if (colon < 0) return { provider: null, model: text };
-  const provider = text.slice(0, colon).trim();
-  const model = text.slice(colon + 1).trim();
-  if (!model) return null;
-  return { provider: provider || null, model };
-}
-
-export interface Remaining {
-  /** 0..100, of the tightest window. */
-  percent: number;
-  windowLabel: string;
-}
-
-/** Remaining percent of a provider's tightest window, or null when it reports no windows. */
-export function remainingOf(provider: ProviderSnapshot): Remaining | null {
-  let worst: Remaining | null = null;
-  for (const w of windowsOf(provider)) {
-    const used = Number(w.usedPercent);
-    if (!Number.isFinite(used)) continue;
-    const percent = Math.max(0, Math.min(100, 100 - used));
-    if (!worst || percent < worst.percent) worst = { percent, windowLabel: windowLabel(w) };
-  }
-  return worst;
-}
-
-function windowLabel(w: unknown): string {
-  const o = w as { label?: unknown; kind?: unknown; windowDurationMins?: unknown };
-  if (typeof o.label === "string" && o.label.trim()) return o.label.trim();
-  if (typeof o.kind === "string" && o.kind.trim()) return o.kind.trim();
-  if (typeof o.windowDurationMins === "number" && o.windowDurationMins > 0) {
-    const m = o.windowDurationMins;
-    return m % 1440 === 0 ? `${m / 1440}d` : m % 60 === 0 ? `${m / 60}h` : `${m}m`;
-  }
-  return "usage";
+  /** Use the user's favorite models (then provider defaults) as candidates. Default true. */
+  useFavorites: boolean;
 }
 
 export type GuardChoice = "switch" | "keep";
@@ -103,15 +61,22 @@ export type GuardEvaluation =
       kind: "ask";
       providerLabel: string;
       remaining: Remaining;
-      /** Null when no usable fallback (empty setting, or the same target). */
-      fallback: FallbackTarget | null;
-      fallbackLabel: string | null;
-      /** Remaining percent of the fallback provider, when known. */
-      fallbackRemaining: Remaining | null;
+      /** Null when no candidate has headroom. */
+      pick: FallbackPick | null;
+      skipped: SkippedCandidate[];
+      /** True when favorites were part of the candidate list (wording of the "none" message). */
+      usedFavorites: boolean;
     };
 
-/** Decides whether a turn needs the user's answer. */
-export function evaluateTurn(ctx: TurnStartContext, providers: readonly ProviderSnapshot[], settings: GuardSettings, memory: ChoiceMemory, now: number): GuardEvaluation {
+/** Decides whether a turn needs the user's answer. `favorites` are the user's favorite models, in order. */
+export function evaluateTurn(
+  ctx: TurnStartContext,
+  providers: readonly ProviderSnapshot[],
+  settings: GuardSettings,
+  memory: ChoiceMemory,
+  now: number,
+  favorites: readonly FavoriteModel[] = [],
+): GuardEvaluation {
   const threshold = Number(settings.thresholdPercent);
   if (!Number.isFinite(threshold) || threshold <= 0) return { kind: "pass", why: "off" };
   // Server-driven continuations (restarts, compaction, delegated completion reports) run without asking.
@@ -123,33 +88,32 @@ export function evaluateTurn(ctx: TurnStartContext, providers: readonly Provider
   if (!remaining) return { kind: "pass", why: "no-limits" };
   if (remaining.percent >= threshold) return { kind: "pass", why: "enough-left" };
 
-  const parsed = parseFallback(settings.fallback);
-  const fallback = parsed && !(parsed.model === ctx.model && (parsed.provider ?? ctx.provider) === ctx.provider) ? parsed : null;
   const remembered = memory.get(ctx.threadId, now);
   if (remembered === "keep") return { kind: "decided", decision: { action: "allow" }, why: "remembered-keep" };
-  if (remembered === "switch" && fallback) return { kind: "decided", decision: switchDecision(fallback), why: "remembered-switch" };
-
-  const fbProvider = fallback ? providers.find((p) => p.instanceId === (fallback.provider ?? ctx.provider)) : undefined;
-  return {
-    kind: "ask",
-    providerLabel: providerLabel(target),
-    remaining,
-    fallback,
-    fallbackLabel: fallback ? `${fbProvider ? providerLabel(fbProvider) : (fallback.provider ?? providerLabel(target))} ${fallback.model}` : null,
-    fallbackRemaining: fbProvider ? remainingOf(fbProvider) : null,
-  };
+  const useFavorites = settings.useFavorites !== false;
+  const { pick, skipped } = chooseFallback({
+    request: { provider: ctx.provider, model: ctx.model },
+    favorites: useFavorites ? favorites : [],
+    limits: providers,
+    threshold,
+    override: parseFallback(settings.fallback),
+  });
+  if (remembered === "switch" && pick) return { kind: "decided", decision: switchDecision(pick), why: "remembered-switch" };
+  return { kind: "ask", providerLabel: providerLabel(target), remaining, pick, skipped, usedFavorites: useFavorites && favorites.length > 0 };
 }
 
-export function switchDecision(fallback: FallbackTarget): TurnStartDecision {
+export function switchDecision(fallback: { provider: string | null; model: string }): TurnStartDecision {
   return fallback.provider ? { action: "modify", provider: fallback.provider, model: fallback.model } : { action: "modify", model: fallback.model };
 }
 
-/** Modal buttons for an `ask` evaluation, and how each index maps to a choice. */
-export function promptButtons(ask: Extract<GuardEvaluation, { kind: "ask" }>): { labels: string[]; choices: Array<GuardChoice | "cancel"> } {
+export type ToastChoice = GuardChoice | "cancel";
+
+/** Toast buttons for an `ask` evaluation, and the choice each maps to. */
+export function promptButtons(ask: Extract<GuardEvaluation, { kind: "ask" }>): { labels: string[]; choices: ToastChoice[] } {
   const labels: string[] = [];
-  const choices: Array<GuardChoice | "cancel"> = [];
-  if (ask.fallback && ask.fallbackLabel) {
-    labels.push(`Switch to ${ask.fallbackLabel}`);
+  const choices: ToastChoice[] = [];
+  if (ask.pick) {
+    labels.push(`Switch to ${pickLabel(ask.pick)}`);
     choices.push("switch");
   }
   labels.push("Keep going", "Cancel");
@@ -157,22 +121,41 @@ export function promptButtons(ask: Extract<GuardEvaluation, { kind: "ask" }>): {
   return { labels, choices };
 }
 
+function pickLabel(pick: FallbackPick): string {
+  return `${pick.providerLabel} ${pick.model}`;
+}
+
 export function formatRemaining(r: Remaining): string {
-  const pct = r.percent < 1 && r.percent > 0 ? r.percent.toFixed(1) : String(Math.round(r.percent));
-  return `${pct}% left in the ${r.windowLabel} window`;
+  return `${formatPct(r.percent)} left in the ${r.windowLabel} window`;
 }
 
-/** Modal body text. */
-export function promptBody(ctx: TurnStartContext, ask: Extract<GuardEvaluation, { kind: "ask" }>): string {
+/** Toast title: `<Provider> is almost out (4% left)`. */
+export function promptTitle(ask: Extract<GuardEvaluation, { kind: "ask" }>): string {
+  return `${ask.providerLabel} is almost out (${formatPct(ask.remaining.percent)} left)`;
+}
+
+/** Toast message: reset time and the proposed switch, or why none is possible. */
+export function promptBody(ctx: TurnStartContext, ask: Extract<GuardEvaluation, { kind: "ask" }>, now: number): string {
   const what = ctx.kind === "delegate" ? "A delegated sub-session" : ctx.kind === "thread-create" ? "A new thread" : ctx.isSubagent ? "An agent's message" : "This message";
-  const lines = [`${what} would run on ${ask.providerLabel}${ctx.model ? ` (${ctx.model})` : ""}, which has ${formatRemaining(ask.remaining)}.`];
-  if (ask.fallbackLabel) lines.push(`Fallback: ${ask.fallbackLabel}${ask.fallbackRemaining ? `, ${formatRemaining(ask.fallbackRemaining)}` : ""}.`);
-  if (ctx.textPreview) lines.push("", `"${ctx.textPreview.length > 120 ? `${ctx.textPreview.slice(0, 120)}...` : ctx.textPreview}"`);
-  lines.push("", "Switch and Keep going are remembered for this thread for 10 minutes.");
-  return lines.join("\n");
+  const resetMs = parseIso(ask.remaining.resetsAt);
+  const reset = resetMs !== null ? ` Resets ${formatCountdown(resetMs, now)}.` : "";
+  const lines = [`${what} would run on ${ask.providerLabel}${ctx.model ? ` (${ctx.model})` : ""}: ${formatRemaining(ask.remaining)}.${reset}`];
+  if (ask.pick) {
+    const left = ask.pick.remaining ? `${formatPct(ask.pick.remaining.percent)} left` : "limits unknown";
+    const why = ask.pick.source === "override" ? "your fallback setting" : ask.pick.source === "favorite" ? `next favorite with ${left}` : `provider default with ${left}`;
+    lines.push(`Switch to ${pickLabel(ask.pick)} (${why}).`);
+  } else {
+    const list = ask.skipped.map((s) => `${s.model} ${s.percent !== undefined ? formatPct(s.percent) : s.reason}`).join(", ");
+    lines.push(`${ask.usedFavorites ? "No favorite has headroom" : "No other model has headroom"}${list ? `: ${list}` : ""}.`);
+  }
+  return lines.join(" ");
 }
 
-/** Turns the modal answer (button index, -1 = dismissed) into a decision, updating the memory. Dismissing counts as Cancel. */
+/**
+ * Turns the toast answer (button index, -1 = toast closed) into a decision, updating the memory.
+ * Closing the toast without a button counts as Keep going (WP-11A decision): a stray click must
+ * never throw the user's message away, and Cancel stays an explicit button.
+ */
 export function resolveChoice(
   ctx: TurnStartContext,
   ask: Extract<GuardEvaluation, { kind: "ask" }>,
@@ -181,10 +164,10 @@ export function resolveChoice(
   now: number,
 ): TurnStartDecision {
   const { choices } = promptButtons(ask);
-  const choice = index >= 0 && index < choices.length ? choices[index]! : "cancel";
-  if (choice === "switch" && ask.fallback) {
+  const choice: ToastChoice = index >= 0 && index < choices.length ? choices[index]! : "keep";
+  if (choice === "switch" && ask.pick) {
     memory.set(ctx.threadId, "switch", now);
-    return switchDecision(ask.fallback);
+    return switchDecision(ask.pick);
   }
   if (choice === "keep") {
     memory.set(ctx.threadId, "keep", now);

@@ -43,11 +43,18 @@ export const SKEW_TOLERANCE_MS = 60_000;
  *   around 30 minutes". The low end (5 min) is used so the countdown errs early. Source:
  *   https://developers.openai.com/api/docs/guides/prompt-caching (fetched 2026-11-19).
  *
+ * - `opencode` 10800000 (3 h): the user's OpenCode runs mostly DeepSeek V4.1 Flash. DeepSeek caches on disk, on by
+ *   default, and clears unused entries "usually within a few hours to a few days" (https://api-docs.deepseek.com/guides/kv_cache,
+ *   fetched 2026-11-19); a secondary report says full-input caches last at least 72 h, with a short in-memory tier
+ *   of minutes that only affects speed. The low end (3 h) is used so the countdown errs early. Models behind OpenCode
+ *   with a 5 min cache (Anthropic, OpenAI) need the cache-watch OpenCode setting set to 5.
+ *
  * Other drivers have no entry: their state has `expiresAt: null`.
  */
 export const DEFAULT_ASSUMED_TTL_MS: Readonly<Record<string, number>> = Object.freeze({
   claudeAgent: 300_000,
   codex: 300_000,
+  opencode: 10_800_000,
 });
 
 interface UsageWire {

@@ -19,6 +19,8 @@ t3p grant devtools rpc
 t3p grant devtools log.tail --root "~/.t3-patcher/logs"
 ```
 
+`--root` is the scope for `log.tail` (stored as `{"log.tail":{"roots":[...]}}`). A root outside the manifest's declared `~/.t3-patcher/logs` is stored but never effective (tested in `packages/installer/test/plugin-admin.test.ts`).
+
 `~` is the patcher home (`T3P_HOME` when set). Restart T3 Code after the first `t3p dev`;
 later builds reload by themselves. The Plugins settings page can also toggle the plugin, but
 it only grants `rpc` on enable, so the `log.tail` grant needs the CLI. Without it the Logs

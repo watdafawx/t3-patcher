@@ -22,9 +22,10 @@ export class Overlays {
         {
           class: "t3p-btn",
           type: "button",
+          "data-primary": action.primary ? "" : undefined,
           onClick: () => {
             // Dismiss first, so a throwing or slow action never leaves the toast open.
-            remove();
+            remove(false);
             try {
               void Promise.resolve(action.onClick()).catch(() => undefined);
             } catch {
@@ -42,15 +43,25 @@ export class Overlays {
       h("span", null, options.message),
       buttons.length > 0 ? h("div", { class: "t3p-buttons" }, ...buttons) : null,
     );
-    const remove = (): void => {
+    let closed = false;
+    const remove = (dismissed = false): void => {
+      if (closed) return;
+      closed = true;
       clearTimeout(timer);
       node.remove();
+      if (dismissed && typeof options.onDismiss === "function") {
+        try {
+          options.onDismiss();
+        } catch {
+          // plugin callback failed; the toast is already gone
+        }
+      }
     };
-    node.addEventListener("click", remove);
+    node.addEventListener("click", () => remove(true));
     this.#toasts.appendChild(node);
     const duration = options.durationMs === undefined ? 5000 : Math.max(0, Number(options.durationMs) || 0);
-    const timer: ReturnType<typeof setTimeout> = duration > 0 ? setTimeout(remove, duration) : (0 as unknown as ReturnType<typeof setTimeout>);
-    return remove;
+    const timer: ReturnType<typeof setTimeout> = duration > 0 ? setTimeout(() => remove(true), duration) : (0 as unknown as ReturnType<typeof setTimeout>);
+    return () => remove(false);
   }
 
   /** Opens a modal. Resolves with the pressed button index, or -1 when dismissed (Escape, backdrop, plugin stop). */

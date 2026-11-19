@@ -26,12 +26,18 @@ export interface SqliteOptions {
   realpath?: (p: string) => string;
   /** Starts one query process (see sqlite-worker.cjs). */
   launch: QueryLauncher;
+  /** Queries running at once across every service sharing this launcher (default 4). */
+  maxConcurrent?: number;
+  /** Queries waiting for a slot before new ones are refused (default 64). */
+  maxQueued?: number;
 }
 
 export const SQLITE_DEFAULT_ROWS = 1000;
 export const SQLITE_MAX_ROWS = 10_000;
 export const SQLITE_DEFAULT_TIMEOUT = 5000;
 export const SQLITE_MAX_TIMEOUT = 30_000;
+export const SQLITE_DEFAULT_CONCURRENCY = 4;
+export const SQLITE_DEFAULT_QUEUE = 64;
 const DB_EXT = /\.(sqlite3?|db)$/i;
 
 /**
@@ -153,11 +159,61 @@ function runQuery(launch: QueryLauncher, job: object, timeoutMs: number): Promis
 }
 
 /**
+ * Caps running queries (each is a process). The rest wait in a bounded FIFO
+ * queue; a full queue refuses at once. A query's timeout starts when it runs,
+ * not while it waits.
+ */
+export class QueryLimiter {
+  private active = 0;
+  private readonly waiting: Array<() => void> = [];
+  constructor(
+    private readonly maxConcurrent: number,
+    private readonly maxQueued: number,
+  ) {}
+
+  get running(): number {
+    return this.active;
+  }
+  get queued(): number {
+    return this.waiting.length;
+  }
+
+  run<T>(task: () => Promise<T>): Promise<T> {
+    if (this.active >= this.maxConcurrent && this.waiting.length >= this.maxQueued) {
+      return Promise.reject(new Error(`t3p: sqlite.read: too many queries queued (limit ${this.maxQueued})`));
+    }
+    return new Promise<T>((resolve, reject) => {
+      const start = (): void => {
+        this.active++;
+        task().then(resolve, reject).finally(() => {
+          this.active--;
+          this.waiting.shift()?.();
+        });
+      };
+      if (this.active < this.maxConcurrent) start();
+      else this.waiting.push(start);
+    });
+  }
+}
+
+// One limiter per launcher, so every plugin's service shares the same cap.
+const limiters = new WeakMap<QueryLauncher, QueryLimiter>();
+function limiterFor(options: SqliteOptions): QueryLimiter {
+  let limiter = limiters.get(options.launch);
+  if (!limiter) {
+    limiter = new QueryLimiter(Math.max(1, options.maxConcurrent ?? SQLITE_DEFAULT_CONCURRENCY), Math.max(0, options.maxQueued ?? SQLITE_DEFAULT_QUEUE));
+    limiters.set(options.launch, limiter);
+  }
+  return limiter;
+}
+
+/**
  * Read-only SELECT against a .sqlite/.sqlite3/.db file inside the granted
  * roots. Each query runs in its own process that is killed on timeout. Never
  * copies or writes the database.
  */
 export function createSqliteQuery(options: SqliteOptions): (request: SqliteQueryRequest) => Promise<SqliteQueryResult> {
+  const limiter = limiterFor(options);
   return (request) => {
     const check = resolveAllowedPath(request.path, options.roots, options);
     if (!check.ok) return Promise.reject(new Error(`t3p: sqlite.read denied: ${check.reason}`));
@@ -171,6 +227,6 @@ export function createSqliteQuery(options: SqliteOptions): (request: SqliteQuery
     const maxRows = Math.min(Math.max(1, request.maxRows ?? SQLITE_DEFAULT_ROWS), SQLITE_MAX_ROWS);
     const timeoutMs = Math.min(Math.max(100, request.timeoutMs ?? SQLITE_DEFAULT_TIMEOUT), SQLITE_MAX_TIMEOUT);
     const job = { path: check.path, sql: statement.sql, params: params.map((p) => (typeof p === "boolean" ? Number(p) : p)), maxRows };
-    return runQuery(options.launch, job, timeoutMs);
+    return limiter.run(() => runQuery(options.launch, job, timeoutMs));
   };
 }

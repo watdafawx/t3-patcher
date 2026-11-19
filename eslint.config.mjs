@@ -11,6 +11,8 @@ export default tseslint.config(
       ".upstream/**",
       "**/.cache/**",
       "docs/**",
+      "dist-exe/**",
+      "packages/installer/runtime/**",
     ],
   },
   js.configs.recommended,

@@ -66,5 +66,5 @@ export function createT3(deps: T3Deps): T3Api {
     events: createEventsApi(entry.id, deps.systemBus, deps.pluginBus, scope),
     ...(deps.dev ? { __dev: Object.freeze(deps.dev) } : {}),
   };
-  return Object.freeze(deps.shell ? Object.assign(t3, deps.shell.namespaces(entry.id, scope, effective)) : t3);
+  return Object.freeze(deps.shell ? Object.assign(t3, deps.shell.namespaces(entry.id, scope, effective, t3.settings)) : t3);
 }

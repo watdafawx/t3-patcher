@@ -153,6 +153,68 @@ describe("sqlite.read", () => {
     await expect(q(() => Promise.reject(new Error("no fork")))({ path: db, sql: "SELECT 1" })).rejects.toThrow(/cannot start query process: no fork/);
   });
 
+  describe("concurrency cap", () => {
+    // Fake launcher: each process answers only when released by the test.
+    function gated() {
+      const procs: Array<{ release: () => void; killed: boolean }> = [];
+      const launcher: QueryLauncher = async () => {
+        let onMessage: (m: unknown) => void = () => undefined;
+        const entry = { killed: false, release: () => onMessage({ ok: true, columns: [], rows: [], truncated: false, ms: 1 }) };
+        procs.push(entry);
+        return { send: () => undefined, onMessage: (l) => (onMessage = l), onExit: () => undefined, kill: () => void (entry.killed = true) };
+      };
+      return { procs, launcher };
+    }
+    const tick = () => new Promise((r) => setTimeout(r, 10));
+
+    it("runs at most 4 at once by default and starts queued ones as slots free", async () => {
+      const { procs, launcher } = gated();
+      const query = q(launcher);
+      const all = Array.from({ length: 7 }, () => query({ path: db, sql: "SELECT 1" }));
+      await tick();
+      expect(procs.length).toBe(4);
+      procs[0]!.release();
+      await tick();
+      expect(procs.length).toBe(5);
+      for (let i = 1; procs.length < 7 || i < procs.length; i++) {
+        procs[i]!.release();
+        await tick();
+      }
+      await Promise.all(all);
+      expect(procs.length).toBe(7);
+    });
+
+    it("honours maxConcurrent, refuses past maxQueued, and the timeout starts when the query runs", async () => {
+      const { procs, launcher } = gated();
+      const query = createSqliteQuery({ roots: [root], platform, home: base, launch: launcher, maxConcurrent: 1, maxQueued: 1 });
+      const first = query({ path: db, sql: "SELECT 1", timeoutMs: 5000 });
+      const second = query({ path: db, sql: "SELECT 2", timeoutMs: 100 });
+      await expect(query({ path: db, sql: "SELECT 3" })).rejects.toThrow(/too many queries queued/);
+      await tick();
+      expect(procs.length).toBe(1);
+      await new Promise((r) => setTimeout(r, 250)); // longer than second's 100 ms timeout, yet second has not started
+      expect(procs.length).toBe(1);
+      procs[0]!.release();
+      await first;
+      await tick();
+      expect(procs.length).toBe(2); // second started now
+      await expect(second).rejects.toThrow(/timed out after 100 ms/);
+      expect(procs[1]!.killed).toBe(true);
+    });
+
+    it("a timed-out or failed query frees its slot", async () => {
+      const { procs, launcher } = gated();
+      const query = createSqliteQuery({ roots: [root], platform, home: base, launch: launcher, maxConcurrent: 1 });
+      const slow = query({ path: db, sql: "SELECT 1", timeoutMs: 100 });
+      const next = query({ path: db, sql: "SELECT 2" });
+      await expect(slow).rejects.toThrow(/timed out/);
+      await tick();
+      expect(procs.length).toBe(2);
+      procs[1]!.release();
+      await expect(next).resolves.toMatchObject({ truncated: false });
+    });
+  });
+
   it("is absent without a launcher (fail closed)", () => {
     expect(createNativeServices({ "sqlite.read": { roots: [root] } }, { platform, home: base })).not.toHaveProperty("sqliteQuery");
     expect(createNativeServices({ "sqlite.read": { roots: [root] } }, { platform, home: base, sqliteLaunch: launch })).toHaveProperty("sqliteQuery");

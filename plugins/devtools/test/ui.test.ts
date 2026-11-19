@@ -70,6 +70,59 @@ describe("slot outlines", () => {
   });
 });
 
+describe("slot outlines: always reversible", () => {
+  it("Escape turns outlines off, the checkbox follows, and a palette toggle flips it back", () => {
+    const api = { ui: { themeVars: () => ({}) }, log: () => undefined };
+    const outlines = new OutlineController(api);
+    const element = host();
+    const tab = mountSlotsTab(element, { api, outlines });
+    mounted.push(tab);
+    const checkbox = element.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event("change"));
+    expect(outlines.enabled).toBe(true);
+
+    // focus anywhere (even inside an app control) must not stop Escape
+    const other = document.createElement("button");
+    document.body.append(other);
+    other.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(outlines.enabled).toBe(false);
+    expect(checkbox.checked).toBe(false);
+    expect(document.documentElement.hasAttribute(OUTLINE_ATTR)).toBe(false);
+    expect(document.head.querySelector('style[data-t3p-devtools="slot-outlines"]')).toBeNull();
+    other.remove();
+
+    // the palette command path (toggle) both ways keeps the checkbox in sync
+    expect(outlines.toggle()).toBe(true);
+    expect(checkbox.checked).toBe(true);
+    expect(outlines.toggle()).toBe(false);
+    expect(checkbox.checked).toBe(false);
+
+    // after dispose Escape does nothing and the key listener is gone
+    outlines.set(true);
+    outlines.dispose();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(outlines.enabled).toBe(false);
+  });
+
+  it("the outline sheet never touches layout, so the toggle host stays visible", () => {
+    const api = { ui: { themeVars: () => ({}) }, log: () => undefined };
+    const outlines = new OutlineController(api);
+    const element = host();
+    element.setAttribute("data-t3p-root", "");
+    element.style.position = "fixed";
+    const tab = mountSlotsTab(element, { api, outlines });
+    mounted.push(tab);
+    outlines.set(true);
+    const css = outlines.element!.textContent ?? "";
+    expect(css).not.toMatch(/position|display|visibility/);
+    expect(element.style.position).toBe("fixed");
+    expect(element.querySelector('input[type="checkbox"]')).not.toBeNull();
+    outlines.dispose();
+  });
+});
+
 describe("plugin log viewer", () => {
   it("renders plugin lines, filters them and stops polling on teardown", async () => {
     const calls: Array<{ path: string; cursor?: number }> = [];

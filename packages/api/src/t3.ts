@@ -442,11 +442,18 @@ export interface ToastOptions {
   durationMs?: number;
   /** Buttons shown in the toast (shared `t3p-btn`). The toast is dismissed after `onClick` runs. */
   actions?: ToastAction[];
+  /**
+   * Runs when the user closes the toast (click on its body) or `durationMs` runs out, but not when an
+   * action button was pressed (that runs the action's `onClick`) nor when `dispose()` removed it.
+   */
+  onDismiss?(): void;
 }
 
 /** A button in a toast. */
 export interface ToastAction {
   label: string;
+  /** Draws the button filled (`data-primary`). */
+  primary?: boolean;
   /** Runs on click; a throw is swallowed and does not keep the toast open. */
   onClick(): void | Promise<void>;
 }
@@ -497,14 +504,38 @@ export interface ModalOptions {
 export interface T3Ui {
   /** Mounts UI in a slot. Dispose to remove it. */
   register(registration: UiSlotRegistration): T3Disposable;
-  /** Shows a toast. */
-  toast(options: ToastOptions): void;
+  /** Shows a toast. The returned handle removes it early (idempotent). */
+  toast(options: ToastOptions): T3Disposable;
   /** Opens a modal. Resolves with the index of the button pressed, or `-1` when dismissed. */
   modal(options: ModalOptions): Promise<number>;
   /** The app's current CSS custom properties (theme tokens), so plugin UI can match. */
   themeVars(): Record<string, string>;
   /** The right panel dock. */
   readonly dock: T3UiDock;
+  /**
+   * Renders live controls for this plugin's own settings into `host` (a switch, select, slider,
+   * number or text field per setting, compact 12px rows). Meant for a `rightPanel` dock tab, which
+   * does not cover the app, so changes are visible while you tune. Every edit goes through
+   * `t3.settings.set` (sliders are debounced), so Settings > Plugins stays in sync and the controls
+   * follow changes made elsewhere. `keys` limits and orders the rows (default: all defined settings).
+   * Dispose to remove the controls.
+   */
+  settingsPanel(host: HTMLElement, options?: SettingsPanelOptions): T3Disposable;
+}
+
+/** Options of {@link T3Ui.settingsPanel}. */
+export interface SettingsPanelOptions {
+  /** Setting keys to show, in order. Default: every setting the plugin defined. */
+  keys?: string[];
+  /** Debounce for slider and number writes, in ms. Default 120. */
+  debounceMs?: number;
+  /** Show a per-row reset button when the value differs from its default. Default true. */
+  resetButtons?: boolean;
+  /**
+   * Called at once for every slider move, before the debounced write, so a plugin can preview the
+   * value without waiting for `settings.set`. The matching `settings.onChange` follows shortly.
+   */
+  onLive?(key: string, value: number): void;
 }
 
 /** A command palette entry. */
@@ -640,6 +671,16 @@ export interface NumberSettingSchema extends SettingBase {
   max?: number;
 }
 
+/** A number shown as a slider. Same value rules as `number`; `min` and `max` are required so the slider has a track. */
+export interface RangeSettingSchema extends SettingBase {
+  type: "range";
+  default: number;
+  min: number;
+  max: number;
+  /** Slider step. Default 1. */
+  step?: number;
+}
+
 export interface EnumSettingSchema extends SettingBase {
   type: "enum";
   default: string;
@@ -648,7 +689,7 @@ export interface EnumSettingSchema extends SettingBase {
 }
 
 /** The description of one setting. The settings page (WP-3D) renders from it. */
-export type SettingSchema = BooleanSettingSchema | StringSettingSchema | NumberSettingSchema | EnumSettingSchema;
+export type SettingSchema = BooleanSettingSchema | StringSettingSchema | NumberSettingSchema | RangeSettingSchema | EnumSettingSchema;
 
 /** Value type of a setting schema. */
 export type SettingValue = boolean | string | number;

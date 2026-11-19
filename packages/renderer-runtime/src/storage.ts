@@ -154,6 +154,14 @@ export function checkSchema(schema: unknown): string | null {
       if (s.max !== undefined && (typeof s.max !== "number" || s.default > s.max)) return `setting ${s.key}: default is above max`;
       return null;
     }
+    case "range": {
+      if (typeof s.min !== "number" || typeof s.max !== "number" || !Number.isFinite(s.min) || !Number.isFinite(s.max) || s.min >= s.max) return `setting ${s.key}: range needs a finite min below max`;
+      if (s.step !== undefined && (typeof s.step !== "number" || !(s.step > 0))) return `setting ${s.key}: step must be above 0`;
+      if (typeof s.default !== "number" || !Number.isFinite(s.default)) return `setting ${s.key}: default must be a finite number`;
+      if (s.default < s.min) return `setting ${s.key}: default is below min`;
+      if (s.default > s.max) return `setting ${s.key}: default is above max`;
+      return null;
+    }
     case "enum": {
       const options = s.options;
       if (!Array.isArray(options) || options.length === 0 || options.some((o) => !o || typeof (o as { value?: unknown }).value !== "string")) {
@@ -162,7 +170,7 @@ export function checkSchema(schema: unknown): string | null {
       return options.some((o) => (o as { value: string }).value === s.default) ? null : `setting ${s.key}: default is not one of the options`;
     }
     default:
-      return `setting ${s.key}: type must be boolean, string, number or enum`;
+      return `setting ${s.key}: type must be boolean, string, number, range or enum`;
   }
 }
 
@@ -174,6 +182,7 @@ export function valueFits(schema: SettingSchema, value: unknown): value is Setti
     case "string":
       return typeof value === "string" && value.length <= 65_536;
     case "number":
+    case "range":
       return typeof value === "number" && Number.isFinite(value) && (schema.min === undefined || value >= schema.min) && (schema.max === undefined || value <= schema.max);
     case "enum":
       return typeof value === "string" && schema.options.some((o) => o.value === value);

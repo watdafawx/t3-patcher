@@ -9,6 +9,7 @@ import {
   parseFallback,
   promptBody,
   promptButtons,
+  promptTitle,
   remainingOf,
   resolveChoice,
 } from "../src/guard.js";
@@ -44,8 +45,9 @@ function withUsed(instanceId: string, used: number[], label = "Session"): Provid
   } as Partial<ProviderSnapshot> & { instanceId: string });
 }
 
-const settings = { thresholdPercent: 5, fallback: "codex:gpt-6.1-sol" };
+const settings = { thresholdPercent: 5, fallback: "codex:gpt-6.1-sol", useFavorites: true };
 type Ask = Extract<GuardEvaluation, { kind: "ask" }>;
+const withModels = (p: ProviderSnapshot, slugs: string[]): ProviderSnapshot => ({ ...p, models: slugs.map((slug) => ({ slug, name: slug, isCustom: false, capabilities: null })) }) as ProviderSnapshot;
 
 describe("parseFallback", () => {
   it("splits at the first colon", () => {
@@ -64,7 +66,7 @@ describe("parseFallback", () => {
 
 describe("remainingOf", () => {
   it("uses the tightest window", () => {
-    expect(remainingOf(withUsed("x", [40, 97]))).toEqual({ percent: 3, windowLabel: "W1" });
+    expect(remainingOf(withUsed("x", [40, 97]))).toEqual({ percent: 3, windowLabel: "W1", resetsAt: null });
   });
   it("is null without windows", () => {
     expect(remainingOf(makeProvider({ instanceId: "x" }))).toBeNull();
@@ -87,33 +89,53 @@ describe("evaluateTurn", () => {
     expect(evaluateTurn(ctx(), [withUsed("claudeAgent", [95])], settings, m, NOW)).toEqual({ kind: "pass", why: "enough-left" });
   });
 
-  it("asks below the threshold with the fallback offered", () => {
+  it("asks below the threshold and offers the override first", () => {
     const e = evaluateTurn(ctx(), low, settings, new ChoiceMemory(), NOW) as Ask;
     expect(e.kind).toBe("ask");
-    expect(e.remaining).toEqual({ percent: 3, windowLabel: "Session" });
-    expect(e.fallback).toEqual({ provider: "codex", model: "gpt-6.1-sol" });
-    expect(e.fallbackLabel).toBe("codex gpt-6.1-sol");
-    expect(e.fallbackRemaining?.percent).toBe(90);
+    expect(e.remaining).toMatchObject({ percent: 3, windowLabel: "Session" });
+    expect(e.pick).toMatchObject({ provider: "codex", model: "gpt-6.1-sol", source: "override" });
     expect(promptButtons(e).labels).toEqual(["Switch to codex gpt-6.1-sol", "Keep going", "Cancel"]);
+    expect(promptTitle(e)).toBe("claudeAgent is almost out (3% left)");
+  });
+
+  it("uses favorites in order when there is no override", () => {
+    const providers = [withUsed("claudeAgent", [97]), withModels(withUsed("codex", [38]), ["gpt-6.1-sol"])];
+    const e = evaluateTurn(ctx(), providers, { ...settings, fallback: "" }, new ChoiceMemory(), NOW, [{ provider: "codex", model: "gpt-6.1-sol" }]) as Ask;
+    expect(e.pick).toMatchObject({ provider: "codex", model: "gpt-6.1-sol", source: "favorite" });
+    expect(promptBody(ctx(), e, NOW)).toContain("(next favorite with 62% left)");
+  });
+
+  it("says no favorite has headroom and offers only keep/cancel", () => {
+    const providers = [withUsed("claudeAgent", [97]), withModels(withUsed("codex", [99]), ["gpt-6.1-sol"])];
+    const e = evaluateTurn(ctx(), providers, { ...settings, fallback: "" }, new ChoiceMemory(), NOW, [{ provider: "codex", model: "gpt-6.1-sol" }]) as Ask;
+    expect(e.pick).toBeNull();
+    expect(promptBody(ctx(), e, NOW)).toContain("No favorite has headroom: gpt-6.1-sol 1%.");
+    expect(promptButtons(e).choices).toEqual(["keep", "cancel"]);
+  });
+
+  it("ignores favorites when guardUseFavorites is off", () => {
+    const providers = [withUsed("claudeAgent", [97]), withModels(withUsed("codex", [10]), ["gpt-6.1-sol"])];
+    const e = evaluateTurn(ctx(), providers, { ...settings, fallback: "", useFavorites: false }, new ChoiceMemory(), NOW, [{ provider: "codex", model: "x" }]) as Ask;
+    expect(e.pick).toMatchObject({ source: "provider", model: "gpt-6.1-sol" });
   });
 
   it("asks delegated sub-sessions too", () => {
     const e = evaluateTurn(ctx({ kind: "delegate", commandType: "delegated_task.request", isSubagent: true, createdBy: "agent" }), low, settings, new ChoiceMemory(), NOW);
     expect(e.kind).toBe("ask");
-    expect(promptBody(ctx({ kind: "delegate" }), e as Ask)).toMatch(/^A delegated sub-session would run on claudeAgent/);
+    expect(promptBody(ctx({ kind: "delegate" }), e as Ask, NOW)).toMatch(/^A delegated sub-session would run on claudeAgent/);
   });
 
-  it("offers no switch when the fallback is the target itself or empty", () => {
-    const same = evaluateTurn(ctx(), low, { ...settings, fallback: "claude-opus-5-5" }, new ChoiceMemory(), NOW) as Ask;
-    expect(same.fallback).toBeNull();
-    expect(promptButtons(same).labels).toEqual(["Keep going", "Cancel"]);
-    const none = evaluateTurn(ctx(), low, { ...settings, fallback: "" }, new ChoiceMemory(), NOW) as Ask;
-    expect(promptButtons(none).choices).toEqual(["keep", "cancel"]);
+  it("offers no switch when the only candidate is the target itself", () => {
+    const same = evaluateTurn(ctx(), low, { ...settings, fallback: "claude-opus-5-5" }, new ChoiceMemory(), NOW, []) as Ask;
+    expect(promptButtons(same).labels).toContain("Keep going");
+    const none = evaluateTurn(ctx(), [withUsed("claudeAgent", [97])], { ...settings, fallback: "claude-opus-5-5" }, new ChoiceMemory(), NOW) as Ask;
+    expect(none.pick).toBeNull();
+    expect(promptButtons(none).labels).toEqual(["Keep going", "Cancel"]);
   });
 });
 
 describe("resolveChoice and memory", () => {
-  const low = [withUsed("claudeAgent", [99])];
+  const low = [withUsed("claudeAgent", [99]), withUsed("codex", [10])];
 
   it("switch returns modify and is remembered for 10 minutes", () => {
     const m = new ChoiceMemory();
@@ -128,12 +150,6 @@ describe("resolveChoice and memory", () => {
     expect(evaluateTurn(ctx(), low, settings, m, NOW + CHOICE_MEMORY_MS).kind).toBe("ask");
   });
 
-  it("a bare-model fallback keeps the provider", () => {
-    const m = new ChoiceMemory();
-    const e = evaluateTurn(ctx(), low, { ...settings, fallback: "claude-sonnet-5-5" }, m, NOW) as Ask;
-    expect(resolveChoice(ctx(), e, 0, m, NOW)).toEqual({ action: "modify", model: "claude-sonnet-5-5" });
-  });
-
   it("keep allows and is remembered", () => {
     const m = new ChoiceMemory();
     const e = evaluateTurn(ctx(), low, settings, m, NOW) as Ask;
@@ -141,12 +157,17 @@ describe("resolveChoice and memory", () => {
     expect(evaluateTurn(ctx(), low, settings, m, NOW + 1000)).toMatchObject({ kind: "decided", why: "remembered-keep" });
   });
 
-  it("cancel and dismiss block with a reason and are not remembered", () => {
+  it("cancel blocks with a reason and is not remembered", () => {
     const m = new ChoiceMemory();
     const e = evaluateTurn(ctx(), low, settings, m, NOW) as Ask;
-    const cancel = resolveChoice(ctx(), e, 2, m, NOW);
-    expect(cancel).toEqual({ action: "block", reason: "Cancelled: claudeAgent has 1% left in the Session window (provider-limits guard)." });
-    expect(resolveChoice(ctx(), e, -1, m, NOW).action).toBe("block");
+    expect(resolveChoice(ctx(), e, 2, m, NOW)).toEqual({ action: "block", reason: "Cancelled: claudeAgent has 1% left in the Session window (provider-limits guard)." });
     expect(evaluateTurn(ctx(), low, settings, m, NOW).kind).toBe("ask");
+  });
+
+  it("closing the prompt (-1) means keep going", () => {
+    const m = new ChoiceMemory();
+    const e = evaluateTurn(ctx(), low, settings, m, NOW) as Ask;
+    expect(resolveChoice(ctx(), e, -1, m, NOW)).toEqual({ action: "allow" });
+    expect(evaluateTurn(ctx(), low, settings, m, NOW + 1000)).toMatchObject({ why: "remembered-keep" });
   });
 });

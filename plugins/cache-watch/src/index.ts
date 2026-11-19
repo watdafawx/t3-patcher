@@ -38,6 +38,15 @@ const settings: SettingSchema[] = [
     description: "Codex reports no expiry, so this is always an estimate. 0 = built-in default (5 min; OpenAI says 5 to 10 min of inactivity).",
   },
   {
+    key: "ttlMinutesOpencode",
+    type: "number",
+    default: 0,
+    min: 0,
+    max: 1440,
+    label: "OpenCode: assumed cache minutes",
+    description: "OpenCode reports no expiry, so this is an estimate. 0 = built-in default (3 h, DeepSeek's disk cache: cleared after a few hours to days). If you run Anthropic or OpenAI models through OpenCode, set 5.",
+  },
+  {
     key: "cacheReadPerM",
     type: "number",
     default: 0,
@@ -57,7 +66,7 @@ const settings: SettingSchema[] = [
   },
 ];
 
-const PROVIDER_KEYS: Record<string, string> = { claudeAgent: "ttlMinutesClaudeAgent", codex: "ttlMinutesCodex" };
+const PROVIDER_KEYS: Record<string, string> = { claudeAgent: "ttlMinutesClaudeAgent", codex: "ttlMinutesCodex", opencode: "ttlMinutesOpencode" };
 
 const plugin: PluginModule = {
   start(t3: T3Api) {

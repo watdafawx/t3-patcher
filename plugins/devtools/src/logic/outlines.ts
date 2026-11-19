@@ -40,13 +40,17 @@ function colour(theme: Record<string, string>, name: string, fallback: string): 
  * (`t3.ui.themeVars()` supplies concrete values when it can), so live theme
  * changes keep working without re-rendering.
  *
- * `position: relative` on a plugin root is a deliberate dev-tool cost: the label
- * needs an anchor. It disappears together with the style element.
+ * Outlines must never change layout. Plugin roots are not all in-flow: toasts,
+ * modal overlays and the status bar are `position: fixed`, the dock is
+ * `position: absolute`. Forcing `position: relative` on `[data-t3p-root]` (the old
+ * label anchor) dropped those out of their fixed layer and into the page flow, which
+ * covered or pushed the app, including the toggle that turned it off. So this sheet
+ * only ever sets `outline` and `outline-offset`; the plugin label lives in the Slots
+ * tab list instead of a pseudo element.
  */
 export function buildOutlineCss(theme: Record<string, string> = {}): string {
   const accent = colour(theme, "--primary", "var(--primary, currentColor)");
   const warn = colour(theme, "--destructive", "var(--destructive, currentColor)");
-  const labelBg = colour(theme, "--background", "var(--background, canvas)");
   const scope = `html[${OUTLINE_ATTR}="1"]`;
   const outline = `outline: 1px dashed ${warn}; outline-offset: -1px;`;
   // A selector list must be scoped entry by entry, or the second selector would apply with outlines off.
@@ -56,16 +60,5 @@ export function buildOutlineCss(theme: Record<string, string> = {}): string {
       .map((part) => `${scope} ${part.trim()} { ${outline} }`)
       .join("\n"),
   ).join("\n");
-  return [
-    `${scope} [data-t3p-root] { position: relative; outline: 1px solid ${accent}; outline-offset: -1px; }`,
-    `${scope} [data-t3p-root]::before {`,
-    `  content: attr(data-t3p-plugin) " · " attr(data-t3p-slot);`,
-    `  position: absolute; top: 0; left: 0; transform: translateY(-100%);`,
-    `  font: 10px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;`,
-    `  color: ${accent}; background: ${labelBg}; padding: 0 3px;`,
-    `  border: 1px solid ${accent}; border-radius: 3px;`,
-    `  white-space: nowrap; pointer-events: none; z-index: 2147483000;`,
-    `}`,
-    anchorRules,
-  ].join("\n");
+  return [`${scope} [data-t3p-root] { outline: 1px solid ${accent}; outline-offset: -1px; }`, anchorRules].join("\n");
 }

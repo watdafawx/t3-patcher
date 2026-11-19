@@ -15,7 +15,7 @@ T3 Patcher is a Vencord/Spicetify-style mod loader for the **T3 Code** Electron 
 | `packages/patch-engine` | pure library: plan and apply text patches to client chunks, Acorn-verified |
 | `packages/rpc-client`, `timeline`, `contracts-vendor` | server RPC client, activity normalisation, vendored upstream contracts |
 | `packages/plugin-build`, `create-t3p-plugin` | build preset and scaffolder for plugin authors |
-| `plugins/*` | first-party plugins (cache-watch, keep-warm, provider-limits, provider-switcher, session-inspector, devtools) and two samples (`_sample-hello`, `_demo-slots`) |
+| `plugins/*` | first-party plugins (cache-watch, keep-warm, provider-limits, provider-switcher, session-inspector, devtools, artwork, notes) and two samples (`_sample-hello`, `_demo-slots`) |
 | `tools/compat` | compatibility checker: runs every capture and patch against an upstream release |
 | `tools/rig` | scripts to run a patched app on a spare Windows machine with a debug port (optional) |
 | `docs/` | all documentation; `docs/api.md` is generated |
@@ -29,9 +29,10 @@ pnpm install
 pnpm -r build
 pnpm -r test
 pnpm lint
+pnpm typecheck
 ```
 
-All three must exit 0 before you commit. `pnpm -r build` rewrites `packages/contracts-vendor/UPSTREAM.json`: revert that file unless you changed the vendored contracts.
+All four must exit 0 before you commit. `pnpm -r build` rewrites `packages/contracts-vendor/UPSTREAM.json`: revert that file unless you changed the vendored contracts.
 
 ## Install into a real T3 Code
 
@@ -42,6 +43,8 @@ t3p uninstall                                      # restores the stock app exac
 ```
 
 Close T3 Code first. The shim keeps the original as `_app.asar`; the runtime lives in `~/.t3-patcher/runtime`. If a T3 update overwrites the shim, a repair worker plus a logon task put it back. See `docs/updating.md`.
+
+Release artifacts: `pnpm build:exe` builds the single-file `dist-exe/t3p.exe` (Node SEA, no Node needed on the user's PC); `@t3p/installer` is also publishable to npm. Both documented in `docs/release.md`. Never publish or tag without the maintainer.
 
 ## Write a plugin
 
@@ -112,4 +115,4 @@ Full mechanics (engine, caching, protocol interception, safety): `docs/patching.
 
 ## More docs
 
-`README.md` (CLI reference), `docs/plugin-authoring.md`, `docs/patching.md`, `docs/api.md`, `docs/ui-style.md`, `docs/updating.md`, `docs/security.md`. `PLAN.md` and `docs/wp-*-notes.md` are historical design notes.
+`README.md` (install quick start, CLI reference), `docs/release.md` (tagging a release, building `t3p.exe`, npm publish), `docs/plugin-authoring.md`, `docs/patching.md`, `docs/api.md`, `docs/ui-style.md`, `docs/updating.md`, `docs/security.md`. `PLAN.md` and `docs/wp-*-notes.md` are historical design notes.

@@ -1,4 +1,4 @@
-import { existsSync, renameSync, rmSync, unlinkSync } from "node:fs";
+import { existsSync, renameSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -25,8 +25,8 @@ function purgeRuntime(homeDir: string): void {
 
 /**
  * Restores the stock layout: verifies the replacement asar against the manifest,
- * deletes it, removes the junction without touching its target, renames
- * _app.asar back to app.asar and drops the manifest entry.
+ * replaces it with _app.asar in one rename, removes the junction without touching its target
+ * and drops the manifest entry.
  */
 export async function uninstall(opts: UninstallOpts = {}): Promise<void> {
   const home = opts.homeDir ?? homedir();
@@ -97,35 +97,20 @@ export async function uninstall(opts: UninstallOpts = {}): Promise<void> {
     }
   }
 
-  // Never leave the app without an app.asar: move the replacement aside, put the original back,
-  // and only then delete the backup. Any failure restores the replacement.
-  const backup = `${paths.appAsar}.t3p-backup`;
-  try {
-    renameSync(paths.appAsar, backup);
-  } catch (error) {
-    if (isBusyError(error)) throw new AppRunningError();
-    throw new T3pError(`could not move ${paths.appAsar} aside: ${errorMessage(error)}`);
-  }
-
+  // One atomic rename: the original replaces the shim in a single step (rename onto an existing
+  // file replaces it on Windows and POSIX), so there is never a moment without an app.asar and a
+  // failure changes nothing. A move-aside-and-restore sequence would leave no app.asar if the
+  // restore failed as well.
   try {
     renameSync(paths.originalAsar, paths.appAsar);
   } catch (error) {
-    try {
-      renameSync(backup, paths.appAsar);
-    } catch {
-      // The backup is still next to app.asar; the message below says where.
-    }
     if (isBusyError(error)) throw new AppRunningError();
     throw new T3pError(
-      `could not rename ${paths.originalAsar} back to app.asar: ${errorMessage(error)}. The patched layout was kept.`,
+      `could not rename ${paths.originalAsar} back to app.asar: ${errorMessage(error)}. The patched layout was kept; run "t3p uninstall" again.`,
     );
   }
-
-  try {
-    unlinkSync(backup);
-  } catch (error) {
-    log(`could not delete ${backup}: ${errorMessage(error)}`);
-  }
+  // Leftover from an older uninstall that used a backup file.
+  rmSync(`${paths.appAsar}.t3p-backup`, { force: true });
 
   // The junction is only needed by the replacement; a failure here leaves a harmless link.
   try {

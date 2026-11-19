@@ -1,4 +1,4 @@
-import type { InternalHandles, ModalOptions, PluginPatch, T3Disposable, T3Internals, T3Patches, T3Ui, ToastOptions, UiSlotRegistration, PermissionSet, T3LogLevel } from "@t3p/api";
+import type { InternalHandles, ModalOptions, PluginPatch, SettingsPanelOptions, T3Disposable, T3Internals, T3Patches, T3Settings, T3Ui, ToastOptions, UiSlotRegistration, PermissionSet, T3LogLevel } from "@t3p/api";
 
 import { CommandRegistry } from "./commands.js";
 import { InternalsHub } from "./internals.js";
@@ -7,6 +7,7 @@ import type { Scope } from "./scope.js";
 import { Fallbacks } from "./ui/fallbacks.js";
 import { Overlays } from "./ui/overlays.js";
 import { type ManagerFacade, mountPluginsPage } from "./ui/plugins-page.js";
+import { mountSettingsPanel } from "./ui/setting-controls.js";
 import { SlotEngine } from "./ui/slots.js";
 import { Theme } from "./ui/theme.js";
 import type { EventBus, NativeBridgeLike } from "./types.js";
@@ -228,7 +229,7 @@ export class Shell {
   }
 
   /** `t3.ui`, `t3.commands`, `t3.keybinds`, `t3.patches`, `t3.internals` for one plugin. */
-  namespaces(plugin: string, scope: Scope, effective: PermissionSet): ShellNamespaces {
+  namespaces(plugin: string, scope: Scope, effective: PermissionSet, settings?: T3Settings): ShellNamespaces {
     const ui: T3Ui = Object.freeze({
       register: (registration: UiSlotRegistration): T3Disposable => {
         scope.assertAlive();
@@ -236,10 +237,16 @@ export class Shell {
         const forget = scope.add(off);
         return Object.freeze({ dispose: () => forget() });
       },
-      toast: (options: ToastOptions): void => {
+      toast: (options: ToastOptions): T3Disposable => {
         scope.assertAlive();
         const remove = this.overlays.toast(plugin, options);
-        scope.add(remove);
+        const forget = scope.add(remove);
+        return Object.freeze({
+          dispose: () => {
+            remove();
+            forget();
+          },
+        });
       },
       modal: (options: ModalOptions): Promise<number> => {
         scope.assertAlive();
@@ -248,6 +255,13 @@ export class Shell {
         return this.overlays.modal(plugin, options, (fn) => (close = fn)).finally(() => forget());
       },
       themeVars: () => this.theme.values(),
+      settingsPanel: (host: HTMLElement, options?: SettingsPanelOptions): T3Disposable => {
+        scope.assertAlive();
+        if (!settings) throw new Error("t3.ui.settingsPanel: settings are not available");
+        const off = mountSettingsPanel(host, settings, options);
+        const forget = scope.add(off);
+        return Object.freeze({ dispose: () => forget() });
+      },
       dock: Object.freeze({
         open: (tabId?: string): void => {
           scope.assertAlive();

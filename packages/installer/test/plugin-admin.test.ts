@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { install } from "../src/install.js";
+import { effectivePermissions, parsePermissions, validateManifest } from "@t3p/api";
 import { enable, grant, listPlugins, readState, revoke, safeMode } from "../src/plugin-admin.js";
 import { ensureWorkerNode, findSystemNode, WORKER_NODE_DATA, WORKER_NODE_EXE } from "../src/worker-node.js";
 import { createFakeInstall, createRuntimeSource, type FakeInstall, safeReadFuses } from "./fake-install.js";
@@ -146,5 +147,31 @@ describe("crash-loop guard in the CLI", () => {
     expect(listPlugins(home)[0]).toMatchObject({ enabled: true });
     expect(listPlugins(home)[0]!.disabledReason).toBeUndefined();
     expect(JSON.parse(readFileSync(join(home, ".t3-patcher", "health.json"), "utf8")).plugins).toEqual({});
+  });
+});
+
+describe("scoped log.tail grant (devtools)", () => {
+  const manifestPath = fileURLToPath(new URL("../../../plugins/devtools/plugin.json", import.meta.url));
+
+  it("t3p grant devtools log.tail --root is stored scoped and the effective set keeps it", () => {
+    const declared = validateManifest(JSON.parse(readFileSync(manifestPath, "utf8")), "devtools");
+    expect(declared.ok).toBe(true);
+    if (!declared.ok) return;
+
+    expect(cli(["grant", "devtools", "log.tail", "--root", "~/.t3-patcher/logs"]).status).toBe(0);
+    const granted = readState(home).plugins.devtools?.granted;
+    expect(granted).toEqual([{ "log.tail": { roots: ["~/.t3-patcher/logs"] } }]);
+
+    const effective = effectivePermissions(declared.manifest.permissions, parsePermissions(granted).set);
+    expect(effective["log.tail"]).toEqual({ roots: ["~/.t3-patcher/logs"] });
+  });
+
+  it("a root outside the declared one is stored but never effective; no --root is refused", () => {
+    const declared = validateManifest(JSON.parse(readFileSync(manifestPath, "utf8")), "devtools");
+    if (!declared.ok) throw new Error("manifest invalid");
+    expect(cli(["grant", "devtools", "log.tail", "--root", "~/elsewhere"]).status).toBe(0);
+    const granted = readState(home).plugins.devtools?.granted ?? [];
+    expect(effectivePermissions(declared.manifest.permissions, parsePermissions(granted).set)["log.tail"]).toBeUndefined();
+    expect(cli(["grant", "devtools", "log.tail"]).status).not.toBe(0);
   });
 });

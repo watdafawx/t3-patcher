@@ -764,24 +764,39 @@ UI mounting, toast and modal.
 export interface T3Ui {
   /** Mounts UI in a slot. Dispose to remove it. */
   register(registration: UiSlotRegistration): T3Disposable;
-  /** Shows a toast. */
-  toast(options: ToastOptions): void;
+  /** Shows a toast. The returned handle removes it early (idempotent). */
+  toast(options: ToastOptions): T3Disposable;
   /** Opens a modal. Resolves with the index of the button pressed, or `-1` when dismissed. */
   modal(options: ModalOptions): Promise<number>;
   /** The app's current CSS custom properties (theme tokens), so plugin UI can match. */
   themeVars(): Record<string, string>;
   /** The right panel dock. */
   readonly dock: T3UiDock;
+  /**
+   * Renders live controls for this plugin's own settings into `host` (a switch, select, slider,
+   * number or text field per setting, compact 12px rows). Meant for a `rightPanel` dock tab, which
+   * does not cover the app, so changes are visible while you tune. Every edit goes through
+   * `t3.settings.set` (sliders are debounced), so Settings > Plugins stays in sync and the controls
+   * follow changes made elsewhere. `keys` limits and orders the rows (default: all defined settings).
+   * Dispose to remove the controls.
+   */
+  settingsPanel(host: HTMLElement, options?: SettingsPanelOptions): T3Disposable;
 }
 ```
 
 #### Members
 
 - `register`: Mounts UI in a slot. Dispose to remove it.
-- `toast`: Shows a toast.
+- `toast`: Shows a toast. The returned handle removes it early (idempotent).
 - `modal`: Opens a modal. Resolves with the index of the button pressed, or `-1` when dismissed.
 - `themeVars`: The app's current CSS custom properties (theme tokens), so plugin UI can match.
 - `dock`: The right panel dock.
+- `settingsPanel`: Renders live controls for this plugin's own settings into `host` (a switch, select, slider,
+number or text field per setting, compact 12px rows). Meant for a `rightPanel` dock tab, which
+does not cover the app, so changes are visible while you tune. Every edit goes through
+`t3.settings.set` (sliders are debounced), so Settings > Plugins stays in sync and the controls
+follow changes made elsewhere. `keys` limits and orders the rows (default: all defined settings).
+Dispose to remove the controls.
 
 ### `UiSlotRegistration`
 
@@ -859,6 +874,11 @@ export interface ToastOptions {
   durationMs?: number;
   /** Buttons shown in the toast (shared `t3p-btn`). The toast is dismissed after `onClick` runs. */
   actions?: ToastAction[];
+  /**
+   * Runs when the user closes the toast (click on its body) or `durationMs` runs out, but not when an
+   * action button was pressed (that runs the action's `onClick`) nor when `dispose()` removed it.
+   */
+  onDismiss?(): void;
 }
 ```
 
@@ -866,6 +886,8 @@ export interface ToastOptions {
 
 - `durationMs`: 0 keeps it until dismissed. Default 5000.
 - `actions`: Buttons shown in the toast (shared `t3p-btn`). The toast is dismissed after `onClick` runs.
+- `onDismiss`: Runs when the user closes the toast (click on its body) or `durationMs` runs out, but not when an
+action button was pressed (that runs the action's `onClick`) nor when `dispose()` removed it.
 
 ### `ModalOptions`
 
@@ -1143,7 +1165,7 @@ that no longer fit (wrong type, not in the enum list) fall back to the default.
 The description of one setting. The settings page (WP-3D) renders from it.
 
 ```ts
-export type SettingSchema = BooleanSettingSchema | StringSettingSchema | NumberSettingSchema | EnumSettingSchema;
+export type SettingSchema = BooleanSettingSchema | StringSettingSchema | NumberSettingSchema | RangeSettingSchema | EnumSettingSchema;
 ```
 
 ### `SettingBase`

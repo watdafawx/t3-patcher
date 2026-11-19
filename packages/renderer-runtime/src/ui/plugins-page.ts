@@ -2,6 +2,7 @@ import type { SettingSchema, SettingValue } from "@t3p/api";
 
 import type { ManagedPlugin } from "../manager.js";
 import { clear, ensureStyles, h } from "./dom.js";
+import { createControl } from "./setting-controls.js";
 
 /** The slice of `window.__t3p.manager` the page uses. */
 export interface ManagerFacade {
@@ -52,29 +53,7 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
     const apply = (next: SettingValue): void => {
       manager.setSetting(plugin.id, schema.key, next).catch((error: unknown) => onNotice(`${plugin.id}: ${String(error instanceof Error ? error.message : error)}`));
     };
-    let control: HTMLElement;
-    if (schema.type === "boolean") {
-      control = h("input", { class: "t3p-switch", type: "checkbox", checked: value === true, "data-t3p-setting": schema.key, onChange: (e: Event) => apply((e.target as HTMLInputElement).checked) });
-    } else if (schema.type === "enum") {
-      const select = h("select", { class: "t3p-input", "data-t3p-setting": schema.key, onChange: (e: Event) => apply((e.target as HTMLSelectElement).value) });
-      for (const option of schema.options) select.appendChild(h("option", { value: option.value, selected: option.value === value }, option.label ?? option.value));
-      control = select;
-    } else if (schema.type === "number") {
-      control = h("input", {
-        class: "t3p-input",
-        type: "number",
-        value: String(value),
-        "data-t3p-setting": schema.key,
-        ...(schema.min !== undefined ? { min: String(schema.min) } : {}),
-        ...(schema.max !== undefined ? { max: String(schema.max) } : {}),
-        onChange: (e: Event) => {
-          const n = Number((e.target as HTMLInputElement).value);
-          if (Number.isFinite(n)) apply(n);
-        },
-      });
-    } else {
-      control = h("input", { class: "t3p-input", type: "text", value: String(value), "data-t3p-setting": schema.key, onChange: (e: Event) => apply((e.target as HTMLInputElement).value) });
-    }
+    const control = createControl(schema, value, { onCommit: apply }).el;
     const reset = h("button", { class: "t3p-btn", type: "button", title: "Reset to default", onClick: () => void manager.resetSetting(plugin.id, schema.key).then(render, (e: unknown) => onNotice(String(e))) }, "Reset");
     return h(
       "div",

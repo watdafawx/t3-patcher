@@ -12,6 +12,12 @@ export interface OutlineThemeSource {
 export class OutlineController {
   private style: HTMLStyleElement | null = null;
   #enabled = false;
+  readonly #listeners = new Set<(enabled: boolean) => void>();
+
+  /** Escape always turns outlines off, wherever focus is (capture phase, so no app handler can swallow it). */
+  readonly #onKey = (event: KeyboardEvent): void => {
+    if (event.key === "Escape" && this.#enabled) this.set(false);
+  };
 
   constructor(private readonly api?: OutlineThemeSource) {}
 
@@ -24,10 +30,19 @@ export class OutlineController {
     return this.style;
   }
 
+  /** Fires after every enable/disable so a checkbox can follow a palette or Escape toggle. */
+  onChange(listener: (enabled: boolean) => void): () => void {
+    this.#listeners.add(listener);
+    return () => void this.#listeners.delete(listener);
+  }
+
   set(enabled: boolean): void {
+    const changed = enabled !== this.#enabled;
     this.#enabled = enabled;
     if (!enabled) {
       this.remove();
+      window.removeEventListener("keydown", this.#onKey, true);
+      if (changed) this.emit();
       return;
     }
     let vars: Record<string, string> = {};
@@ -45,6 +60,18 @@ export class OutlineController {
     this.style = style;
     document.documentElement.setAttribute(OUTLINE_ATTR, "1");
     document.head.append(style);
+    window.addEventListener("keydown", this.#onKey, true);
+    if (changed) this.emit();
+  }
+
+  private emit(): void {
+    for (const listener of [...this.#listeners]) {
+      try {
+        listener(this.#enabled);
+      } catch {
+        // a listener must not block turning outlines off
+      }
+    }
   }
 
   toggle(): boolean {
@@ -54,7 +81,9 @@ export class OutlineController {
 
   dispose(): void {
     this.#enabled = false;
+    window.removeEventListener("keydown", this.#onKey, true);
     this.remove();
+    this.#listeners.clear();
   }
 
   private remove(): void {

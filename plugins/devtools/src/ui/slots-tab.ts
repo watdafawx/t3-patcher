@@ -40,8 +40,8 @@ export function mountSlotsTab(host: HTMLElement, opts: SlotsTabOptions): Tab {
     h("p", {
       class: "dt-note",
       text:
-        "Outlines every mounted plugin root (labelled with plugin · slot) and every slot anchor from docs/wp-3d-notes.md. " +
-        "One injected style element; turning it off or stopping the plugin removes it.",
+        "Outlines every mounted plugin root (listed below as plugin · slot) and every slot anchor from docs/wp-3d-notes.md. " +
+        "Outline only, layout never changes. Escape or the palette command \"Devtools: toggle slot outlines\" turns it off. One injected style element; turning it off or stopping the plugin removes it.",
     }),
   );
 
@@ -81,6 +81,10 @@ export function mountSlotsTab(host: HTMLElement, opts: SlotsTabOptions): Tab {
     }
   };
 
+  const unsubscribe = opts.outlines.onChange((enabled) => {
+    toggle.checked = enabled;
+  });
+  cleanups.push(unsubscribe);
   toggle.addEventListener("change", () => {
     opts.outlines.set(toggle.checked);
     render();

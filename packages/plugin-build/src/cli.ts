@@ -19,20 +19,25 @@ The plugin.json is validated first (same rules as @t3p/api). The bundle is one
 ES module at ${RENDERER_OUTPUT}, with every dependency inlined; a leftover
 external import fails the build.`;
 
+// Own function so parseArgs infers the option types from the literal below.
+function parseCli(argv: string[]) {
+  return parseArgs({
+    args: argv,
+    allowPositionals: false,
+    options: {
+      root: { type: "string" },
+      entry: { type: "string" },
+      "out-dir": { type: "string" },
+      watch: { type: "boolean", default: false },
+      help: { type: "boolean", short: "h", default: false },
+    },
+  });
+}
+
 async function main(argv: string[]): Promise<number> {
-  let parsed: ReturnType<typeof parseArgs>;
+  let parsed: ReturnType<typeof parseCli>;
   try {
-    parsed = parseArgs({
-      args: argv,
-      allowPositionals: false,
-      options: {
-        root: { type: "string" },
-        entry: { type: "string" },
-        "out-dir": { type: "string" },
-        watch: { type: "boolean", default: false },
-        help: { type: "boolean", short: "h", default: false },
-      },
-    });
+    parsed = parseCli(argv);
   } catch (error) {
     console.error(`t3p-plugin-build: ${(error as Error).message}`);
     console.error(USAGE);

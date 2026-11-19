@@ -63,6 +63,33 @@ export default plugin;
 
 Plugin settings show up on the Plugins page, at **Settings > Plugins** in T3 Code (the last entry in the Settings sidebar, under Archive).
 
+### Settings in a dock tab
+
+Settings > Plugins covers the sidebar, so a plugin that styles the app is hard to tune there. Put its settings in a `rightPanel` dock tab instead: the dock sits beside the app and every change shows live. `t3.ui.settingsPanel(host, options?)` renders the controls from your `t3.settings.define` schemas, so you write no form code:
+
+```ts
+const tab = t3.ui.register({
+  slot: "rightPanel",
+  id: "tune",
+  title: "My plugin",
+  render(host) {
+    const panel = t3.ui.settingsPanel(host, {
+      keys: ["size", "tint", "enabled"], // order and subset (default: every setting)
+      onLive: (key, value) => preview(key, value), // slider moves, before the debounced write
+    });
+    return () => panel.dispose();
+  },
+});
+t3.commands.register({ id: "open", title: "My plugin: open panel", run: () => t3.ui.dock.open("tune") });
+```
+
+- One compact 12px row per setting: switch, select, slider (`type: "range"`), number or text field, plus a reset button that shows when the value differs from the default.
+- Edits go through `t3.settings.set`, so Settings > Plugins stays in sync, and the controls follow changes made there. Slider drags update the readout at once and write after `debounceMs` (default 120); releasing the slider writes immediately.
+- `onLive(key, value)` fires for every slider move. Use it to preview without waiting for the write.
+- Add your own widgets (preview swatches, file pickers) next to the helper in the same tab.
+
+`type: "range"` is a number shown as a slider: `{ key, type: "range", default, min, max, step?, label }` (`min` and `max` required). Values are validated like `number`, and the Plugins page renders it as a slider too.
+
 ## The build preset
 
 `t3p-plugin-build` (package `@t3p/plugin-build`) is the only supported build:
@@ -187,7 +214,7 @@ single source of truth is [`packages/api/src/t3.ts`](../packages/api/src/t3.ts).
 | `t3.environment` | live | `current()`: `{id, label}` of the active environment (id from the route, label from the desktop bridge for the local one; `null` when unknown) |
 | `t3.cache` | stub (WP-4C) | prompt-cache state and expiry notifications |
 | `t3.usage` | stub (WP-3B) | token totals by range, thread and provider |
-| `t3.ui` | live | slots, toast (optional `actions` buttons), modal, theme variables, `dock.open/close/toggle/isOpen` for the `rightPanel` dock |
+| `t3.ui` | live | slots, toast (optional `actions` buttons), modal, theme variables, `dock.open/close/toggle/isOpen` for the `rightPanel` dock, `settingsPanel(host)` live controls from your settings schemas |
 | `t3.commands` | stub (WP-3D) | command palette entries |
 | `t3.keybinds` | stub (WP-3D) | keyboard shortcuts bound to commands |
 | `t3.patches` | stub (WP-3D, needs `patches`) | tier 3 text patches |

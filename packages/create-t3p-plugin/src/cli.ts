@@ -24,19 +24,24 @@ Next:
   pnpm build
   t3p dev .`;
 
+// Own function so parseArgs infers the option types from the literal below.
+function parseCli(argv: string[]) {
+  return parseArgs({
+    args: argv,
+    allowPositionals: true,
+    options: {
+      id: { type: "string" },
+      name: { type: "string" },
+      tier: { type: "string" },
+      help: { type: "boolean", short: "h", default: false },
+    },
+  });
+}
+
 function main(argv: string[]): number {
-  let parsed: ReturnType<typeof parseArgs>;
+  let parsed: ReturnType<typeof parseCli>;
   try {
-    parsed = parseArgs({
-      args: argv,
-      allowPositionals: true,
-      options: {
-        id: { type: "string" },
-        name: { type: "string" },
-        tier: { type: "string" },
-        help: { type: "boolean", short: "h", default: false },
-      },
-    });
+    parsed = parseCli(argv);
   } catch (error) {
     console.error(`create-t3p-plugin: ${(error as Error).message}`);
     console.error(USAGE);

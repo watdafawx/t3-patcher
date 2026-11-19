@@ -1,0 +1,20 @@
+{
+  "name": "@t3p/artwork",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Custom artwork behind the T3 Code sidebar header",
+  "scripts": {
+    "build": "t3p-plugin-build",
+    "dev": "t3p-plugin-build --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@t3p/api": "workspace:*",
+    "@t3p/plugin-build": "workspace:*",
+    "jsdom": "26",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}

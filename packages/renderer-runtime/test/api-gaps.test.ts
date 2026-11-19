@@ -21,6 +21,34 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
+describe("t3.ui.toast onDismiss, primary and handle", () => {
+  it("onDismiss fires on a body click and on timeout, not after an action or dispose()", () => {
+    vi.useFakeTimers();
+    try {
+      const ns = makeShell().namespaces("demo", new Scope(), {});
+      const dismissed = vi.fn();
+      ns.ui.toast({ message: "a", durationMs: 0, onDismiss: dismissed });
+      (document.querySelector(".t3p-toast") as HTMLElement).click();
+      expect(dismissed).toHaveBeenCalledTimes(1);
+      ns.ui.toast({ message: "b", durationMs: 1000, onDismiss: dismissed });
+      vi.advanceTimersByTime(1000);
+      expect(dismissed).toHaveBeenCalledTimes(2);
+      ns.ui.toast({ message: "c", durationMs: 0, onDismiss: dismissed, actions: [{ label: "Go", primary: true, onClick: () => undefined }] });
+      const button = document.querySelector(".t3p-toast button") as HTMLElement;
+      expect(button.hasAttribute("data-primary")).toBe(true);
+      button.click();
+      expect(dismissed).toHaveBeenCalledTimes(2);
+      const handle = ns.ui.toast({ message: "d", durationMs: 0, onDismiss: dismissed });
+      handle.dispose();
+      handle.dispose();
+      expect(document.querySelector(".t3p-toast")).toBeNull();
+      expect(dismissed).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("t3.ui.toast actions", () => {
   it("renders t3p-btn buttons, runs the action and dismisses the toast", () => {
     const ns = makeShell().namespaces("demo", new Scope(), {});

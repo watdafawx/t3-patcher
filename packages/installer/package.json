@@ -1,7 +1,16 @@
 {
   "name": "@t3p/installer",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "Installer CLI for T3 Patcher: a plugin loader for the T3 Code desktop app (Windows). Run with npx @t3p/installer install.",
+  "keywords": [
+    "t3-code",
+    "t3",
+    "patcher",
+    "plugins",
+    "electron",
+    "mod-loader"
+  ],
+  "license": "MIT",
   "type": "module",
   "bin": {
     "t3p": "./dist/cli.mjs"
@@ -14,17 +23,35 @@
       "import": "./dist/index.mjs"
     }
   },
+  "files": [
+    "dist",
+    "!dist/standalone",
+    "!dist/**/*.map",
+    "runtime",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "os": [
+    "win32"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsdown",
+    "prepack": "pnpm --filter @t3p/main-runtime... build && node scripts/stage-runtime.mjs",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@electron/asar": "^4.3.2",
-    "@electron/fuses": "^2.1.3",
-    "@t3p/api": "workspace:*",
-    "@t3p/shim": "workspace:*"
+    "@electron/fuses": "^2.1.3"
   },
   "devDependencies": {
+    "@t3p/api": "workspace:*",
+    "@t3p/shim": "workspace:*",
+    "@types/node": "22",
     "tsdown": "^0.23.7",
     "typescript": "^5.9.3",
     "vitest": "^3.2.7"

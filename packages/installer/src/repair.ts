@@ -20,7 +20,7 @@ export async function repair(opts: RepairOpts = {}): Promise<InstallResult | "no
 
   if (report.layout !== "stale") {
     if (opts.ifStale) return "noop";
-    const result = await installLayout({ ...opts, homeDir: home, path: info.installDir });
+    const result = await installLayout({ ...opts, homeDir: home, path: info.installDir, refreshRuntime: false });
     return result.status === "noop" ? "noop" : result;
   }
 

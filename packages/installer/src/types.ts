@@ -108,11 +108,21 @@ export interface InstallOpts extends CommonOpts, FindInstallsOpts {
    * not in SUPPORTED_VERSIONS without asking for --force. Fuses are still checked.
    */
   allowUnsupportedVersion?: boolean;
+  /**
+   * On an already patched app: refresh <home>/.t3-patcher/runtime (and the shim
+   * when it changed) from the runtime source. Default true; repair turns it off.
+   */
+  refreshRuntime?: boolean;
 }
 
 export interface InstallResult {
-  /** "installed" when the layout changed, "noop" when it was already patched. */
-  status: "installed" | "noop";
+  /**
+   * "installed" when the layout changed, "updated" when an already patched app
+   * got a newer runtime, "noop" when it was already patched and up to date.
+   */
+  status: "installed" | "updated" | "noop";
+  /** Set for "updated": runtime labels before and after (from is null when no runtime was installed). */
+  runtimeUpdate?: { from: string | null; to: string; shimChanged: boolean };
   install: InstallInfo;
   changed: boolean;
   manifestPath: string;

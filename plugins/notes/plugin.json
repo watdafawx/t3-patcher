@@ -1,0 +1,10 @@
+{
+  "id": "notes",
+  "name": "Notes",
+  "description": "Quick plain-text notes tied to the project of the thread you are in, plus a General note. Autosaves, lives in the sidebar.",
+  "version": "0.1.0",
+  "tier": 1,
+  "permissions": ["rpc"],
+  "t3Versions": ["*"],
+  "renderer": "dist/renderer.js"
+}

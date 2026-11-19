@@ -10,9 +10,11 @@
 import { T3PermissionError, type PluginModule, type ProviderSnapshot, type SettingSchema, type T3Api, type T3Disposable, type TurnStartDecision, type Unsubscribe } from "@t3p/api";
 
 import { detectCrossings, type CrossingState } from "./crossings.js";
-import { ChoiceMemory, DEFAULT_GUARD_THRESHOLD, evaluateTurn, promptBody, promptButtons, resolveChoice } from "./guard.js";
+import { ChoiceMemory, DEFAULT_GUARD_THRESHOLD, evaluateTurn } from "./guard.js";
 import { DEFAULT_THRESHOLDS, formatPercent, type LimitThresholds } from "./limits.js";
+import { parseFavorites, type FavoriteModel } from "./model.js";
 import { mountChip, mountPanel, type PanelSource } from "./panel.js";
+import { ComposerHosts, createPrompter, parsePresentation } from "./prompt.js";
 
 const TITLE = "Provider limits";
 
@@ -62,11 +64,30 @@ const SETTINGS: SettingSchema[] = [
       "Before a message, new thread or delegated task starts on a provider with less than this percent left in any limit window, ask to switch, keep going or cancel. 0 turns it off. Needs the guard permission (t3p grant provider-limits guard).",
   },
   {
+    key: "guardUseFavorites",
+    type: "boolean",
+    default: true,
+    label: "Switch to a favorite model",
+    description:
+      "When a turn is about to start on a nearly empty provider, propose your favorite models (in your order) whose provider still has headroom in its session and weekly windows. Off = only the fallback model below, then each other provider's default model.",
+  },
+  {
     key: "guardFallback",
     type: "string",
     default: "",
-    label: "Fallback model",
-    description: "Offered as the switch target: <provider instance>:<model> (for example codex:gpt-5.4), or just a model on the same provider. Empty = no switch button.",
+    label: "Fallback model (override)",
+    description: "Optional. Tried before your favorites when it has headroom: <provider instance>:<model> (for example codex:gpt-5.4), or just a model on the same provider. Empty = favorites only.",
+  },
+  {
+    key: "guardPresentation",
+    type: "enum",
+    default: "toast",
+    options: [
+      { value: "toast", label: "Toast (bottom right)" },
+      { value: "composer", label: "Banner above the composer" },
+    ],
+    label: "Where to ask",
+    description: "The low-quota question shows as a toast, or as a banner docked above the prompt box. The banner falls back to the toast when no composer is on screen.",
   },
 ];
 
@@ -286,29 +307,57 @@ const plugin: PluginModule = {
     startRefreshTimer();
     void load(false);
 
-    // WP-6C: ask before a turn starts on a nearly exhausted provider.
+    // WP-6C / WP-11A: ask before a turn starts on a nearly exhausted provider.
     const memory = new ChoiceMemory();
+    const hosts = new ComposerHosts();
+    const composerSlot = t3.ui.register({
+      slot: "composerBanner",
+      id: "guard",
+      order: 0,
+      render(host, context) {
+        // The slot host only holds the guard banner while a prompt is open; empty otherwise.
+        return hosts.add(host, context.threadId);
+      },
+    });
+    const prompter = createPrompter({
+      toast: (options) => t3.ui.toast(options),
+      presentation: () => parsePresentation(t3.settings.get("guardPresentation")),
+      hosts,
+      memory,
+      now: () => Date.now(),
+      setTimer: (fn, ms) => setTimeout(fn, ms),
+      clearTimer: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+      timeoutMs: GUARD_TIMEOUT_MS - 2_000,
+    });
+    /** The user's favorite models: `server.getConfig().settings.favorites` (null = unmigrated, then none). */
+    const readFavorites = async (): Promise<FavoriteModel[]> => {
+      try {
+        const config = (await t3.rpc.call("server.getConfig", {})) as { settings?: { favorites?: unknown } } | null;
+        return parseFavorites(config?.settings?.favorites);
+      } catch (error) {
+        t3.log("warn", `could not read favorite models: ${errorMessage(error)}`);
+        return [];
+      }
+    };
     let guardHandle: T3Disposable | null = null;
     try {
       guardHandle = t3.threads.beforeStart(
         async (ctx): Promise<TurnStartDecision> => {
           if (state.providers.length === 0) await load(false).catch(() => undefined);
-          const settings = { thresholdPercent: Number(t3.settings.get("guardThresholdPercent")), fallback: String(t3.settings.get("guardFallback") ?? "") };
-          const evaluation = evaluateTurn(ctx, state.providers, settings, memory, Date.now());
+          const settings = {
+            thresholdPercent: Number(t3.settings.get("guardThresholdPercent")),
+            fallback: String(t3.settings.get("guardFallback") ?? ""),
+            useFavorites: t3.settings.get("guardUseFavorites") !== false,
+          };
+          const quick = evaluateTurn(ctx, state.providers, settings, memory, Date.now());
+          if (quick.kind === "pass") return { action: "allow" };
+          if (quick.kind === "decided" && !settings.useFavorites) return quick.decision;
+          // The turn needs a fallback: read the favorites now (cheap, one RPC, only on a low-quota turn).
+          const favorites = settings.useFavorites ? await readFavorites() : [];
+          const evaluation = evaluateTurn(ctx, state.providers, settings, memory, Date.now(), favorites);
           if (evaluation.kind === "pass") return { action: "allow" };
           if (evaluation.kind === "decided") return evaluation.decision;
-          const { labels } = promptButtons(evaluation);
-          let late = false;
-          const answer = t3.ui.modal({ title: `${TITLE}: low quota`, body: promptBody(ctx, evaluation), buttons: labels }).then((index) => {
-            if (late) t3.ui.toast({ title: TITLE, message: "Too late: the turn had already started after the guard timeout.", kind: "warning", durationMs: 6000 });
-            return index;
-          });
-          const index = await Promise.race([answer, new Promise<number>((resolve) => setTimeout(() => resolve(-2), GUARD_TIMEOUT_MS - 2_000))]);
-          if (index === -2) {
-            late = true;
-            return { action: "allow" };
-          }
-          return resolveChoice(ctx, evaluation, index, memory, Date.now());
+          return prompter.ask(ctx, evaluation);
         },
         { timeoutMs: GUARD_TIMEOUT_MS },
       );
@@ -331,6 +380,8 @@ const plugin: PluginModule = {
       panelSlot.dispose();
       for (const command of commands) command.dispose();
       guardHandle?.dispose();
+      prompter.dispose();
+      composerSlot.dispose();
       memory.clear();
       if (stopCurrent === cleanup) stopCurrent = null;
     };

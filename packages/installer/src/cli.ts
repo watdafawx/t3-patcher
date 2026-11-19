@@ -1,18 +1,25 @@
 #!/usr/bin/env node
+import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
+import { join } from "node:path";
 import { parseArgs } from "node:util";
 
 import { doctor } from "./doctor.js";
 import { devLink, devUnlink, devMarkerPath } from "./dev.js";
 import { AppRunningError, T3pError } from "./errors.js";
-import { install } from "./install.js";
+import { install, defaultRuntimeSource } from "./install.js";
 import { enable, grant, listPlugins, revoke, safeMode, statePath } from "./plugin-admin.js";
 import { ensureLogonTask, removeLogonTask } from "./logon-task.js";
 import { readManifest } from "./manifest.js";
 import { repair, repairRecorded } from "./repair.js";
+import { runRealMenu, wantsMenu } from "./menu-cli.js";
+import { isSingleFileExe } from "./runtime-pack.js";
 import { status } from "./status.js";
 import type { DoctorCheck, InstallResult, StatusReport } from "./types.js";
 import { uninstall } from "./uninstall.js";
+
+declare const __T3P_VERSION__: string | undefined;
+const VERSION = typeof __T3P_VERSION__ === "string" ? __T3P_VERSION__ : "dev";
 
 const USAGE = `t3p - T3 Code patcher installer
 
@@ -30,6 +37,8 @@ Usage:
   t3p dev       <plugin-folder> [--json]
   t3p dev       --unlink <id> [--json]
   t3p safe      [--off]
+  t3p --version
+  t3p selftest
 
 Options:
   --path DIR    T3 Code install directory (default: auto-detect)
@@ -75,7 +84,12 @@ function printJson(value: unknown): void {
 function printInstall(result: InstallResult): void {
   const info = result.install;
   if (result.status === "noop") {
-    console.log(`already patched: ${info.installDir} (${info.channel}, ${info.version ?? "unknown version"})`);
+    console.log(`Already up to date: ${info.installDir} (${info.channel}, ${info.version ?? "unknown version"})`);
+  } else if (result.status === "updated") {
+    const u = result.runtimeUpdate;
+    console.log(`Updated runtime ${u?.from ?? "none"} -> ${u?.to ?? "?"}: ${info.installDir} (${info.channel}, ${info.version ?? "unknown version"})`);
+    if (u?.shimChanged) console.log("  shim:       rewritten");
+    if (result.runtime) console.log(`  runtime:    ${result.runtime.source} (${result.runtime.files} files)`);
   } else {
     console.log(`patched: ${info.installDir} (${info.channel}, ${info.version ?? "unknown version"})`);
     console.log(`  exe:        ${info.exePath}`);
@@ -117,6 +131,28 @@ function registerLogonTask(skip: boolean, homeDir: string | undefined, installDi
 
 async function main(argv: string[]): Promise<number> {
   const command = argv[0];
+  if (command === "--version" || command === "-v" || command === "version") {
+    console.log(VERSION);
+    return 0;
+  }
+  if (command === "selftest") {
+    // Support aid: which runtime this binary would install, and whether it is complete.
+    const source = defaultRuntimeSource();
+    const ok = source !== null && existsSync(join(source, "main.cjs"));
+    console.log(JSON.stringify({ version: VERSION, singleFileExe: isSingleFileExe(), runtimeSource: source ? (isSingleFileExe() ? "embedded" : source) : null, runtimeFiles: source ? readdirSync(source).length : 0, ok }));
+    return ok ? 0 : 1;
+  }
+  if (!command && wantsMenu(argv.length)) {
+    const homeForMenu = process.env.T3P_HOME || undefined;
+    return runRealMenu({
+      version: VERSION,
+      homeDir: homeForMenu,
+      afterInstall: (installDir) => registerLogonTask(false, homeForMenu, installDir),
+      afterUninstall: () => {
+        if (!Object.keys(readManifest(homeForMenu ?? homedir())?.installs ?? {}).length) removeLogonTask({ homeDir: homeForMenu ?? homedir() });
+      },
+    });
+  }
   if (!command || command === "--help" || command === "-h" || command === "help") {
     console.log(USAGE);
     return command ? 0 : 2;

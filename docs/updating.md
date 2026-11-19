@@ -72,6 +72,32 @@ t3p repair --if-stale
 
 This task runs at user logon, detects if an update wiped the shim, and restores the patcher layout before the user starts working.
 
+The task is registered from an XML definition (`schtasks /Create /XML`), saved as `~/.t3-patcher/repair-task.xml` (UTF-16). `t3p install` validates the definition before it registers it, and `t3p doctor` re-validates the saved copy (check `logon task definition`, whose detail holds the whole XML on one line). The constraints:
+
+| Element | Value | Why |
+|---|---|---|
+| Trigger | exactly one `LogonTrigger`, with `<UserId>` set to the installing user | A bare `/SC ONLOGON` fires for every user who logs on. |
+| Principal | same `<UserId>`, `LogonType` `InteractiveToken`, `RunLevel` `LeastPrivilege` | No stored password, no prompt, no elevation. |
+| Settings | `Hidden` true, `ExecutionTimeLimit` `PT10M`, `MultipleInstancesPolicy` `IgnoreNew` | Not shown in the task list by default, and a stuck repair is killed. `Hidden` does not suppress the console window of the `.cmd` wrapper: a brief flash at logon is possible. |
+| Action | one `Exec` running `~/.t3-patcher/repair-logon.cmd` | Lives outside the T3 Code folder, so an NSIS update cannot wipe it. |
+
+Unit tests cover the XML (shape, escaping, each unsafe variation rejected) and the `doctor` check. They do not prove Windows fires the trigger. That needs a real logon.
+
+#### Verify a real logon (manual, about 3 minutes)
+
+1. Run `t3p doctor` and confirm `logon task definition` is `ok` and starts with `valid: LogonTrigger for <you>`.
+2. Make the layout stale: run the T3 Code installer of a newer version by hand with T3 Code closed (or copy a stock `app.asar` over `resources\app.asar` and delete `resources\_app.asar`). Run `t3p status`: it must say `stale`.
+3. Sign out of Windows, then sign back in (a reboot also works). Do not start T3 Code yet.
+4. Wait about 30 seconds, then run:
+   ```
+   schtasks /Query /TN t3-patcher-repair /V /FO LIST
+   ```
+   `Last Run Time` must be after your sign-in, and `Last Result` must be `0`. (`Last Run Time` of `11/30/1999` means it never ran.)
+5. Read `~/.t3-patcher/logs/logon-repair.log`. The last line is JSON such as `[{"installDir":"...","result":"repaired"}]`.
+6. Run `t3p status`: it must say `patched`.
+
+If step 4 shows a result other than `0`, or no run, open Task Scheduler (`taskschd.msc`), select `t3-patcher-repair`, and check the History tab (enable "All Tasks History" if it is empty). Report the result code and the last lines of `logon-repair.log`.
+
 ## Layout states (`t3p status`)
 
 The command `t3p status` evaluates the installation layout against `<T3P_HOME>/.t3-patcher/manifest.json`. It reports one of five states:
@@ -166,3 +192,18 @@ pnpm --filter @t3p/compat compat -- --version nightly --json
 ```
 
 Exit 0 means every first-party patch `find` still matches exactly one chunk. Exit 1 lists the broken finds, plus added or removed RPC methods and `data-slot` anchors. It needs 7-Zip to read the installer. See [tools/compat/README.md](../tools/compat/README.md) for all flags.
+
+## Installing and updating the patcher itself
+
+Users get the patcher from the single-file `t3p.exe` (GitHub Releases) or `npx @t3p/installer` / `npm i -g @t3p/installer`; see the README. Updating the patcher is: new `t3p.exe` (or `npm i -g @t3p/installer@latest`), close T3 Code, then run `t3p install` (or choose **Update** in the double-click menu). No Uninstall needed. Plugins, `state.json` and settings in `~/.t3-patcher` are kept.
+
+### Refresh on reinstall
+
+`t3p install` on an already patched, healthy app refreshes the runtime instead of doing nothing:
+
+1. It hashes the bundled runtime and `~/.t3-patcher/runtime`. When they match (and the shim in `app.asar` is current) it prints `Already up to date` and changes nothing.
+2. Otherwise it stages the new runtime in `runtime.new`, renames the old one to `runtime.old`, then renames the new one into place. The shim (`app.asar`) is rebuilt from `_app.asar` only when its text changed, swapped the same way, and the manifest hashes are updated.
+3. Any failure restores the old runtime and shim and removes the staged files, so a half-written runtime is never left behind. If a file is locked it throws the same `AppRunningError` as a fresh install: close T3 Code and retry.
+4. On success it prints `Updated runtime rt-xxxxxxxx -> rt-yyyyyyyy` (labels are a short digest of the runtime files).
+
+Only `runtime/`, the shim and the manifest entry change. Plugins, `state.json` and settings are never touched, `--path` and `--force` work as before, and `t3p uninstall` still restores the stock app exactly. `t3p repair` on a healthy app and the logon task never refresh (they stay a noop). `--runtime DIR` refreshes from that folder. Maintainer steps and how the exe is built: [release.md](release.md).

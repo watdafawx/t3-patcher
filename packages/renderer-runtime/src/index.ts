@@ -5,6 +5,7 @@ import type { DesktopBridgeLike } from "./types.js";
 declare const window: Record<string, unknown> & {
   __t3p_native?: NativeBridgeLike;
   desktopBridge?: DesktopBridgeLike;
+  location: { reload(): void };
   addEventListener(type: string, listener: (event: never) => void): void;
   removeEventListener(type: string, listener: (event: never) => void): void;
 };
