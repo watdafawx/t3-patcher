@@ -1,0 +1,26 @@
+{
+  "name": "@t3p/rpc-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Dependency-free Effect RPC (JSON frames) client for the T3 Code server; browser and Node 22",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "test:rig": "node scripts/test-rig.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "22",
+    "tsdown": "^0.23.7",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  },
+  "dependencies": {
+    "@t3p/contracts-vendor": "workspace:^"
+  }
+}

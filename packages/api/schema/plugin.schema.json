@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://t3-patcher.local/schema/plugin.schema.json",
+  "title": "T3 Patcher plugin.json",
+  "description": "Manifest of a T3 Patcher plugin. Keep in sync with validateManifest() in packages/api/src/manifest.ts; packages/api/test/schema.test.ts fails when the two disagree.",
+  "type": "object",
+  "required": ["id", "version", "tier", "t3Versions"],
+  "properties": {
+    "id": {
+      "description": "Lowercase [a-z0-9-] segments separated by dots, max 64 chars. Must equal the plugin folder name and must not be a Windows reserved device name.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9][a-z0-9-]*(\\.[a-z0-9-]+)*$",
+      "not": {
+        "pattern": "^(con|prn|aux|nul|com[0-9¹²³]|lpt[0-9¹²³])(\\..*)?$"
+      }
+    },
+    "name": {
+      "description": "Human-readable name. Defaults to the id.",
+      "type": "string",
+      "maxLength": 512
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 512
+    },
+    "author": {
+      "type": "string",
+      "maxLength": 512
+    },
+    "version": {
+      "description": "Plugin version, semver.",
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "tier": {
+      "description": "Highest API stability tier the plugin uses: 1 stable, 2 internals, 3 raw patches.",
+      "enum": [1, 2, 3]
+    },
+    "permissions": {
+      "description": "Permissions the plugin asks for. The user grants them separately; a plugin only receives the intersection.",
+      "type": "array",
+      "items": {
+        "anyOf": [
+          { "enum": ["main", "patches", "rpc"] },
+          {
+            "type": "object",
+            "minProperties": 1,
+            "maxProperties": 1,
+            "additionalProperties": false,
+            "properties": {
+              "fs.read": { "$ref": "#/definitions/rootsScope" },
+              "sqlite.read": { "$ref": "#/definitions/rootsScope" },
+              "log.tail": { "$ref": "#/definitions/rootsScope" },
+              "spawn": { "$ref": "#/definitions/spawnScope" }
+            }
+          }
+        ]
+      }
+    },
+    "t3Versions": {
+      "description": "T3 Code versions the plugin supports: exact (\"0.1.10\"), wildcard (\"0.1.x\") or \"*\".",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^(\\*|(\\d+|x)\\.(\\d+|x)\\.(\\d+|x)(?:-[0-9A-Za-z.-]+)?)$"
+      }
+    },
+    "t3pApi": {
+      "description": "Plugin API version the plugin was written for: \"1\", \"1.x\" or \"1.2\". Omitted means \"1\".",
+      "type": "string",
+      "pattern": "^\\d+(\\.(\\d+|x))?$"
+    },
+    "main": {
+      "description": "Main-process entry, relative to the plugin folder. Needs the \"main\" permission.",
+      "$ref": "#/definitions/entryPath"
+    },
+    "renderer": {
+      "description": "Renderer entry (ES module), relative to the plugin folder.",
+      "$ref": "#/definitions/entryPath"
+    }
+  },
+  "if": {
+    "required": ["main"]
+  },
+  "then": {
+    "required": ["permissions"],
+    "properties": {
+      "permissions": {
+        "contains": { "const": "main" }
+      }
+    }
+  },
+  "definitions": {
+    "scopePath": {
+      "description": "Absolute path (drive letter or leading slash) or a path starting with ~/. No NUL, no UNC or device paths.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "not": { "pattern": "\\u0000" },
+      "pattern": "^(?:~|~[\\\\/].*|[A-Za-z]:[\\\\/].*|[\\\\/](?![\\\\/]).*)$"
+    },
+    "scopeList": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": { "$ref": "#/definitions/scopePath" }
+    },
+    "rootsScope": {
+      "type": "object",
+      "required": ["roots"],
+      "properties": {
+        "roots": { "$ref": "#/definitions/scopeList" }
+      }
+    },
+    "spawnScope": {
+      "type": "object",
+      "required": ["allow"],
+      "properties": {
+        "allow": { "$ref": "#/definitions/scopeList" }
+      }
+    },
+    "entryPath": {
+      "description": "Plugin-relative path: forward slashes only, no absolute paths, no . or .. segments, no drive letters or colons, .js/.cjs/.mjs. Mirrors isValidEntryPath().",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^(?!\\/)(?!.*\\/\\/)(?!.*\\/$)(?!.*[\\\\:<>\"|?*\\u0000-\\u001f])(?!.*(?:^|\\/)\\.\\.?(?:\\/|$))(?!(?:.*\\/)?(?:[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][0-9¹²³]|[lL][pP][tT][0-9¹²³])(?:\\.[^\\/]*)?(?:\\/|$))(?!.*(?:^|\\/)[^\\/]*[. ](?:\\/|$)).*\\.(?:c|m)?js$"
+    }
+  }
+}

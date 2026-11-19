@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.upstream/
+*.log
+*.tsbuildinfo
+.claude/worktrees/

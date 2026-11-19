@@ -1,0 +1,1290 @@
+[
+ {
+  "kind": "snapshot",
+  "snapshotSequence": 56,
+  "projection": {
+   "thread": {
+    "createdBy": "user",
+    "creationSource": "web",
+    "id": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "projectId": "2944d7b0-c3b8-4c50-a436-4cd87975c348",
+    "title": "wp0d spike",
+    "providerInstanceId": "claudeAgent",
+    "modelSelection": {
+     "instanceId": "claudeAgent",
+     "model": "claude-opus-5-5"
+    },
+    "runtimeMode": "approval-required",
+    "interactionMode": "default",
+    "branch": null,
+    "worktreePath": null,
+    "pullRequests": [],
+    "activeProviderThreadId": null,
+    "lineage": {
+     "parentThreadId": null,
+     "relationshipToParent": null,
+     "rootThreadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3"
+    },
+    "forkedFrom": null,
+    "createdAt": "2026-11-18T21:36:01.099Z",
+    "updatedAt": "2026-11-18T21:36:01.099Z",
+    "archivedAt": null,
+    "settledOverride": null,
+    "settledAt": null,
+    "snoozedUntil": null,
+    "snoozedAt": null,
+    "lastVisitedAt": null,
+    "deletedAt": null
+   },
+   "runs": [],
+   "attempts": [],
+   "nodes": [],
+   "subagents": [],
+   "providerSessions": [],
+   "providerThreads": [],
+   "providerTurns": [],
+   "runtimeRequests": [],
+   "messages": [],
+   "plans": [],
+   "turnItems": [],
+   "checkpointScopes": [],
+   "checkpoints": [],
+   "contextHandoffs": [],
+   "contextTransfers": [],
+   "visibleTurnItems": [],
+   "updatedAt": "2026-11-18T21:36:01.099Z"
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 57,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:command:c4d05bf5-d028-4a85-a06b-08f7527057c4:8992bd3e-dc2b-4534-9180-053452f8860c",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:02.306Z",
+   "type": "thread.metadata-updated",
+   "payload": {
+    "createdBy": "user",
+    "creationSource": "web",
+    "id": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "projectId": "2944d7b0-c3b8-4c50-a436-4cd87975c348",
+    "title": "renamed once",
+    "providerInstanceId": "claudeAgent",
+    "modelSelection": {
+     "instanceId": "claudeAgent",
+     "model": "claude-opus-5-5"
+    },
+    "runtimeMode": "approval-required",
+    "interactionMode": "default",
+    "branch": null,
+    "worktreePath": null,
+    "pullRequests": [],
+    "activeProviderThreadId": null,
+    "lineage": {
+     "parentThreadId": null,
+     "relationshipToParent": null,
+     "rootThreadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3"
+    },
+    "forkedFrom": null,
+    "createdAt": "2026-11-18T21:36:01.099Z",
+    "updatedAt": "2026-11-18T21:36:02.306Z",
+    "archivedAt": null,
+    "settledOverride": null,
+    "settledAt": null,
+    "snoozedUntil": null,
+    "snoozedAt": null,
+    "lastVisitedAt": null,
+    "titleRegeneration": null,
+    "deletedAt": null
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 58,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:command:7a20b1c0-a255-41ac-91c1-77fe9d5f3dc1:9f21fc21-9302-49d0-85fc-c4845ea58aec",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:03.316Z",
+   "type": "thread.model-selection-updated",
+   "payload": {
+    "createdBy": "user",
+    "creationSource": "web",
+    "id": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "projectId": "2944d7b0-c3b8-4c50-a436-4cd87975c348",
+    "title": "renamed once",
+    "providerInstanceId": "claudeAgent",
+    "modelSelection": {
+     "instanceId": "claudeAgent",
+     "model": "claude-sonnet-5-5"
+    },
+    "runtimeMode": "approval-required",
+    "interactionMode": "default",
+    "branch": null,
+    "worktreePath": null,
+    "pullRequests": [],
+    "activeProviderThreadId": null,
+    "lineage": {
+     "parentThreadId": null,
+     "relationshipToParent": null,
+     "rootThreadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3"
+    },
+    "forkedFrom": null,
+    "createdAt": "2026-11-18T21:36:01.099Z",
+    "updatedAt": "2026-11-18T21:36:03.316Z",
+    "archivedAt": null,
+    "settledOverride": null,
+    "settledAt": null,
+    "snoozedUntil": null,
+    "snoozedAt": null,
+    "lastVisitedAt": null,
+    "titleRegeneration": null,
+    "deletedAt": null
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 59,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:command:b52e678c-7f78-4321-a456-3d9e74a0ed5e:6abeac50-1472-401c-9cf8-b50af6fe74cf",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "providerInstanceId": "codex",
+   "occurredAt": "2026-11-18T21:36:03.331Z",
+   "type": "thread.provider-switched",
+   "payload": {
+    "createdBy": "user",
+    "creationSource": "web",
+    "id": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "projectId": "2944d7b0-c3b8-4c50-a436-4cd87975c348",
+    "title": "renamed once",
+    "providerInstanceId": "codex",
+    "modelSelection": {
+     "instanceId": "codex",
+     "model": "gpt-6.1-sol"
+    },
+    "runtimeMode": "approval-required",
+    "interactionMode": "default",
+    "branch": null,
+    "worktreePath": null,
+    "pullRequests": [],
+    "activeProviderThreadId": null,
+    "lineage": {
+     "parentThreadId": null,
+     "relationshipToParent": null,
+     "rootThreadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3"
+    },
+    "forkedFrom": null,
+    "createdAt": "2026-11-18T21:36:01.099Z",
+    "updatedAt": "2026-11-18T21:36:03.331Z",
+    "archivedAt": null,
+    "settledOverride": null,
+    "settledAt": null,
+    "snoozedUntil": null,
+    "snoozedAt": null,
+    "lastVisitedAt": null,
+    "titleRegeneration": null,
+    "deletedAt": null
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 60,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:command:ee12c8bb-6d5d-42cf-a54e-c01abe7c4638:cc329552-929c-49ef-b16a-b3f9bbe9d4c3",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:03.337Z",
+   "type": "thread.provider-switched",
+   "payload": {
+    "createdBy": "user",
+    "creationSource": "web",
+    "id": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "projectId": "2944d7b0-c3b8-4c50-a436-4cd87975c348",
+    "title": "renamed once",
+    "providerInstanceId": "claudeAgent",
+    "modelSelection": {
+     "instanceId": "claudeAgent",
+     "model": "claude-opus-5-5"
+    },
+    "runtimeMode": "approval-required",
+    "interactionMode": "default",
+    "branch": null,
+    "worktreePath": null,
+    "pullRequests": [],
+    "activeProviderThreadId": null,
+    "lineage": {
+     "parentThreadId": null,
+     "relationshipToParent": null,
+     "rootThreadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3"
+    },
+    "forkedFrom": null,
+    "createdAt": "2026-11-18T21:36:01.099Z",
+    "updatedAt": "2026-11-18T21:36:03.337Z",
+    "archivedAt": null,
+    "settledOverride": null,
+    "settledAt": null,
+    "snoozedUntil": null,
+    "snoozedAt": null,
+    "lastVisitedAt": null,
+    "titleRegeneration": null,
+    "deletedAt": null
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 61,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:command:0b5092ff-0924-44f2-b21a-59b4d062b01c:70a5c59c-b149-46bf-8577-505749800b8c",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:03.355Z",
+   "type": "thread.metadata-updated",
+   "payload": {
+    "createdBy": "user",
+    "creationSource": "web",
+    "id": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "projectId": "2944d7b0-c3b8-4c50-a436-4cd87975c348",
+    "title": "renamed once",
+    "providerInstanceId": "claudeAgent",
+    "modelSelection": {
+     "instanceId": "claudeAgent",
+     "model": "claude-opus-5-5"
+    },
+    "runtimeMode": "approval-required",
+    "interactionMode": "default",
+    "branch": null,
+    "worktreePath": null,
+    "pullRequests": [],
+    "activeProviderThreadId": null,
+    "lineage": {
+     "parentThreadId": null,
+     "relationshipToParent": null,
+     "rootThreadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3"
+    },
+    "forkedFrom": null,
+    "createdAt": "2026-11-18T21:36:01.099Z",
+    "updatedAt": "2026-11-18T21:36:03.337Z",
+    "archivedAt": null,
+    "settledOverride": null,
+    "settledAt": null,
+    "snoozedUntil": null,
+    "snoozedAt": null,
+    "lastVisitedAt": "2026-11-18T21:36:03.354Z",
+    "titleRegeneration": null,
+    "deletedAt": null
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 62,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:command:0b5092ff-0924-44f2-b21a-59b4d062b01c:f6f5f715-c3ec-410a-8c46-07b4424c86b7",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "driver": "claudeAgent",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:03.356Z",
+   "type": "provider-thread.updated",
+   "payload": {
+    "id": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1",
+    "driver": "claudeAgent",
+    "providerInstanceId": "claudeAgent",
+    "providerSessionId": "provider-session:provider-instance:claudeAgent:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:c426c5c4-3ea0-4edf-970b-0f2ddd4d2e87",
+    "appThreadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "ownerNodeId": null,
+    "nativeThreadRef": null,
+    "nativeConversationHeadRef": null,
+    "status": "not_loaded",
+    "firstRunOrdinal": 1,
+    "lastRunOrdinal": 1,
+    "handoffIds": [],
+    "forkedFrom": null,
+    "pendingBackgroundTasks": [],
+    "contextUsage": null,
+    "nativeMetadata": null,
+    "goal": null,
+    "createdAt": "2026-11-18T21:36:03.356Z",
+    "updatedAt": "2026-11-18T21:36:03.356Z"
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 63,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:command:0b5092ff-0924-44f2-b21a-59b4d062b01c:3a8ad272-5835-4684-81c0-e63f4ff2fdcc",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+   "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:03.356Z",
+   "type": "run.created",
+   "payload": {
+    "id": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+    "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "ordinal": 1,
+    "providerInstanceId": "claudeAgent",
+    "modelSelection": {
+     "instanceId": "claudeAgent",
+     "model": "claude-opus-5-5"
+    },
+    "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1",
+    "userMessageId": "88207799-9ec0-402e-b9a9-72dd0806677a",
+    "rootNodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+    "activeAttemptId": "run-attempt:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:attempt:1",
+    "status": "starting",
+    "queuePosition": null,
+    "requestedAt": "2026-11-18T21:36:03.356Z",
+    "startedAt": null,
+    "completedAt": null,
+    "checkpointId": null,
+    "contextHandoffId": null
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 64,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:command:0b5092ff-0924-44f2-b21a-59b4d062b01c:d4a5e097-8d1c-4b95-97ee-278752ee2d9a",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+   "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:03.356Z",
+   "type": "run-attempt.created",
+   "payload": {
+    "id": "run-attempt:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:attempt:1",
+    "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+    "attemptOrdinal": 1,
+    "rootNodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+    "providerInstanceId": "claudeAgent",
+    "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1",
+    "providerTurnId": null,
+    "reason": "initial",
+    "status": "pending",
+    "startedAt": null,
+    "completedAt": null
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 65,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:command:0b5092ff-0924-44f2-b21a-59b4d062b01c:ec28b988-3b9e-4fd9-aa4f-bb3278eab565",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+   "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:03.356Z",
+   "type": "node.updated",
+   "payload": {
+    "id": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+    "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+    "parentNodeId": null,
+    "rootNodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+    "kind": "root_turn",
+    "status": "pending",
+    "countsForRun": true,
+    "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1",
+    "providerTurnId": null,
+    "nativeItemRef": null,
+    "runtimeRequestId": null,
+    "checkpointScopeId": "checkpoint-scope:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:name:root",
+    "startedAt": null,
+    "completedAt": null
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 66,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:command:0b5092ff-0924-44f2-b21a-59b4d062b01c:6367c9f1-d7ee-4a70-a93d-28ac9be25b67",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+   "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:03.356Z",
+   "type": "checkpoint-scope.created",
+   "payload": {
+    "id": "checkpoint-scope:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:name:root",
+    "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+    "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+    "parentScopeId": null,
+    "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1",
+    "kind": "root_run",
+    "ordinalWithinParent": 0,
+    "advancesAppRunCount": true,
+    "cwd": "G:\\rig-run\\t3patcher\\home-s2\\scratch",
+    "createdAt": "2026-11-18T21:36:03.356Z"
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 67,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:command:0b5092ff-0924-44f2-b21a-59b4d062b01c:a9fdde93-c87e-4e35-b66a-f4e41d41f52f",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+   "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:03.356Z",
+   "type": "message.updated",
+   "payload": {
+    "createdBy": "user",
+    "creationSource": "web",
+    "id": "88207799-9ec0-402e-b9a9-72dd0806677a",
+    "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+    "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+    "role": "user",
+    "text": "hello",
+    "attachments": [],
+    "streaming": false,
+    "createdAt": "2026-11-18T21:36:03.356Z",
+    "updatedAt": "2026-11-18T21:36:03.356Z"
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 68,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:command:0b5092ff-0924-44f2-b21a-59b4d062b01c:58105e2b-6aba-43d3-898b-ec1514c9fcb1",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+   "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:03.356Z",
+   "type": "turn-item.updated",
+   "payload": {
+    "id": "turn-item:message:88207799-9ec0-402e-b9a9-72dd0806677a",
+    "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+    "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+    "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1",
+    "providerTurnId": null,
+    "nativeItemRef": null,
+    "parentItemId": null,
+    "ordinal": 1000001,
+    "status": "completed",
+    "title": null,
+    "startedAt": "2026-11-18T21:36:03.356Z",
+    "completedAt": "2026-11-18T21:36:03.356Z",
+    "updatedAt": "2026-11-18T21:36:03.356Z",
+    "createdBy": "user",
+    "creationSource": "web",
+    "type": "user_message",
+    "messageId": "88207799-9ec0-402e-b9a9-72dd0806677a",
+    "inputIntent": "turn_start",
+    "text": "hello",
+    "attachments": []
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 69,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Ac426c5c4-3ea0-4edf-970b-0f2ddd4d2e87:a334defe-a314-4f4f-9e1a-a400344bb9e2",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "driver": "claudeAgent",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:03.450Z",
+   "type": "provider-session.attached",
+   "payload": {
+    "id": "provider-session:provider-instance:claudeAgent:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:c426c5c4-3ea0-4edf-970b-0f2ddd4d2e87",
+    "driver": "claudeAgent",
+    "providerInstanceId": "claudeAgent",
+    "status": "ready",
+    "cwd": "G:\\rig-run\\t3patcher\\home-s2\\scratch",
+    "model": "claude-opus-5-5",
+    "capabilities": {
+     "sessions": {
+      "supportsMultipleProviderThreadsPerSession": false,
+      "supportsModelSwitchInSession": true,
+      "supportsProviderSwitchingViaHandoff": true,
+      "supportsRuntimeModeSwitchInSession": false,
+      "pendingRequestsSurviveRestart": false
+     },
+     "threads": {
+      "canCreateEmptyThread": true,
+      "canReadThreadSnapshot": false,
+      "canRollbackThread": true,
+      "canForkThread": true,
+      "canForkFromTurn": true,
+      "canForkFromSubagentThread": false,
+      "exposesNativeThreadId": true
+     },
+     "turns": {
+      "exposesNativeTurnId": false,
+      "emitsTurnStarted": true,
+      "emitsTurnCompleted": true,
+      "supportsInterrupt": true,
+      "supportsActiveSteering": true,
+      "activeSteeringInterruptsTools": true,
+      "supportsSteeringByInterruptRestart": false,
+      "supportsQueuedMessages": true,
+      "terminalStatusQuality": "strong"
+     },
+     "streaming": {
+      "streamsAssistantText": true,
+      "streamsReasoning": true,
+      "streamsToolOutput": false,
+      "streamsPlanText": false,
+      "emitsMessageCompleted": true
+     },
+     "tools": {
+      "exposesToolItemIds": true,
+      "emitsToolStarted": true,
+      "emitsToolCompleted": true,
+      "emitsToolOutput": true,
+      "supportsMcpTools": true,
+      "supportsDynamicToolCallbacks": true
+     },
+     "approvals": {
+      "supportsCommandApproval": true,
+      "supportsFileReadApproval": true,
+      "supportsFileChangeApproval": true,
+      "supportsApplyPatchApproval": false,
+      "approvalsHaveNativeRequestIds": true,
+      "approvalCallbacksAreLiveOnly": true,
+      "approvalsCanOriginateFromSubagents": false
+     },
+     "planning": {
+      "emitsPlanUpdated": true,
+      "emitsTodoList": true,
+      "emitsProposedPlan": true,
+      "supportsStructuredQuestions": true,
+      "planDeltasHaveItemIds": false
+     },
+     "subagents": {
+      "supportsSubagents": true,
+      "exposesSubagentThreadIds": false,
+      "emitsSubagentLifecycle": true,
+      "canWaitForSubagents": false,
+      "canCloseSubagents": false,
+      "canForkSubagentThread": false
+     },
+     "context": {
+      "acceptsSystemContext": true,
+      "acceptsDeveloperContext": true,
+      "acceptsSyntheticUserContext": true,
+      "canGenerateSummaries": true,
+      "canConsumeHandoffSummaries": true,
+      "supportsDeltaHandoff": true,
+      "supportsFullThreadHandoff": true,
+      "maxRecommendedHandoffChars": null
+     },
+     "checkpointing": {
+      "appCanCheckpointFilesystem": true,
+      "supportsNestedCheckpointScopes": true,
+      "providerCanRollbackConversation": true,
+      "providerRollbackReturnsSnapshot": true,
+      "providerCanReadConversationSnapshot": false
+     },
+     "identity": {
+      "nativeThreadIds": "strong",
+      "nativeTurnIds": "weak",
+      "nativeItemIds": "strong",
+      "nativeRequestIds": "strong"
+     },
+     "runtimePolicy": {
+      "enforcement": "native"
+     }
+    },
+    "extensionStatuses": [],
+    "createdAt": "2026-11-18T21:36:03.448Z",
+    "updatedAt": "2026-11-18T21:36:03.448Z",
+    "lastError": null
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 70,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Ac426c5c4-3ea0-4edf-970b-0f2ddd4d2e87:cbaa7708-7b23-4f04-b1af-f00d61274e22",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "driver": "claudeAgent",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:03.461Z",
+   "type": "provider-session.updated",
+   "payload": {
+    "id": "provider-session:provider-instance:claudeAgent:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:c426c5c4-3ea0-4edf-970b-0f2ddd4d2e87",
+    "driver": "claudeAgent",
+    "providerInstanceId": "claudeAgent",
+    "status": "ready",
+    "cwd": "G:\\rig-run\\t3patcher\\home-s2\\scratch",
+    "model": "claude-opus-5-5",
+    "capabilities": {
+     "sessions": {
+      "supportsMultipleProviderThreadsPerSession": false,
+      "supportsModelSwitchInSession": true,
+      "supportsProviderSwitchingViaHandoff": true,
+      "supportsRuntimeModeSwitchInSession": false,
+      "pendingRequestsSurviveRestart": false
+     },
+     "threads": {
+      "canCreateEmptyThread": true,
+      "canReadThreadSnapshot": false,
+      "canRollbackThread": true,
+      "canForkThread": true,
+      "canForkFromTurn": true,
+      "canForkFromSubagentThread": false,
+      "exposesNativeThreadId": true
+     },
+     "turns": {
+      "exposesNativeTurnId": false,
+      "emitsTurnStarted": true,
+      "emitsTurnCompleted": true,
+      "supportsInterrupt": true,
+      "supportsActiveSteering": true,
+      "activeSteeringInterruptsTools": true,
+      "supportsSteeringByInterruptRestart": false,
+      "supportsQueuedMessages": true,
+      "terminalStatusQuality": "strong"
+     },
+     "streaming": {
+      "streamsAssistantText": true,
+      "streamsReasoning": true,
+      "streamsToolOutput": false,
+      "streamsPlanText": false,
+      "emitsMessageCompleted": true
+     },
+     "tools": {
+      "exposesToolItemIds": true,
+      "emitsToolStarted": true,
+      "emitsToolCompleted": true,
+      "emitsToolOutput": true,
+      "supportsMcpTools": true,
+      "supportsDynamicToolCallbacks": true
+     },
+     "approvals": {
+      "supportsCommandApproval": true,
+      "supportsFileReadApproval": true,
+      "supportsFileChangeApproval": true,
+      "supportsApplyPatchApproval": false,
+      "approvalsHaveNativeRequestIds": true,
+      "approvalCallbacksAreLiveOnly": true,
+      "approvalsCanOriginateFromSubagents": false
+     },
+     "planning": {
+      "emitsPlanUpdated": true,
+      "emitsTodoList": true,
+      "emitsProposedPlan": true,
+      "supportsStructuredQuestions": true,
+      "planDeltasHaveItemIds": false
+     },
+     "subagents": {
+      "supportsSubagents": true,
+      "exposesSubagentThreadIds": false,
+      "emitsSubagentLifecycle": true,
+      "canWaitForSubagents": false,
+      "canCloseSubagents": false,
+      "canForkSubagentThread": false
+     },
+     "context": {
+      "acceptsSystemContext": true,
+      "acceptsDeveloperContext": true,
+      "acceptsSyntheticUserContext": true,
+      "canGenerateSummaries": true,
+      "canConsumeHandoffSummaries": true,
+      "supportsDeltaHandoff": true,
+      "supportsFullThreadHandoff": true,
+      "maxRecommendedHandoffChars": null
+     },
+     "checkpointing": {
+      "appCanCheckpointFilesystem": true,
+      "supportsNestedCheckpointScopes": true,
+      "providerCanRollbackConversation": true,
+      "providerRollbackReturnsSnapshot": true,
+      "providerCanReadConversationSnapshot": false
+     },
+     "identity": {
+      "nativeThreadIds": "strong",
+      "nativeTurnIds": "weak",
+      "nativeItemIds": "strong",
+      "nativeRequestIds": "strong"
+     },
+     "runtimePolicy": {
+      "enforcement": "native"
+     }
+    },
+    "extensionStatuses": [],
+    "createdAt": "2026-11-18T21:36:03.448Z",
+    "updatedAt": "2026-11-18T21:36:03.448Z",
+    "lastError": null
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 71,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:cda8f357-2630-4b92-b2a0-61526995324c",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "driver": "claudeAgent",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:03.461Z",
+   "type": "provider-thread.updated",
+   "payload": {
+    "id": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1",
+    "driver": "claudeAgent",
+    "providerInstanceId": "claudeAgent",
+    "providerSessionId": "provider-session:provider-instance:claudeAgent:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:c426c5c4-3ea0-4edf-970b-0f2ddd4d2e87",
+    "appThreadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "ownerNodeId": null,
+    "nativeThreadRef": {
+     "driver": "claudeAgent",
+     "nativeId": "ce70d002-8743-4fa9-a194-923066f0be40",
+     "strength": "strong"
+    },
+    "nativeConversationHeadRef": null,
+    "status": "active",
+    "firstRunOrdinal": 1,
+    "lastRunOrdinal": 1,
+    "handoffIds": [],
+    "forkedFrom": null,
+    "pendingBackgroundTasks": [],
+    "contextUsage": null,
+    "nativeMetadata": {
+     "title": "renamed once"
+    },
+    "goal": null,
+    "createdAt": "2026-11-18T21:36:03.356Z",
+    "updatedAt": "2026-11-18T21:36:03.461Z"
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 72,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:82b11e5f-d90d-4a0b-b5d9-90597853f8e7",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+   "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:03.461Z",
+   "type": "run.updated",
+   "payload": {
+    "id": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+    "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "ordinal": 1,
+    "providerInstanceId": "claudeAgent",
+    "modelSelection": {
+     "instanceId": "claudeAgent",
+     "model": "claude-opus-5-5"
+    },
+    "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1",
+    "userMessageId": "88207799-9ec0-402e-b9a9-72dd0806677a",
+    "rootNodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+    "activeAttemptId": "run-attempt:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:attempt:1",
+    "status": "running",
+    "queuePosition": null,
+    "requestedAt": "2026-11-18T21:36:03.356Z",
+    "startedAt": "2026-11-18T21:36:03.461Z",
+    "completedAt": null,
+    "checkpointId": null,
+    "contextHandoffId": null
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 73,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:89a37343-5ee9-4f6c-861a-2d57c27ea99f",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+   "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:03.461Z",
+   "type": "run-attempt.updated",
+   "payload": {
+    "id": "run-attempt:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:attempt:1",
+    "nativeThreadId": "ce70d002-8743-4fa9-a194-923066f0be40",
+    "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+    "attemptOrdinal": 1,
+    "rootNodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+    "providerInstanceId": "claudeAgent",
+    "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1",
+    "providerTurnId": null,
+    "reason": "initial",
+    "status": "running",
+    "startedAt": "2026-11-18T21:36:03.461Z",
+    "completedAt": null
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 74,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:2934fae2-404f-4423-a2e4-4ea7f4e8133f",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+   "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:03.461Z",
+   "type": "node.updated",
+   "payload": {
+    "id": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+    "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+    "parentNodeId": null,
+    "rootNodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+    "kind": "root_turn",
+    "status": "running",
+    "countsForRun": true,
+    "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1",
+    "providerTurnId": null,
+    "nativeItemRef": null,
+    "runtimeRequestId": null,
+    "checkpointScopeId": "checkpoint-scope:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:name:root",
+    "startedAt": "2026-11-18T21:36:03.461Z",
+    "completedAt": null
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 75,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Ac426c5c4-3ea0-4edf-970b-0f2ddd4d2e87:1c6838ab-719e-4526-a2b9-c2e389836ad0",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+   "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+   "driver": "claudeAgent",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:04.282Z",
+   "type": "provider-turn.updated",
+   "payload": {
+    "id": "provider-turn:provider:claudeAgent:native-turn:turn%3Arun-attempt%3Arun%3Arun%253Athread%253A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%253Aordinal%253A1%3Aattempt%3A1",
+    "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1",
+    "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+    "runAttemptId": "run-attempt:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:attempt:1",
+    "nativeTurnRef": {
+     "driver": "claudeAgent",
+     "nativeId": "turn:run-attempt:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:attempt:1",
+     "strength": "weak"
+    },
+    "ordinal": 1,
+    "status": "running",
+    "startedAt": "2026-11-18T21:36:03.520Z",
+    "completedAt": null
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 76,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Ac426c5c4-3ea0-4edf-970b-0f2ddd4d2e87:82ed0db8-7d3d-461e-8183-1cb7e9287062",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+   "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+   "driver": "claudeAgent",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:04.296Z",
+   "type": "provider-thread.updated",
+   "payload": {
+    "id": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1",
+    "driver": "claudeAgent",
+    "providerInstanceId": "claudeAgent",
+    "providerSessionId": "provider-session:provider-instance:claudeAgent:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:c426c5c4-3ea0-4edf-970b-0f2ddd4d2e87",
+    "appThreadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "ownerNodeId": null,
+    "nativeThreadRef": {
+     "driver": "claudeAgent",
+     "nativeId": "ce70d002-8743-4fa9-a194-923066f0be40",
+     "strength": "strong"
+    },
+    "nativeConversationHeadRef": null,
+    "status": "active",
+    "firstRunOrdinal": 1,
+    "lastRunOrdinal": 1,
+    "handoffIds": [],
+    "forkedFrom": null,
+    "pendingBackgroundTasks": [],
+    "contextUsage": null,
+    "nativeMetadata": {
+     "title": "renamed once",
+     "claudeAttachmentBudget": {
+      "bytesUsed": 7,
+      "pagesUsed": 0
+     }
+    },
+    "goal": null,
+    "createdAt": "2026-11-18T21:36:03.356Z",
+    "updatedAt": "2026-11-18T21:36:04.275Z"
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 77,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Ac426c5c4-3ea0-4edf-970b-0f2ddd4d2e87:73a47304-e862-4b60-b942-dde403fb3d88",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+   "nodeId": "node:provider:claudeAgent:native-item:fbb90229-886d-4658-98c0-c28694c7132c",
+   "driver": "claudeAgent",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:04.366Z",
+   "type": "node.updated",
+   "payload": {
+    "id": "node:provider:claudeAgent:native-item:fbb90229-886d-4658-98c0-c28694c7132c",
+    "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+    "parentNodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+    "rootNodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+    "kind": "assistant_message",
+    "status": "completed",
+    "countsForRun": false,
+    "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1",
+    "providerTurnId": "provider-turn:provider:claudeAgent:native-turn:turn%3Arun-attempt%3Arun%3Arun%253Athread%253A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%253Aordinal%253A1%3Aattempt%3A1",
+    "nativeItemRef": {
+     "driver": "claudeAgent",
+     "nativeId": "fbb90229-886d-4658-98c0-c28694c7132c",
+     "strength": "strong"
+    },
+    "runtimeRequestId": null,
+    "checkpointScopeId": null,
+    "startedAt": "2026-11-18T21:36:04.364Z",
+    "completedAt": "2026-11-18T21:36:04.364Z"
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 78,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Ac426c5c4-3ea0-4edf-970b-0f2ddd4d2e87:8a277b66-8516-44cc-abf5-04b1561f6803",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+   "nodeId": "node:provider:claudeAgent:native-item:fbb90229-886d-4658-98c0-c28694c7132c",
+   "driver": "claudeAgent",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:04.370Z",
+   "type": "message.updated",
+   "payload": {
+    "createdBy": "agent",
+    "creationSource": "provider",
+    "id": "message:provider:claudeAgent:native-item:fbb90229-886d-4658-98c0-c28694c7132c",
+    "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+    "nodeId": "node:provider:claudeAgent:native-item:fbb90229-886d-4658-98c0-c28694c7132c",
+    "role": "assistant",
+    "text": "Failed to authenticate: OAuth session expired and could not be refreshed",
+    "attachments": [],
+    "streaming": false,
+    "createdAt": "2026-11-18T21:36:04.364Z",
+    "updatedAt": "2026-11-18T21:36:04.364Z"
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 79,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Ac426c5c4-3ea0-4edf-970b-0f2ddd4d2e87:497688c6-595e-46b5-97c1-14c06a1147cf",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+   "nodeId": "node:provider:claudeAgent:native-item:fbb90229-886d-4658-98c0-c28694c7132c",
+   "driver": "claudeAgent",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:04.372Z",
+   "type": "turn-item.updated",
+   "payload": {
+    "id": "turn-item:provider:claudeAgent:native-item:fbb90229-886d-4658-98c0-c28694c7132c",
+    "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+    "nodeId": "node:provider:claudeAgent:native-item:fbb90229-886d-4658-98c0-c28694c7132c",
+    "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1",
+    "providerTurnId": "provider-turn:provider:claudeAgent:native-turn:turn%3Arun-attempt%3Arun%3Arun%253Athread%253A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%253Aordinal%253A1%3Aattempt%3A1",
+    "nativeItemRef": {
+     "driver": "claudeAgent",
+     "nativeId": "fbb90229-886d-4658-98c0-c28694c7132c",
+     "strength": "strong"
+    },
+    "parentItemId": null,
+    "ordinal": 1000002,
+    "status": "completed",
+    "title": null,
+    "startedAt": "2026-11-18T21:36:04.364Z",
+    "completedAt": "2026-11-18T21:36:04.364Z",
+    "updatedAt": "2026-11-18T21:36:04.364Z",
+    "type": "assistant_message",
+    "messageId": "message:provider:claudeAgent:native-item:fbb90229-886d-4658-98c0-c28694c7132c",
+    "text": "Failed to authenticate: OAuth session expired and could not be refreshed",
+    "streaming": false
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 80,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Ac426c5c4-3ea0-4edf-970b-0f2ddd4d2e87:9a69b805-b843-49f8-b9aa-387715a62d2e",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+   "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+   "driver": "claudeAgent",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:04.389Z",
+   "type": "provider-turn.updated",
+   "payload": {
+    "id": "provider-turn:provider:claudeAgent:native-turn:turn%3Arun-attempt%3Arun%3Arun%253Athread%253A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%253Aordinal%253A1%3Aattempt%3A1",
+    "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1",
+    "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+    "runAttemptId": "run-attempt:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:attempt:1",
+    "nativeTurnRef": {
+     "driver": "claudeAgent",
+     "nativeId": "fbb90229-886d-4658-98c0-c28694c7132c",
+     "strength": "weak"
+    },
+    "ordinal": 1,
+    "status": "failed",
+    "startedAt": "2026-11-18T21:36:03.520Z",
+    "completedAt": "2026-11-18T21:36:04.382Z",
+    "turnTokenUsage": {
+     "usageScope": "main_agent",
+     "cachedInputTokens": 0,
+     "cacheCreationTokens": 0,
+     "reasoningTokens": 0,
+     "hasSubagents": false,
+     "usageStatus": "partial",
+     "inputTokens": 0,
+     "outputTokens": 0
+    }
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 81,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Ac426c5c4-3ea0-4edf-970b-0f2ddd4d2e87:3fe4c2ba-4e96-4b5e-9288-11a49d33fd8b",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+   "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+   "driver": "claudeAgent",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:04.394Z",
+   "type": "provider-thread.updated",
+   "payload": {
+    "id": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1",
+    "driver": "claudeAgent",
+    "providerInstanceId": "claudeAgent",
+    "providerSessionId": "provider-session:provider-instance:claudeAgent:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:c426c5c4-3ea0-4edf-970b-0f2ddd4d2e87",
+    "appThreadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "ownerNodeId": null,
+    "nativeThreadRef": {
+     "driver": "claudeAgent",
+     "nativeId": "ce70d002-8743-4fa9-a194-923066f0be40",
+     "strength": "strong"
+    },
+    "nativeConversationHeadRef": null,
+    "status": "idle",
+    "firstRunOrdinal": 1,
+    "lastRunOrdinal": 1,
+    "handoffIds": [],
+    "forkedFrom": null,
+    "pendingBackgroundTasks": [],
+    "contextUsage": null,
+    "nativeMetadata": {
+     "title": "renamed once",
+     "claudeAttachmentBudget": {
+      "bytesUsed": 7,
+      "pagesUsed": 0
+     }
+    },
+    "goal": null,
+    "createdAt": "2026-11-18T21:36:03.356Z",
+    "updatedAt": "2026-11-18T21:36:04.382Z"
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 82,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Ac426c5c4-3ea0-4edf-970b-0f2ddd4d2e87:020f6307-f098-435d-a25c-d1917180a4e3",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+   "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+   "driver": "claudeAgent",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:04.401Z",
+   "type": "turn-item.updated",
+   "payload": {
+    "id": "turn-item:provider:claudeAgent:native-item:terminal-failure%3Aprovider-turn%3Aprovider%3AclaudeAgent%3Anative-turn%3Aturn%253Arun-attempt%253Arun%253Arun%25253Athread%25253A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%25253Aordinal%25253A1%253Aattempt%253A1",
+    "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+    "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+    "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1",
+    "providerTurnId": "provider-turn:provider:claudeAgent:native-turn:turn%3Arun-attempt%3Arun%3Arun%253Athread%253A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%253Aordinal%253A1%3Aattempt%3A1",
+    "nativeItemRef": null,
+    "parentItemId": null,
+    "ordinal": 1000003,
+    "status": "failed",
+    "title": "Provider error",
+    "startedAt": "2026-11-18T21:36:04.401Z",
+    "completedAt": "2026-11-18T21:36:04.401Z",
+    "updatedAt": "2026-11-18T21:36:04.401Z",
+    "type": "error",
+    "failure": {
+     "class": "provider_error",
+     "message": "Claude could not authenticate. For subscription login, run `claude auth login` on this environment's machine, then start a new thread. For API-key authentication, check this instance's configured credentials.",
+     "code": "api_error",
+     "retryable": null
+    }
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 83,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:a1ea47bb-fbee-4468-acb4-9d195810de9c",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+   "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:04.405Z",
+   "type": "run-attempt.updated",
+   "payload": {
+    "id": "run-attempt:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:attempt:1",
+    "nativeThreadId": "ce70d002-8743-4fa9-a194-923066f0be40",
+    "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+    "attemptOrdinal": 1,
+    "rootNodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+    "providerInstanceId": "claudeAgent",
+    "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1",
+    "providerTurnId": null,
+    "reason": "initial",
+    "status": "failed",
+    "startedAt": "2026-11-18T21:36:03.461Z",
+    "completedAt": "2026-11-18T21:36:04.405Z"
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 84,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:bf7ddd42-e7a1-41ae-b552-5982e4fb1454",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+   "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:04.405Z",
+   "type": "run.updated",
+   "payload": {
+    "id": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+    "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "ordinal": 1,
+    "providerInstanceId": "claudeAgent",
+    "modelSelection": {
+     "instanceId": "claudeAgent",
+     "model": "claude-opus-5-5"
+    },
+    "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1",
+    "userMessageId": "88207799-9ec0-402e-b9a9-72dd0806677a",
+    "rootNodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+    "activeAttemptId": "run-attempt:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:attempt:1",
+    "status": "failed",
+    "queuePosition": null,
+    "requestedAt": "2026-11-18T21:36:03.356Z",
+    "startedAt": "2026-11-18T21:36:03.461Z",
+    "completedAt": "2026-11-18T21:36:04.405Z",
+    "checkpointId": null,
+    "contextHandoffId": null
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 85,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:29a4136d-29b4-4665-ac41-83fda84f2e4f",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+   "nodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:04.405Z",
+   "type": "node.updated",
+   "payload": {
+    "id": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+    "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "runId": "run:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:ordinal:1",
+    "parentNodeId": null,
+    "rootNodeId": "node:run:run%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1:root",
+    "kind": "root_turn",
+    "status": "failed",
+    "countsForRun": true,
+    "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1",
+    "providerTurnId": null,
+    "nativeItemRef": null,
+    "runtimeRequestId": null,
+    "checkpointScopeId": "checkpoint-scope:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:name:root",
+    "startedAt": "2026-11-18T21:36:03.461Z",
+    "completedAt": "2026-11-18T21:36:04.405Z"
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 86,
+  "event": {
+   "id": "event:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:63133eda-c93f-41e5-ac8c-084b14f482c6",
+   "threadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-18T21:36:04.405Z",
+   "type": "provider-thread.updated",
+   "payload": {
+    "id": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3A6caf85de-1c38-4bee-9ec8-9876bf94d9b3%3Aordinal%3A1",
+    "driver": "claudeAgent",
+    "providerInstanceId": "claudeAgent",
+    "providerSessionId": "provider-session:provider-instance:claudeAgent:thread:6caf85de-1c38-4bee-9ec8-9876bf94d9b3:c426c5c4-3ea0-4edf-970b-0f2ddd4d2e87",
+    "appThreadId": "6caf85de-1c38-4bee-9ec8-9876bf94d9b3",
+    "ownerNodeId": null,
+    "nativeThreadRef": {
+     "driver": "claudeAgent",
+     "nativeId": "ce70d002-8743-4fa9-a194-923066f0be40",
+     "strength": "strong"
+    },
+    "nativeConversationHeadRef": null,
+    "status": "idle",
+    "firstRunOrdinal": 1,
+    "lastRunOrdinal": 1,
+    "handoffIds": [],
+    "forkedFrom": null,
+    "pendingBackgroundTasks": [],
+    "contextUsage": null,
+    "nativeMetadata": {
+     "title": "renamed once",
+     "claudeAttachmentBudget": {
+      "bytesUsed": 7,
+      "pagesUsed": 0
+     }
+    },
+    "goal": null,
+    "createdAt": "2026-11-18T21:36:03.356Z",
+    "updatedAt": "2026-11-18T21:36:04.405Z"
+   }
+  }
+ }
+]

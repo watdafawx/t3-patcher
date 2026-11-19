@@ -1,0 +1,335 @@
+{
+ "wellKnown": {
+  "status": 200,
+  "body": {
+   "environmentId": "23430f49-10f0-417a-9203-52dd713e3f92",
+   "label": "RIG",
+   "platform": {
+    "os": "windows",
+    "arch": "x64"
+   },
+   "serverVersion": "0.1.10",
+   "orchestrationProtocolVersion": 2,
+   "databaseMigration": 96,
+   "capabilities": {
+    "repositoryIdentity": true,
+    "connectionProbe": true,
+    "attachmentUploads": true,
+    "questionAttachments": true,
+    "fileAttachments": {
+     "maxUploadBytes": 52428800
+    },
+    "pullRequests": true,
+    "pullRequestChecks": true,
+    "sideChats": true,
+    "vcsBranchStatus": true,
+    "inlineMessageContext": true,
+    "requiredWorktreeBootstrap": true,
+    "threadSettlement": true,
+    "threadAutoSettlement": true,
+    "storageCleanup": true,
+    "storageCleanupRun": true,
+    "databaseStorage": true,
+    "otlpEndpointCheck": true,
+    "secretSourceCheck": true,
+    "projectWorktreeCleanup": true,
+    "settledWorktreeCleanup": true,
+    "worktreesDirectory": true,
+    "threadAutoSettlementScope": true,
+    "threadRestartContinuation": true,
+    "projectSettingsOverrides": true,
+    "projectProviderInstanceOverrides": true,
+    "threadSnooze": true,
+    "threadForceStop": true,
+    "environmentThemes": true,
+    "usageLimitSources": true,
+    "providerWorkspaceSnapshotsOnDemand": true,
+    "modelCatalogRefresh": true,
+    "usagePriceOverrides": true,
+    "usageModelAliases": true,
+    "threadPinning": true,
+    "threadPinReorder": true,
+    "threadActiveReorder": true,
+    "threadAutoSettleOptOut": true,
+    "threadProjectFromScratch": true,
+    "threadTitleRegeneration": true,
+    "threadVisitedTracking": true,
+    "threadPullRequestLinking": true,
+    "serverResolvedCommandContext": true,
+    "threadStop": true,
+    "threadPullRequests": true,
+    "threadPullRequestWatch": true,
+    "pullRequestStackActions": true,
+    "serverSelfUpdate": "desktop-managed",
+    "npmReleaseLookup": true,
+    "agentActivityPublishing": false,
+    "projectCloneTracking": true,
+    "projectOrganization": true,
+    "ignoredFileListing": true,
+    "ignoredFileSearch": true,
+    "environmentIcon": true,
+    "commandOutputStreaming": true,
+    "serverBrowser": true,
+    "peerLinks": true,
+    "mcpModeLimitHeader": true,
+    "linkFence": true,
+    "mcpApprovalCodes": true,
+    "mcpHostedApproval": true,
+    "triage": true,
+    "oneTimeSchedules": true,
+    "freshContext": true,
+    "scheduledTaskThreadModes": true,
+    "voiceTranscription": true,
+    "cloudVoiceTranscription": true,
+    "shellThreadFamilies": true,
+    "shellOlderSettled": true,
+    "linkedThreadRefreshes": true
+   }
+  }
+ },
+ "ticketNoCred": 401,
+ "ticketBare": {
+  "status": 200,
+  "keys": [
+   "ticket",
+   "expiresAt"
+  ]
+ },
+ "ticketRpc": {
+  "status": 200,
+  "ttlSec": 297
+ },
+ "socket without credentials": "REJECTED: ws error: Received network error or non-101 status code.",
+ "socket with bogus ticket": "REJECTED: ws error: Received network error or non-101 status code.",
+ "socket with Authorization Bearer header (no ticket)": "OPEN",
+ "protoMismatch": 426,
+ "noProto": 426,
+ "same ticket a second time": "OPEN",
+ "second concurrent socket (fresh ticket from desktop bearer)": "OPEN",
+ "socket with frameParts=1": "OPEN",
+ "framePartsFramesForGetConfig": 2,
+ "providers": [
+  {
+   "instanceId": "codex",
+   "status": "error",
+   "auth": "unknown",
+   "models": 0,
+   "usageLimits": null
+  },
+  {
+   "instanceId": "claudeAgent",
+   "status": "error",
+   "auth": "unauthenticated",
+   "models": 11,
+   "usageLimits": null
+  },
+  {
+   "instanceId": "cursor",
+   "status": "disabled",
+   "auth": "unknown",
+   "models": 0,
+   "usageLimits": null
+  },
+  {
+   "instanceId": "grok",
+   "status": "disabled",
+   "auth": "unknown",
+   "models": 1,
+   "usageLimits": null
+  },
+  {
+   "instanceId": "opencode",
+   "status": "disabled",
+   "auth": "unknown",
+   "models": 0,
+   "usageLimits": {
+    "checkedAt": "2026-11-18T21:35:13.272Z",
+    "windows": [],
+    "unavailable": {
+     "reason": "unsupported"
+    }
+   }
+  },
+  {
+   "instanceId": "antigravity",
+   "status": "disabled",
+   "auth": "unknown",
+   "models": 0,
+   "usageLimits": null
+  },
+  {
+   "instanceId": "fx",
+   "status": "disabled",
+   "auth": "unknown",
+   "models": 1,
+   "usageLimits": null
+  },
+  {
+   "instanceId": "kiro",
+   "status": "disabled",
+   "auth": "unknown",
+   "models": 1,
+   "usageLimits": null
+  },
+  {
+   "instanceId": "muse",
+   "status": "disabled",
+   "auth": "unknown",
+   "models": 0,
+   "usageLimits": null
+  },
+  {
+   "instanceId": "pi",
+   "status": "disabled",
+   "auth": "unknown",
+   "models": 1,
+   "usageLimits": null
+  }
+ ],
+ "serverConfigItemTypes": [
+  "snapshot",
+  "usageLimitSourcesUpdated",
+  "environmentThemesUpdated",
+  "providerStatuses",
+  "providerStatuses",
+  "providerStatuses"
+ ],
+ "model-selection.set (valid, same provider)": {
+  "sequence": 58
+ },
+ "model-selection.set (unknown instance)": {
+  "error": {
+   "_tag": "Failure",
+   "cause": [
+    {
+     "_tag": "Fail",
+     "error": {
+      "_tag": "OrchestrationV2DispatchCommandError",
+      "commandId": "3ecdb582-3244-4e07-b1bf-f24e712fc49f",
+      "commandType": "thread.model-selection.set",
+      "message": "No orchestration provider adapter is registered for nope.",
+      "detail": "No orchestration provider adapter is registered for nope.",
+      "cause": {
+       "name": "OrchestratorProviderAdapterError",
+       "message": "Provider adapter failed while dispatching orchestration command 3ecdb582-3244-4e07-b1bf-f24e712fc49f.",
+       "cause": {
+        "name": "ProviderAdapterRegistryLookupError",
+        "message": "No orchestration provider adapter is registered for nope."
+       }
+      }
+     }
+    }
+   ]
+  }
+ },
+ "provider.switch (to codex, not installed on rig)": {
+  "sequence": 59
+ },
+ "provider.switch (back to claudeAgent)": {
+  "sequence": 60
+ },
+ "invalid command type": {
+  "error": {
+   "_tag": "Failure",
+   "cause": [
+    {
+     "_tag": "Die",
+     "defect": "Expected { readonly \"type\": \"thread.stop\", ... } | { readonly \"type\": \"thread.create\", ... } | { readonly \"type\": \"thread.archive\", ... } | { readonly \"type\": \"thread.guest-share.close\", ... } | { readonly \"type\": \"thread.guest-message.dismiss\", ... } | { readonly \"type\": \"thread.unarchive\", ... } | { readonly \"type\": \"thread.delete\", ... } | { readonly \"type\": \"thread.settle\", ... } | { readonly \"type\": \"thread.auto-settle\", ... } | { readonly \"type\": \"thread.unsettle\", readonly \"reason\": \"user\", ... } | { readonly \"type\": \"thread.snooze\", ... } | { readonly \"type\": \"thread.unsnooze\", readonly \"reason\": \"user\", ... } | { readonly \"type\": \"thread.auto-settle.set\", ... } | { readonly \"type\": \"thread.pin\", ... } | { readonly \"type\": \"thread.unpin\", ... } | { readonly \"type\": \"thread.tag.set\", ... } | { readonly \"type\": \"thread.pin.reorder\", ... } | { readonly \"type\": \"thread.active.reorder\", ... } | { readonly \"type\": \"thread.visit\", ... } | { readonly \"type\": \"thread.mark-unread\", ... } | { readonly \"type\": \"thread.metadata.update\", ... } | { readonly \"type\": \"thread.pull-request.link\", ... } | { readonly \"type\": \"thread.pull-request.unlink\", ... } | { readonly \"type\": \"thread.pull-request-link.sync\", ... } | { readonly \"type\": \"thread.pull-request.watch\", ... } | { readonly \"type\": \"thread.pull-request.sync\", ... } | { readonly \"type\": \"thread.title.regeneration.complete\", ... } | { readonly \"type\": \"thread.runtime-mode.set\", ... } | { readonly \"type\": \"thread.interaction-mode.set\", ... } | { readonly \"type\": \"thread.model-selection.set\", ... } | { readonly \"type\": \"provider-session.detach\", ... } | { readonly \"type\": \"message.dispatch\", ... } | { readonly \"type\": \"prepared-run.release\", ... } | { readonly \"type\": \"notification.delivery.accept\", ... } | { readonly \"type\": \"prepared-run.progress\", ... } | { readonly \"type\": \"prepared-run.fail\", ... } | { readonly \"type\": \"prepared-run.retry\", ... } | { readonly \"type\": \"subagent.stop\", ... } | { readonly \"type\": \"run.interrupt\", ... } | { readonly \"type\": \"queued-message.promote-to-steer\", ... } | { readonly \"type\": \"queue.resume\", ... } | { readonly \"type\": \"queued-run.start\", ... } | { readonly \"type\": \"queued-run.reorder\", ... } | { readonly \"type\": \"queued-run.cancel\", ... } | { readonly \"type\": \"queued-run.edit\", ... } | { readonly \"type\": \"runtime-request.respond\", ... } | { readonly \"type\": \"thread.user-input.dismiss\", ... } | { readonly \"type\": \"checkpoint.rollback\", ... } | { readonly \"type\": \"thread.fork\", ... } | { readonly \"type\": \"thread.merge_back\", ... } | { readonly \"type\": \"delegated_task.request\", ... } | { readonly \"type\": \"delegated_task.wake-policy\", ... } | { readonly \"type\": \"delegated_task.completion-delivery.acknowledge\", ... } | { readonly \"type\": \"delegated_task.completion-delivery.dispose\", ... } | { readonly \"type\": \"thread.created.record\", ... } | { readonly \"type\": \"provider.switch\", ... }"
+    }
+   ]
+  }
+ },
+ "message.dispatch": {
+  "sequence": 68
+ },
+ "raceResults": [
+  {
+   "ms": 20,
+   "r": {
+    "error": {
+     "_tag": "Failure",
+     "cause": [
+      {
+       "_tag": "Fail",
+       "error": {
+        "_tag": "OrchestrationV2DispatchCommandError",
+        "commandId": "ed9ac44c-a960-440b-9ed5-1d8706f95247",
+        "commandType": "provider.switch",
+        "message": "Thread 6caf85de-1c38-4bee-9ec8-9876bf94d9b3 has an active turn. Wait for it to finish, then retry the provider selection change.",
+        "detail": "Thread 6caf85de-1c38-4bee-9ec8-9876bf94d9b3 has an active turn. Wait for it to finish, then retry the provider selection change.",
+        "cause": {
+         "name": "OrchestratorProviderSelectionBusyError",
+         "message": "Thread 6caf85de-1c38-4bee-9ec8-9876bf94d9b3 has an active turn. Wait for it to finish, then retry the provider selection change."
+        }
+       }
+      }
+     ]
+    }
+   }
+  }
+ ],
+ "allEventTypes": [
+  "snapshot",
+  "thread.metadata-updated",
+  "thread.model-selection-updated",
+  "thread.provider-switched",
+  "provider-thread.updated",
+  "run.created",
+  "run-attempt.created",
+  "node.updated",
+  "checkpoint-scope.created",
+  "message.updated",
+  "turn-item.updated",
+  "provider-session.attached",
+  "provider-session.updated",
+  "run.updated",
+  "run-attempt.updated",
+  "provider-turn.updated"
+ ],
+ "interruptExit": {
+  "exit": {
+   "_tag": "Failure",
+   "cause": [
+    {
+     "_tag": "Interrupt",
+     "fiberId": 6828
+    }
+   ]
+  }
+ },
+ "reconnect": {
+  "lostAt": 100,
+  "aItems": 14,
+  "bItems": [
+   101,
+   102,
+   103,
+   104,
+   105,
+   106,
+   107,
+   108,
+   109,
+   110,
+   111,
+   112,
+   113,
+   114,
+   115,
+   116,
+   117,
+   118,
+   119,
+   120,
+   121,
+   122,
+   123,
+   124,
+   125,
+   126
+  ],
+  "duplicates": 0,
+  "contiguous": true,
+  "bFirst": 101
+ }
+}

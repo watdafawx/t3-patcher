@@ -1,0 +1,9 @@
+{
+  "id": "throw-main",
+  "version": "1.0.0",
+  "tier": 1,
+  "permissions": ["main"],
+  "t3Versions": ["*"],
+  "main": "main.cjs",
+  "renderer": "renderer.js"
+}

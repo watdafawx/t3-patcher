@@ -1,0 +1,22 @@
+{
+  "name": "@t3p/renderer-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@t3p/api": "workspace:*",
+    "@t3p/timeline": "workspace:*",
+    "@t3p/rpc-client": "workspace:*",
+    "jsdom": "26",
+    "tsdown": "^0.23.7",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}

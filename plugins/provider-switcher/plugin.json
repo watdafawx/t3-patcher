@@ -1,0 +1,11 @@
+{
+  "id": "provider-switcher",
+  "name": "Provider switcher",
+  "description": "Shows the focused thread's model in the thread header and switches it to another model or provider. A switch that hits an active run can be queued for when the run ends; an optional rule suggests the least-used provider when the current one passes a usage threshold.",
+  "version": "0.1.0",
+  "tier": 1,
+  "permissions": ["rpc"],
+  "t3pApi": "1",
+  "t3Versions": ["*"],
+  "renderer": "dist/renderer.js"
+}

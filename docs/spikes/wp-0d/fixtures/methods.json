@@ -1,0 +1,1112 @@
+{
+ "count": 221,
+ "streams": 30,
+ "methods": [
+  {
+   "name": "agentSessions.import",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "agentSessions.scan",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "assets.createUrl",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "assets.persistChatAttachments",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "attachments.createUploadUrl",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "attachments.delete",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "cloud.getRelayClientStatus",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "cloud.installRelayClient",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "device.action",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "device.close",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "device.configure",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "device.detail",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "device.easAccount",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "device.list",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "device.open",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "device.shutdown",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "device.simlockIdentity",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "device.testHost",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "filesystem.browse",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "filesystem.getMetadata",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "git.preparePullRequestThread",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "git.resolvePullRequest",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "git.runStackedAction",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "guestShare.create",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "mcpApps.callTool",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "mcpApps.readResource",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "mcpApps.toolInfo",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "mcpApps.updateModelContext",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.dispatchCommand",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.forceStopThread",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.getArchivedShellSnapshot",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.getFullThreadDiff",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.getNativeChildWork",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.getOlderSettledThreads",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.getThreadFamily",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.getThreadLinkMetadata",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.getThreadProjection",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.getThreadTitles",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.getTurnDiff",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.getTurnItem",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.getWorkflowScript",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.getWorktreeThreadIds",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.launchThread",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.searchThread",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.searchThreads",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.searchThreadStream",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.stopWorkflow",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.subscribeCommandOutput",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.subscribePromptSuggestion",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.subscribeShell",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "orchestration.subscribeThread",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "peerLinks.answerRequest",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "peerLinks.link",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "peerLinks.list",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "peerLinks.unlink",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "preview.adjust",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "preview.clearProfile",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "preview.close",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "preview.list",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "preview.open",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "preview.reportProfiles",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "preview.reportStatus",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "preview.resize",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "preview.stopLocalServer",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "projectClone.cancel",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "projectClone.retry",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "projectClone.start",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "projects.createFromThread",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "projects.createNew",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "projects.ensureScratch",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "projects.listEntries",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "projects.listIgnoredFiles",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "projects.mutate",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "projects.readFile",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "projects.searchContents",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "projects.searchEntries",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "projects.writeFile",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "provider.auth.cancel",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "provider.auth.complete",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "provider.auth.logout",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "provider.auth.removeMethod",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "provider.auth.respond",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "provider.auth.start",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "provider.auth.subscribe",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "provider.chatgpt.handoff.subscribe",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "provider.chatgpt.import-profile",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "provider.chatgpt.reconnect-profile",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "provider.consumeResetCredit",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "provider.install.cancel",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "provider.install.remove",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "provider.install.start",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "provider.install.subscribe",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "provider.uploadFeedback",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.activity",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.changeBreakdown",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.checks",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.comment",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.detail",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.diffFileContents",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.filesViewed",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.filterOptions",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.generateReviewGuide",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.invalidate",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.labelCandidates",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.linkedThreads",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.list",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.listStats",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.preview",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.replyToThread",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.reportState",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.requestReviewers",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.reviewerCandidates",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.reviewGuide",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.routing",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.routingIdentity",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.runAction",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.setFilesViewed",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.setLabels",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.setReaction",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.setThreadResolution",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.stack",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.submitReview",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.subscribeLinkedThreadRefreshes",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.subscribeRefreshes",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.summary",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.threadComments",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.update",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "pullRequests.updateComment",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "review.getBranchCommits",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "review.getDiffFileContents",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "review.getDiffPreview",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "scheduledTasks.delete",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "scheduledTasks.getWebhookDelivery",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "scheduledTasks.listWebhookDeliveries",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "scheduledTasks.rotateWebhookToken",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "scheduledTasks.runNow",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "scheduledTasks.setEnabled",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "scheduledTasks.subscribe",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "scheduledTasks.upsert",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "secrets.answerRequest",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.acceptAcpRegistryUrlAuth",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.checkOtlpEndpoint",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.checkSecretSource",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.commitDesktopUpdate",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.deleteAcpRegistrySession",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.disableAcpRegistryProvider",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.discoverSourceControl",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.getConfig",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.getDatabaseStorage",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.getHostResources",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.getNpmRelease",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.getProcessDiagnostics",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.getProcessResourceHistory",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.getResourceTelemetryHistory",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.getSettings",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.getStorageCleanupReport",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.getTraceDiagnostics",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.getUsageSummary",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.importAcpRegistrySession",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.listAcpRegistryProviders",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.listAcpRegistrySessions",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.listTextGeneratorModels",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.logoutAcpRegistry",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.prepareAcpRegistryAgent",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.prepareTriage",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.probe",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.reclaimDatabaseSpace",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.refreshProviders",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.refreshUsageRates",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.removeKeybinding",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.reportClientActivity",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.retryResourceTelemetry",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.runStorageCleanup",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.searchAcpRegistry",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.setAcpRegistryProvider",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.signalProcess",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.uninstallAcpRegistryManagedBinary",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.updateProvider",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.updateServer",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.updateServerWithProgress",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.updateSettings",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "server.upsertKeybinding",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "shell.openInEditor",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "sourceControl.appAccess",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "sourceControl.cloneRepository",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "sourceControl.lookupRepository",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "sourceControl.publishRepository",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "sourceControl.signInCancel",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "sourceControl.signInStart",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "sourceControl.signInWait",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "sourceControl.star",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "sourceControl.starred",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "subscribeAuthAccess",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "subscribeDeviceState",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "subscribeDiscoveredLocalServers",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "subscribePreviewEvents",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "subscribeProjectClones",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "subscribeResourceTelemetry",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "subscribeServerConfig",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "subscribeServerLifecycle",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "subscribeTerminalMetadata",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "subscribeVcsBranch",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "subscribeVcsStatus",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "subscribeWorktreeSetup",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "terminal.attach",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "terminal.clear",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "terminal.close",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "terminal.observe",
+   "stream": true,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "terminal.open",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "terminal.resize",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "terminal.write",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "vcs.createRef",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "vcs.createWorktree",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "vcs.init",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "vcs.listRefs",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "vcs.pull",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "vcs.refreshBranch",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "vcs.refreshStatus",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "vcs.removeWorktree",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "vcs.switchRef",
+   "stream": false,
+   "file": "rpc.ts"
+  },
+  {
+   "name": "worktreeSetup.cancel",
+   "stream": false,
+   "file": "rpc.ts"
+  }
+ ],
+ "mapEntriesWithoutRpcMake": []
+}

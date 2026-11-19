@@ -1,0 +1,36 @@
+{
+  "name": "create-t3p-plugin",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Scaffold a T3 Patcher plugin: plugin.json, TypeScript entry, tsconfig and build scripts",
+  "bin": {
+    "create-t3p-plugin": "./dist/cli.mjs"
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "files": [
+    "dist",
+    "templates"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@t3p/api": "workspace:*"
+  },
+  "devDependencies": {
+    "@t3p/installer": "workspace:*",
+    "@t3p/plugin-build": "workspace:*",
+    "tsdown": "^0.23.7",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}

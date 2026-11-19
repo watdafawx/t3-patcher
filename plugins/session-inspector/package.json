@@ -1,0 +1,21 @@
+{
+  "name": "@t3p/session-inspector",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Timeline, cause chains and an all-sessions view for T3 Code threads",
+  "scripts": {
+    "build": "t3p-plugin-build",
+    "dev": "t3p-plugin-build --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@t3p/api": "workspace:*",
+    "@t3p/plugin-build": "workspace:*",
+    "@t3p/timeline": "workspace:*",
+    "jsdom": "26",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}

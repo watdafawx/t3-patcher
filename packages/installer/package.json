@@ -1,0 +1,32 @@
+{
+  "name": "@t3p/installer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "t3p": "./dist/cli.mjs"
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@electron/asar": "^4.3.2",
+    "@electron/fuses": "^2.1.3",
+    "@t3p/api": "workspace:*",
+    "@t3p/shim": "workspace:*"
+  },
+  "devDependencies": {
+    "tsdown": "^0.23.7",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "_comment": "Hand-built from the WP-0D recorded thread projection shape (docs/spikes/wp-0d/fixtures) with providerTurns[].tokenUsage filled per contracts OrchestrationV2ProviderTurnTokenUsage (orchestrationV2.ts:231-242). NOT a live capture: the rig profile has no provider login.",
+  "thread": { "id": "th-1", "providerInstanceId": "claudeAgent", "updatedAt": "2026-11-19T10:09:00.000Z" },
+  "providerThreads": [{ "id": "pt-1", "driver": "claudeAgent", "providerInstanceId": "claudeAgent" }],
+  "providerTurns": [
+    { "id": "t1", "providerThreadId": "pt-1", "ordinal": 1, "status": "completed", "startedAt": "2026-11-19T10:00:00.000Z", "completedAt": "2026-11-19T10:00:20.000Z",
+      "tokenUsage": { "usedTokens": 9000, "inputTokens": 800, "cachedInputTokens": 0, "outputTokens": 200, "promptCacheTtlMs": 3600000, "promptCacheExpiresAt": "2026-11-19T11:00:20.000Z", "updatedAt": "2026-11-19T10:00:20.000Z" } },
+    { "id": "t2", "providerThreadId": "pt-1", "ordinal": 2, "status": "completed", "startedAt": "2026-11-19T10:05:00.000Z", "completedAt": "2026-11-19T10:05:10.000Z",
+      "tokenUsage": { "usedTokens": 9400, "inputTokens": 0, "cachedInputTokens": 9000, "outputTokens": 150, "updatedAt": "2026-11-19T10:05:10.000Z" } },
+    { "id": "t3", "providerThreadId": "pt-1", "ordinal": 3, "status": "completed", "startedAt": "2026-11-19T10:08:00.000Z", "completedAt": "2026-11-19T10:08:30.000Z",
+      "tokenUsage": { "usedTokens": 9900, "inputTokens": 0, "cachedInputTokens": 9400, "outputTokens": 100, "updatedAt": "2026-11-19T10:08:30.000Z" } }
+  ]
+}

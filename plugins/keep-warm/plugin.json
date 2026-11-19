@@ -1,0 +1,10 @@
+{
+  "id": "keep-warm",
+  "name": "Keep warm",
+  "description": "Keeps a thread's prompt cache warm while you are away: a tiny message just before the cache would expire. Port of the Claude Code Cache Keep-Warm idea.",
+  "version": "0.1.0",
+  "tier": 1,
+  "permissions": ["rpc"],
+  "t3Versions": ["*"],
+  "renderer": "dist/renderer.js"
+}

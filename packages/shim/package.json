@@ -1,0 +1,27 @@
+{
+  "name": "@t3p/shim",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "files": [
+    "dist",
+    "src/shim.cjs"
+  ],
+  "scripts": {
+    "build": "node scripts/embed.mjs && tsdown",
+    "test": "node scripts/embed.mjs && vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "tsdown": "^0.23.7",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}

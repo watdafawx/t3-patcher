@@ -1,0 +1,29 @@
+{
+  "name": "@t3p/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Public types and pure helpers: plugin.json validation, permissions, state.json, IPC channel names",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./plugin.schema.json": "./schema/plugin.schema.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@t3p/rpc-client": "workspace:*"
+  },
+  "devDependencies": {
+    "ajv": "^8.20.0",
+    "tsdown": "^0.23.7",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}

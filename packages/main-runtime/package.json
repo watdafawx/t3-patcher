@@ -1,0 +1,34 @@
+{
+  "name": "@t3p/main-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    "./patch-catalog": {
+      "types": "./dist/patch-catalog.d.mts",
+      "import": "./dist/patch-catalog.mjs"
+    },
+    "./server-patch-catalog": {
+      "types": "./dist/server-patch-catalog.d.mts",
+      "import": "./dist/server-patch-catalog.mjs"
+    }
+  },
+  "scripts": {
+    "build": "tsdown && node scripts/copy-assets.mjs",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@t3p/api": "workspace:*",
+    "@t3p/installer": "workspace:*",
+    "@t3p/patch-engine": "workspace:*",
+    "@t3p/preload-runtime": "workspace:*",
+    "@t3p/renderer-runtime": "workspace:*",
+    "@types/node": "22",
+    "tsdown": "^0.23.7",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}

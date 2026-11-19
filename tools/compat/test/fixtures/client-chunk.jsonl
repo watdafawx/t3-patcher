@@ -1,0 +1,1 @@
+{"note":"fixture: a minified-shaped client chunk, one data-slot prop object and one HTML string","body":"const a={x:1};function Q(e){return(0,W.jsx)(`div`,{\"data-slot\":\"sidebar-content\",children:e})}export{Q};var H=(e)=>{let t=e.title;return`<div data-slot=\"thread-header\">${t}</div>`};const u={sidebarInset:`sidebar-inset`};const V=()=>u;"}

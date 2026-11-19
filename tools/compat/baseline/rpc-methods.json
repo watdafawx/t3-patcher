@@ -1,0 +1,892 @@
+{
+  "tag": "v0.1.10",
+  "commit": "7d32075e3757ded707914e2450c3e392a9665765",
+  "source": "t3p-compat --update-baseline (server evidence)",
+  "count": 221,
+  "methods": [
+    {
+      "name": "agentSessions.import",
+      "kind": "unary"
+    },
+    {
+      "name": "agentSessions.scan",
+      "kind": "unary"
+    },
+    {
+      "name": "assets.createUrl",
+      "kind": "unary"
+    },
+    {
+      "name": "assets.persistChatAttachments",
+      "kind": "unary"
+    },
+    {
+      "name": "attachments.createUploadUrl",
+      "kind": "unary"
+    },
+    {
+      "name": "attachments.delete",
+      "kind": "unary"
+    },
+    {
+      "name": "cloud.getRelayClientStatus",
+      "kind": "unary"
+    },
+    {
+      "name": "cloud.installRelayClient",
+      "kind": "stream"
+    },
+    {
+      "name": "device.action",
+      "kind": "unary"
+    },
+    {
+      "name": "device.close",
+      "kind": "unary"
+    },
+    {
+      "name": "device.configure",
+      "kind": "unary"
+    },
+    {
+      "name": "device.detail",
+      "kind": "unary"
+    },
+    {
+      "name": "device.easAccount",
+      "kind": "unary"
+    },
+    {
+      "name": "device.list",
+      "kind": "unary"
+    },
+    {
+      "name": "device.open",
+      "kind": "unary"
+    },
+    {
+      "name": "device.shutdown",
+      "kind": "unary"
+    },
+    {
+      "name": "device.simlockIdentity",
+      "kind": "unary"
+    },
+    {
+      "name": "device.testHost",
+      "kind": "unary"
+    },
+    {
+      "name": "filesystem.browse",
+      "kind": "unary"
+    },
+    {
+      "name": "filesystem.getMetadata",
+      "kind": "unary"
+    },
+    {
+      "name": "git.preparePullRequestThread",
+      "kind": "unary"
+    },
+    {
+      "name": "git.resolvePullRequest",
+      "kind": "unary"
+    },
+    {
+      "name": "git.runStackedAction",
+      "kind": "stream"
+    },
+    {
+      "name": "guestShare.create",
+      "kind": "unary"
+    },
+    {
+      "name": "mcpApps.callTool",
+      "kind": "unary"
+    },
+    {
+      "name": "mcpApps.readResource",
+      "kind": "unary"
+    },
+    {
+      "name": "mcpApps.toolInfo",
+      "kind": "unary"
+    },
+    {
+      "name": "mcpApps.updateModelContext",
+      "kind": "unary"
+    },
+    {
+      "name": "orchestration.dispatchCommand",
+      "kind": "unary"
+    },
+    {
+      "name": "orchestration.forceStopThread",
+      "kind": "unary"
+    },
+    {
+      "name": "orchestration.getArchivedShellSnapshot",
+      "kind": "unary"
+    },
+    {
+      "name": "orchestration.getFullThreadDiff",
+      "kind": "unary"
+    },
+    {
+      "name": "orchestration.getNativeChildWork",
+      "kind": "unary"
+    },
+    {
+      "name": "orchestration.getOlderSettledThreads",
+      "kind": "unary"
+    },
+    {
+      "name": "orchestration.getThreadFamily",
+      "kind": "unary"
+    },
+    {
+      "name": "orchestration.getThreadLinkMetadata",
+      "kind": "unary"
+    },
+    {
+      "name": "orchestration.getThreadProjection",
+      "kind": "unary"
+    },
+    {
+      "name": "orchestration.getThreadTitles",
+      "kind": "unary"
+    },
+    {
+      "name": "orchestration.getTurnDiff",
+      "kind": "unary"
+    },
+    {
+      "name": "orchestration.getTurnItem",
+      "kind": "unary"
+    },
+    {
+      "name": "orchestration.getWorkflowScript",
+      "kind": "unary"
+    },
+    {
+      "name": "orchestration.getWorktreeThreadIds",
+      "kind": "unary"
+    },
+    {
+      "name": "orchestration.launchThread",
+      "kind": "unary"
+    },
+    {
+      "name": "orchestration.searchThread",
+      "kind": "unary"
+    },
+    {
+      "name": "orchestration.searchThreads",
+      "kind": "unary"
+    },
+    {
+      "name": "orchestration.searchThreadStream",
+      "kind": "stream"
+    },
+    {
+      "name": "orchestration.stopWorkflow",
+      "kind": "unary"
+    },
+    {
+      "name": "orchestration.subscribeCommandOutput",
+      "kind": "stream"
+    },
+    {
+      "name": "orchestration.subscribePromptSuggestion",
+      "kind": "stream"
+    },
+    {
+      "name": "orchestration.subscribeShell",
+      "kind": "stream"
+    },
+    {
+      "name": "orchestration.subscribeThread",
+      "kind": "stream"
+    },
+    {
+      "name": "peerLinks.answerRequest",
+      "kind": "unary"
+    },
+    {
+      "name": "peerLinks.link",
+      "kind": "unary"
+    },
+    {
+      "name": "peerLinks.list",
+      "kind": "unary"
+    },
+    {
+      "name": "peerLinks.unlink",
+      "kind": "unary"
+    },
+    {
+      "name": "preview.adjust",
+      "kind": "unary"
+    },
+    {
+      "name": "preview.clearProfile",
+      "kind": "unary"
+    },
+    {
+      "name": "preview.close",
+      "kind": "unary"
+    },
+    {
+      "name": "preview.list",
+      "kind": "unary"
+    },
+    {
+      "name": "preview.open",
+      "kind": "unary"
+    },
+    {
+      "name": "preview.reportProfiles",
+      "kind": "unary"
+    },
+    {
+      "name": "preview.reportStatus",
+      "kind": "unary"
+    },
+    {
+      "name": "preview.resize",
+      "kind": "unary"
+    },
+    {
+      "name": "preview.stopLocalServer",
+      "kind": "unary"
+    },
+    {
+      "name": "projectClone.cancel",
+      "kind": "unary"
+    },
+    {
+      "name": "projectClone.retry",
+      "kind": "unary"
+    },
+    {
+      "name": "projectClone.start",
+      "kind": "unary"
+    },
+    {
+      "name": "projects.createFromThread",
+      "kind": "unary"
+    },
+    {
+      "name": "projects.createNew",
+      "kind": "unary"
+    },
+    {
+      "name": "projects.ensureScratch",
+      "kind": "unary"
+    },
+    {
+      "name": "projects.listEntries",
+      "kind": "unary"
+    },
+    {
+      "name": "projects.listIgnoredFiles",
+      "kind": "unary"
+    },
+    {
+      "name": "projects.mutate",
+      "kind": "unary"
+    },
+    {
+      "name": "projects.readFile",
+      "kind": "unary"
+    },
+    {
+      "name": "projects.searchContents",
+      "kind": "unary"
+    },
+    {
+      "name": "projects.searchEntries",
+      "kind": "unary"
+    },
+    {
+      "name": "projects.writeFile",
+      "kind": "unary"
+    },
+    {
+      "name": "provider.auth.cancel",
+      "kind": "unary"
+    },
+    {
+      "name": "provider.auth.complete",
+      "kind": "unary"
+    },
+    {
+      "name": "provider.auth.logout",
+      "kind": "unary"
+    },
+    {
+      "name": "provider.auth.removeMethod",
+      "kind": "unary"
+    },
+    {
+      "name": "provider.auth.respond",
+      "kind": "unary"
+    },
+    {
+      "name": "provider.auth.start",
+      "kind": "unary"
+    },
+    {
+      "name": "provider.auth.subscribe",
+      "kind": "stream"
+    },
+    {
+      "name": "provider.chatgpt.handoff.subscribe",
+      "kind": "stream"
+    },
+    {
+      "name": "provider.chatgpt.import-profile",
+      "kind": "unary"
+    },
+    {
+      "name": "provider.chatgpt.reconnect-profile",
+      "kind": "unary"
+    },
+    {
+      "name": "provider.consumeResetCredit",
+      "kind": "unary"
+    },
+    {
+      "name": "provider.install.cancel",
+      "kind": "unary"
+    },
+    {
+      "name": "provider.install.remove",
+      "kind": "unary"
+    },
+    {
+      "name": "provider.install.start",
+      "kind": "unary"
+    },
+    {
+      "name": "provider.install.subscribe",
+      "kind": "stream"
+    },
+    {
+      "name": "provider.uploadFeedback",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.activity",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.changeBreakdown",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.checks",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.comment",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.detail",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.diffFileContents",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.filesViewed",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.filterOptions",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.generateReviewGuide",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.invalidate",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.labelCandidates",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.linkedThreads",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.list",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.listStats",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.preview",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.replyToThread",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.reportState",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.requestReviewers",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.reviewerCandidates",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.reviewGuide",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.routing",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.routingIdentity",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.runAction",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.setFilesViewed",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.setLabels",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.setReaction",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.setThreadResolution",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.stack",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.submitReview",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.subscribeLinkedThreadRefreshes",
+      "kind": "stream"
+    },
+    {
+      "name": "pullRequests.subscribeRefreshes",
+      "kind": "stream"
+    },
+    {
+      "name": "pullRequests.summary",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.threadComments",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.update",
+      "kind": "unary"
+    },
+    {
+      "name": "pullRequests.updateComment",
+      "kind": "unary"
+    },
+    {
+      "name": "review.getBranchCommits",
+      "kind": "unary"
+    },
+    {
+      "name": "review.getDiffFileContents",
+      "kind": "unary"
+    },
+    {
+      "name": "review.getDiffPreview",
+      "kind": "unary"
+    },
+    {
+      "name": "scheduledTasks.delete",
+      "kind": "unary"
+    },
+    {
+      "name": "scheduledTasks.getWebhookDelivery",
+      "kind": "unary"
+    },
+    {
+      "name": "scheduledTasks.listWebhookDeliveries",
+      "kind": "unary"
+    },
+    {
+      "name": "scheduledTasks.rotateWebhookToken",
+      "kind": "unary"
+    },
+    {
+      "name": "scheduledTasks.runNow",
+      "kind": "unary"
+    },
+    {
+      "name": "scheduledTasks.setEnabled",
+      "kind": "unary"
+    },
+    {
+      "name": "scheduledTasks.subscribe",
+      "kind": "stream"
+    },
+    {
+      "name": "scheduledTasks.upsert",
+      "kind": "unary"
+    },
+    {
+      "name": "secrets.answerRequest",
+      "kind": "unary"
+    },
+    {
+      "name": "server.acceptAcpRegistryUrlAuth",
+      "kind": "unary"
+    },
+    {
+      "name": "server.checkOtlpEndpoint",
+      "kind": "unary"
+    },
+    {
+      "name": "server.checkSecretSource",
+      "kind": "unary"
+    },
+    {
+      "name": "server.commitDesktopUpdate",
+      "kind": "unary"
+    },
+    {
+      "name": "server.deleteAcpRegistrySession",
+      "kind": "unary"
+    },
+    {
+      "name": "server.disableAcpRegistryProvider",
+      "kind": "unary"
+    },
+    {
+      "name": "server.discoverSourceControl",
+      "kind": "unary"
+    },
+    {
+      "name": "server.getConfig",
+      "kind": "unary"
+    },
+    {
+      "name": "server.getDatabaseStorage",
+      "kind": "stream"
+    },
+    {
+      "name": "server.getHostResources",
+      "kind": "unary"
+    },
+    {
+      "name": "server.getNpmRelease",
+      "kind": "unary"
+    },
+    {
+      "name": "server.getProcessDiagnostics",
+      "kind": "unary"
+    },
+    {
+      "name": "server.getProcessResourceHistory",
+      "kind": "unary"
+    },
+    {
+      "name": "server.getResourceTelemetryHistory",
+      "kind": "unary"
+    },
+    {
+      "name": "server.getSettings",
+      "kind": "unary"
+    },
+    {
+      "name": "server.getStorageCleanupReport",
+      "kind": "stream"
+    },
+    {
+      "name": "server.getTraceDiagnostics",
+      "kind": "unary"
+    },
+    {
+      "name": "server.getUsageSummary",
+      "kind": "unary"
+    },
+    {
+      "name": "server.importAcpRegistrySession",
+      "kind": "unary"
+    },
+    {
+      "name": "server.listAcpRegistryProviders",
+      "kind": "unary"
+    },
+    {
+      "name": "server.listAcpRegistrySessions",
+      "kind": "unary"
+    },
+    {
+      "name": "server.listTextGeneratorModels",
+      "kind": "unary"
+    },
+    {
+      "name": "server.logoutAcpRegistry",
+      "kind": "unary"
+    },
+    {
+      "name": "server.prepareAcpRegistryAgent",
+      "kind": "unary"
+    },
+    {
+      "name": "server.prepareTriage",
+      "kind": "unary"
+    },
+    {
+      "name": "server.probe",
+      "kind": "unary"
+    },
+    {
+      "name": "server.reclaimDatabaseSpace",
+      "kind": "unary"
+    },
+    {
+      "name": "server.refreshProviders",
+      "kind": "unary"
+    },
+    {
+      "name": "server.refreshUsageRates",
+      "kind": "unary"
+    },
+    {
+      "name": "server.removeKeybinding",
+      "kind": "unary"
+    },
+    {
+      "name": "server.reportClientActivity",
+      "kind": "unary"
+    },
+    {
+      "name": "server.retryResourceTelemetry",
+      "kind": "unary"
+    },
+    {
+      "name": "server.runStorageCleanup",
+      "kind": "unary"
+    },
+    {
+      "name": "server.searchAcpRegistry",
+      "kind": "unary"
+    },
+    {
+      "name": "server.setAcpRegistryProvider",
+      "kind": "unary"
+    },
+    {
+      "name": "server.signalProcess",
+      "kind": "unary"
+    },
+    {
+      "name": "server.uninstallAcpRegistryManagedBinary",
+      "kind": "unary"
+    },
+    {
+      "name": "server.updateProvider",
+      "kind": "unary"
+    },
+    {
+      "name": "server.updateServer",
+      "kind": "unary"
+    },
+    {
+      "name": "server.updateServerWithProgress",
+      "kind": "stream"
+    },
+    {
+      "name": "server.updateSettings",
+      "kind": "unary"
+    },
+    {
+      "name": "server.upsertKeybinding",
+      "kind": "unary"
+    },
+    {
+      "name": "shell.openInEditor",
+      "kind": "unary"
+    },
+    {
+      "name": "sourceControl.appAccess",
+      "kind": "unary"
+    },
+    {
+      "name": "sourceControl.cloneRepository",
+      "kind": "unary"
+    },
+    {
+      "name": "sourceControl.lookupRepository",
+      "kind": "unary"
+    },
+    {
+      "name": "sourceControl.publishRepository",
+      "kind": "unary"
+    },
+    {
+      "name": "sourceControl.signInCancel",
+      "kind": "unary"
+    },
+    {
+      "name": "sourceControl.signInStart",
+      "kind": "unary"
+    },
+    {
+      "name": "sourceControl.signInWait",
+      "kind": "unary"
+    },
+    {
+      "name": "sourceControl.star",
+      "kind": "unary"
+    },
+    {
+      "name": "sourceControl.starred",
+      "kind": "unary"
+    },
+    {
+      "name": "subscribeAuthAccess",
+      "kind": "stream"
+    },
+    {
+      "name": "subscribeDeviceState",
+      "kind": "stream"
+    },
+    {
+      "name": "subscribeDiscoveredLocalServers",
+      "kind": "stream"
+    },
+    {
+      "name": "subscribePreviewEvents",
+      "kind": "stream"
+    },
+    {
+      "name": "subscribeProjectClones",
+      "kind": "stream"
+    },
+    {
+      "name": "subscribeResourceTelemetry",
+      "kind": "stream"
+    },
+    {
+      "name": "subscribeServerConfig",
+      "kind": "stream"
+    },
+    {
+      "name": "subscribeServerLifecycle",
+      "kind": "stream"
+    },
+    {
+      "name": "subscribeTerminalMetadata",
+      "kind": "stream"
+    },
+    {
+      "name": "subscribeVcsBranch",
+      "kind": "stream"
+    },
+    {
+      "name": "subscribeVcsStatus",
+      "kind": "stream"
+    },
+    {
+      "name": "subscribeWorktreeSetup",
+      "kind": "stream"
+    },
+    {
+      "name": "terminal.attach",
+      "kind": "stream"
+    },
+    {
+      "name": "terminal.clear",
+      "kind": "unary"
+    },
+    {
+      "name": "terminal.close",
+      "kind": "unary"
+    },
+    {
+      "name": "terminal.observe",
+      "kind": "stream"
+    },
+    {
+      "name": "terminal.open",
+      "kind": "unary"
+    },
+    {
+      "name": "terminal.resize",
+      "kind": "unary"
+    },
+    {
+      "name": "terminal.write",
+      "kind": "unary"
+    },
+    {
+      "name": "vcs.createRef",
+      "kind": "unary"
+    },
+    {
+      "name": "vcs.createWorktree",
+      "kind": "unary"
+    },
+    {
+      "name": "vcs.init",
+      "kind": "unary"
+    },
+    {
+      "name": "vcs.listRefs",
+      "kind": "unary"
+    },
+    {
+      "name": "vcs.pull",
+      "kind": "unary"
+    },
+    {
+      "name": "vcs.refreshBranch",
+      "kind": "unary"
+    },
+    {
+      "name": "vcs.refreshStatus",
+      "kind": "unary"
+    },
+    {
+      "name": "vcs.removeWorktree",
+      "kind": "unary"
+    },
+    {
+      "name": "vcs.switchRef",
+      "kind": "unary"
+    },
+    {
+      "name": "worktreeSetup.cancel",
+      "kind": "unary"
+    }
+  ]
+}

@@ -1,0 +1,427 @@
+[
+ {
+  "kind": "snapshot",
+  "snapshotSequence": 100,
+  "projection": {
+   "thread": {
+    "createdBy": "user",
+    "creationSource": "web",
+    "id": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+    "projectId": "proj-1",
+    "title": "demo",
+    "providerInstanceId": "claudeAgent",
+    "modelSelection": {
+     "instanceId": "claudeAgent",
+     "model": "claude-opus-5-5"
+    },
+    "runtimeMode": "approval-required",
+    "interactionMode": "default",
+    "branch": null,
+    "worktreePath": null,
+    "pullRequests": [],
+    "activeProviderThreadId": null,
+    "lineage": {
+     "parentThreadId": null,
+     "relationshipToParent": null,
+     "rootThreadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11"
+    },
+    "forkedFrom": null,
+    "createdAt": "2026-11-19T09:59:00.000Z",
+    "updatedAt": "2026-11-19T10:00:00.000Z",
+    "archivedAt": null
+   },
+   "runs": [
+    {
+     "id": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:1",
+     "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+     "ordinal": 1,
+     "providerInstanceId": "claudeAgent",
+     "modelSelection": {
+      "instanceId": "claudeAgent",
+      "model": "claude-opus-5-5"
+     },
+     "providerThreadId": null,
+     "userMessageId": "msg-1",
+     "rootNodeId": "node:run:run%3Athread%3A7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11%3Aordinal%3A1:root",
+     "activeAttemptId": null,
+     "status": "completed",
+     "queuePosition": null,
+     "requestedAt": "2026-11-19T10:00:01.000Z",
+     "startedAt": "2026-11-19T10:00:01.200Z",
+     "completedAt": "2026-11-19T10:00:06.000Z",
+     "checkpointId": null,
+     "contextHandoffId": null
+    }
+   ],
+   "attempts": [],
+   "nodes": [
+    {
+     "id": "node:run:run%3Athread%3A7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11%3Aordinal%3A1:root",
+     "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+     "runId": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:1",
+     "parentNodeId": null,
+     "rootNodeId": "node:run:run%3Athread%3A7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11%3Aordinal%3A1:root",
+     "kind": "root_turn",
+     "status": "completed",
+     "countsForRun": false,
+     "providerThreadId": null,
+     "providerTurnId": null,
+     "nativeItemRef": null,
+     "runtimeRequestId": null,
+     "checkpointScopeId": null,
+     "startedAt": "2026-11-19T10:00:00.000Z",
+     "completedAt": null
+    }
+   ],
+   "subagents": [],
+   "providerSessions": [],
+   "providerThreads": [],
+   "providerTurns": [],
+   "runtimeRequests": [],
+   "messages": [],
+   "plans": [],
+   "turnItems": [
+    {
+     "id": "turn-item:message:msg-1",
+     "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+     "runId": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:1",
+     "nodeId": "node:run:run%3Athread%3A7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11%3Aordinal%3A1:root",
+     "providerThreadId": null,
+     "providerTurnId": null,
+     "nativeItemRef": null,
+     "parentItemId": null,
+     "ordinal": 1000001,
+     "status": "completed",
+     "title": null,
+     "startedAt": "2026-11-19T10:00:01.000Z",
+     "completedAt": "2026-11-19T10:00:01.000Z",
+     "updatedAt": "2026-11-19T10:00:01.000Z",
+     "createdBy": "user",
+     "creationSource": "web",
+     "type": "user_message",
+     "messageId": "msg-1",
+     "inputIntent": "turn_start",
+     "text": "design the cache",
+     "attachments": []
+    },
+    {
+     "id": "turn-item:provider:claudeAgent:native-item:msg-a1",
+     "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+     "runId": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:1",
+     "nodeId": "node:provider:claudeAgent:native-item:msg-a1",
+     "providerThreadId": null,
+     "providerTurnId": null,
+     "nativeItemRef": {
+      "driver": "claudeAgent",
+      "nativeId": "msg-a1",
+      "strength": "strong"
+     },
+     "parentItemId": null,
+     "ordinal": 1000090,
+     "status": "completed",
+     "title": null,
+     "startedAt": "2026-11-19T10:00:05.000Z",
+     "completedAt": "2026-11-19T10:00:05.500Z",
+     "updatedAt": "2026-11-19T10:00:05.500Z",
+     "type": "assistant_message",
+     "phase": "final_answer",
+     "messageId": "message:provider:claudeAgent:native-item:msg-a1",
+     "text": "Here is a design.",
+     "streaming": false
+    }
+   ],
+   "checkpointScopes": [],
+   "checkpoints": [],
+   "contextHandoffs": [],
+   "contextTransfers": [],
+   "visibleTurnItems": [],
+   "updatedAt": "2026-11-19T10:00:06.000Z"
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 101,
+  "event": {
+   "id": "event:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:command:c1:e1",
+   "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+   "providerInstanceId": "claudeAgent",
+   "occurredAt": "2026-11-19T10:00:10.000Z",
+   "type": "thread.model-selection-updated",
+   "payload": {
+    "createdBy": "user",
+    "creationSource": "web",
+    "id": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+    "projectId": "proj-1",
+    "title": "demo",
+    "providerInstanceId": "claudeAgent",
+    "modelSelection": {
+     "instanceId": "claudeAgent",
+     "model": "claude-sonnet-5-5"
+    },
+    "runtimeMode": "approval-required",
+    "interactionMode": "default",
+    "branch": null,
+    "worktreePath": null,
+    "pullRequests": [],
+    "activeProviderThreadId": null,
+    "lineage": {
+     "parentThreadId": null,
+     "relationshipToParent": null,
+     "rootThreadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11"
+    },
+    "forkedFrom": null,
+    "createdAt": "2026-11-19T09:59:00.000Z",
+    "updatedAt": "2026-11-19T10:00:00.000Z",
+    "archivedAt": null
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 102,
+  "event": {
+   "id": "event:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:command:c2:e2",
+   "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+   "providerInstanceId": "codex",
+   "occurredAt": "2026-11-19T10:00:11.000Z",
+   "type": "thread.provider-switched",
+   "payload": {
+    "createdBy": "user",
+    "creationSource": "web",
+    "id": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+    "projectId": "proj-1",
+    "title": "demo",
+    "providerInstanceId": "codex",
+    "modelSelection": {
+     "instanceId": "codex",
+     "model": "gpt-6.1-sol"
+    },
+    "runtimeMode": "approval-required",
+    "interactionMode": "default",
+    "branch": null,
+    "worktreePath": null,
+    "pullRequests": [],
+    "activeProviderThreadId": null,
+    "lineage": {
+     "parentThreadId": null,
+     "relationshipToParent": null,
+     "rootThreadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11"
+    },
+    "forkedFrom": null,
+    "createdAt": "2026-11-19T09:59:00.000Z",
+    "updatedAt": "2026-11-19T10:00:00.000Z",
+    "archivedAt": null
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 103,
+  "event": {
+   "id": "event:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:command:c3:e3",
+   "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+   "runId": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:2",
+   "providerInstanceId": "codex",
+   "occurredAt": "2026-11-19T10:00:12.000Z",
+   "type": "run.created",
+   "payload": {
+    "id": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:2",
+    "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+    "ordinal": 2,
+    "providerInstanceId": "codex",
+    "modelSelection": {
+     "instanceId": "codex",
+     "model": "gpt-6.1-sol"
+    },
+    "providerThreadId": null,
+    "userMessageId": "msg-2",
+    "rootNodeId": "node:run:run%3Athread%3A7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11%3Aordinal%3A2:root",
+    "activeAttemptId": null,
+    "status": "starting",
+    "queuePosition": null,
+    "requestedAt": "2026-11-19T10:00:12.000Z",
+    "startedAt": "2026-11-19T10:00:12.200Z",
+    "completedAt": null,
+    "checkpointId": null,
+    "contextHandoffId": "context-handoff:H1"
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 104,
+  "event": {
+   "id": "event:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:command:c4:e4",
+   "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+   "runId": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:2",
+   "providerInstanceId": "codex",
+   "occurredAt": "2026-11-19T10:00:12.000Z",
+   "type": "context-handoff.updated",
+   "payload": {
+    "id": "context-handoff:H1",
+    "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+    "targetRunId": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:2",
+    "fromProviderThreadIds": [
+     "pt-claude"
+    ],
+    "toProviderThreadId": "pt-codex",
+    "coveredRunOrdinals": {
+     "from": 1,
+     "to": 1
+    },
+    "strategy": "full_thread_summary",
+    "status": "ready",
+    "summaryMessageId": null,
+    "summaryText": "Earlier: designed the cache.",
+    "createdByProviderInstanceId": "codex",
+    "createdAt": "2026-11-19T10:00:12.000Z",
+    "updatedAt": "2026-11-19T10:00:12.000Z"
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 105,
+  "event": {
+   "id": "event:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:command:c5:e5",
+   "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+   "runId": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:2",
+   "providerInstanceId": "codex",
+   "occurredAt": "2026-11-19T10:00:12.100Z",
+   "type": "turn-item.updated",
+   "payload": {
+    "id": "turn-item:handoff:H1",
+    "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+    "runId": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:2",
+    "nodeId": "node:run:run%3Athread%3A7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11%3Aordinal%3A2:root",
+    "providerThreadId": null,
+    "providerTurnId": null,
+    "nativeItemRef": null,
+    "parentItemId": null,
+    "ordinal": 2000000,
+    "status": "completed",
+    "title": null,
+    "startedAt": "2026-11-19T10:00:12.100Z",
+    "completedAt": "2026-11-19T10:00:12.100Z",
+    "updatedAt": "2026-11-19T10:00:12.100Z",
+    "type": "handoff",
+    "contextHandoffId": "context-handoff:H1",
+    "fromProviderThreadIds": [
+     "pt-claude"
+    ],
+    "toProviderThreadId": "pt-codex",
+    "fromProviderInstanceIds": [
+     "claudeAgent"
+    ],
+    "toProviderInstanceId": "codex",
+    "strategy": "full_thread_summary",
+    "summary": "Earlier: designed the cache."
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 106,
+  "event": {
+   "id": "event:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:command:c6:e6",
+   "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+   "runId": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:2",
+   "providerInstanceId": "codex",
+   "occurredAt": "2026-11-19T10:00:12.000Z",
+   "type": "turn-item.updated",
+   "payload": {
+    "id": "turn-item:message:msg-2",
+    "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+    "runId": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:2",
+    "nodeId": "node:run:run%3Athread%3A7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11%3Aordinal%3A2:root",
+    "providerThreadId": null,
+    "providerTurnId": null,
+    "nativeItemRef": null,
+    "parentItemId": null,
+    "ordinal": 2000001,
+    "status": "completed",
+    "title": null,
+    "startedAt": "2026-11-19T10:00:12.000Z",
+    "completedAt": "2026-11-19T10:00:12.000Z",
+    "updatedAt": "2026-11-19T10:00:12.000Z",
+    "createdBy": "user",
+    "creationSource": "web",
+    "type": "user_message",
+    "messageId": "msg-2",
+    "inputIntent": "turn_start",
+    "text": "now implement it",
+    "attachments": []
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 107,
+  "event": {
+   "id": "event:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:command:c7:e7",
+   "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+   "runId": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:2",
+   "providerInstanceId": "codex",
+   "occurredAt": "2026-11-19T10:00:15.000Z",
+   "type": "turn-item.updated",
+   "payload": {
+    "id": "turn-item:provider:codex:native-item:cx-1",
+    "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+    "runId": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:2",
+    "nodeId": "node:provider:codex:native-item:cx-1",
+    "providerThreadId": null,
+    "providerTurnId": null,
+    "nativeItemRef": {
+     "driver": "claudeAgent",
+     "nativeId": "cx-1",
+     "strength": "strong"
+    },
+    "parentItemId": null,
+    "ordinal": 2000090,
+    "status": "completed",
+    "title": null,
+    "startedAt": "2026-11-19T10:00:15.000Z",
+    "completedAt": "2026-11-19T10:00:15.500Z",
+    "updatedAt": "2026-11-19T10:00:15.500Z",
+    "type": "assistant_message",
+    "phase": "final_answer",
+    "messageId": "message:provider:codex:native-item:cx-1",
+    "text": "Implementing.",
+    "streaming": false
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 108,
+  "event": {
+   "id": "event:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:command:c8:e8",
+   "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+   "runId": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:2",
+   "providerInstanceId": "codex",
+   "occurredAt": "2026-11-19T10:00:16.000Z",
+   "type": "run.updated",
+   "payload": {
+    "id": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:2",
+    "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+    "ordinal": 2,
+    "providerInstanceId": "codex",
+    "modelSelection": {
+     "instanceId": "codex",
+     "model": "gpt-6.1-sol"
+    },
+    "providerThreadId": null,
+    "userMessageId": "msg-2",
+    "rootNodeId": "node:run:run%3Athread%3A7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11%3Aordinal%3A2:root",
+    "activeAttemptId": null,
+    "status": "completed",
+    "queuePosition": null,
+    "requestedAt": "2026-11-19T10:00:12.000Z",
+    "startedAt": "2026-11-19T10:00:12.200Z",
+    "completedAt": "2026-11-19T10:00:16.000Z",
+    "checkpointId": null,
+    "contextHandoffId": "context-handoff:H1"
+   }
+  }
+ }
+]

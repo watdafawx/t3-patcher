@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" width="1280" height="360" role="img" aria-label="T3 Patcher: plugins and patches for T3 Code">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14111f"/>
+      <stop offset="1" stop-color="#0b0a12"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8b6cff"/>
+      <stop offset="1" stop-color="#4b2fd1"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.2" cy="0.5" r="0.7">
+      <stop offset="0" stop-color="#6d4dff" stop-opacity=".35"/>
+      <stop offset="1" stop-color="#6d4dff" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#fff" stroke-opacity=".035"/>
+    </pattern>
+  </defs>
+  <rect width="1280" height="360" rx="24" fill="url(#bg)"/>
+  <rect width="1280" height="360" rx="24" fill="url(#grid)"/>
+  <rect width="1280" height="360" rx="24" fill="url(#glow)"/>
+
+  <!-- logo -->
+  <g transform="translate(72 84)">
+    <rect width="192" height="192" rx="44" fill="url(#mark)"/>
+    <rect width="192" height="96" rx="44" fill="#fff" opacity=".12"/>
+    <path d="M40 48h64v17H80v54H64V65H40z" fill="#fff"/>
+    <path d="M114 48h20c10 0 17 5 17 14 0 6-4 10-9 12 7 2 11 7 11 14 0 11-8 18-21 18h-18v-15h17c4 0 6-2 6-4.500s-2-4.500-6-4.500h-11V80h9c4 0 6-1.500 6-4s-2-4-6-4h-15z" fill="#fff"/>
+    <path d="M30 150h132" stroke="#fff" stroke-opacity=".75" stroke-width="5" stroke-linecap="round" stroke-dasharray="11 9"/>
+  </g>
+
+  <!-- wordmark -->
+  <g font-family="Inter, 'Segoe UI', system-ui, -apple-system, sans-serif">
+    <text x="304" y="176" font-size="76" font-weight="700" fill="#f4f2ff" letter-spacing="-2">T3 Patcher</text>
+    <text x="306" y="222" font-size="26" fill="#b4aed6">Plugins and patches for T3 Code. No fork. Fully reversible.</text>
+  </g>
+
+  <!-- chips -->
+  <g font-family="'JetBrains Mono', 'Cascadia Mono', Consolas, monospace" font-size="17" fill="#d8d3f5">
+    <g transform="translate(306 252)"><rect width="150" height="34" rx="10" fill="#fff" fill-opacity=".07" stroke="#fff" stroke-opacity=".12"/><text x="14" y="23">t3p install</text></g>
+    <g transform="translate(468 252)"><rect width="170" height="34" rx="10" fill="#fff" fill-opacity=".07" stroke="#fff" stroke-opacity=".12"/><text x="14" y="23">t3p dev ./plugin</text></g>
+    <g transform="translate(650 252)"><rect width="190" height="34" rx="10" fill="#fff" fill-opacity=".07" stroke="#fff" stroke-opacity=".12"/><text x="14" y="23">t3.patches.register</text></g>
+  </g>
+
+  <!-- decorative status-bar / chips motif -->
+  <g transform="translate(900 96)" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="14">
+    <rect width="308" height="168" rx="14" fill="#1b1830" stroke="#fff" stroke-opacity=".1"/>
+    <rect x="14" y="14" width="86" height="22" rx="7" fill="#6d4dff" fill-opacity=".35"/><text x="26" y="30" fill="#e7e2ff">Cache 47:28</text>
+    <rect x="108" y="14" width="76" height="22" rx="7" fill="#fff" fill-opacity=".08"/><text x="120" y="30" fill="#c9c3ee">Keep warm</text>
+    <rect x="14" y="52" width="280" height="8" rx="4" fill="#fff" fill-opacity=".08"/><rect x="14" y="52" width="196" height="8" rx="4" fill="#8b6cff"/>
+    <rect x="14" y="74" width="280" height="8" rx="4" fill="#fff" fill-opacity=".08"/><rect x="14" y="74" width="120" height="8" rx="4" fill="#5fd4a0"/>
+    <rect x="14" y="104" width="280" height="1" fill="#fff" fill-opacity=".1"/>
+    <rect x="14" y="120" width="120" height="10" rx="5" fill="#fff" fill-opacity=".12"/>
+    <rect x="14" y="140" width="190" height="10" rx="5" fill="#fff" fill-opacity=".07"/>
+  </g>
+</svg>

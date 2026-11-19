@@ -1,0 +1,8 @@
+{
+  "id": "throw-renderer",
+  "version": "1.0.0",
+  "tier": 1,
+  "permissions": [],
+  "t3Versions": ["*"],
+  "renderer": "renderer.js"
+}

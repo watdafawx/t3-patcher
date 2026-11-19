@@ -1,0 +1,21 @@
+// fixture: the shape of the wire-method tables in the shipped server bundle.
+// One table holds RPC methods, a second holds keyboard command ids (not RPC).
+// The padding comment between them is what keeps the two tables apart.
+var A_WS_METHODS = {
+  serverGetConfig: "server.getConfig",
+  serverRefreshProviders: "server.refreshProviders",
+  orchestrationSubscribeThread: "orchestration.subscribeThread",
+  terminalCreate: "terminal.create"
+};
+// ---------------------------------------------------------------------------
+// A separate registry of keyboard commands. These are palette ids, not RPC
+// methods: they never appear as `Rpc.make` registrations in the contracts
+// package, and the checker must not report them as new methods when the RPC
+// table grows. Keeping both tables in one fixture makes that regression
+// visible if the proximity heuristic ever merges them.
+// ---------------------------------------------------------------------------
+var COMMANDS = {
+  sidebarToggle: "sidebar.toggle",
+  terminalNew: "terminal.new",
+  paletteOpen: "palette.open"
+};

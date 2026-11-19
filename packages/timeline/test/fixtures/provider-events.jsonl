@@ -1,0 +1,6 @@
+[2026-11-19T10:00:03.000Z] NTIVE: {"type":"assistant","message":{"content":[{"type":"tool_use","id":"toolu_01ABCdefGHIjklMNOpqr","name":"Bash","input":{"command":"pnpm test --filter api"}}]}}
+[2026-11-19T10:00:08.000Z] NTIVE: {"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_01ABCdefGHIjklMNOpqr","content":"Tests  12 passed"}]}}
+[2026-11-19T10:00:09.000Z] CANON: {"type":"item.completed","payload":{"itemId":"unrelated-item-id-000"}}
+this line is not json and must be skipped
+[2026-11-19T10:00:09.000Z] ORCH: {"broken":
+

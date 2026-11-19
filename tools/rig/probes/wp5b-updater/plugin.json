@@ -1,0 +1,9 @@
+{
+  "id": "wp5b-updater",
+  "name": "WP-5B updater probe",
+  "version": "1.0.0",
+  "tier": 1,
+  "permissions": ["main"],
+  "t3Versions": ["*"],
+  "main": "main.cjs"
+}

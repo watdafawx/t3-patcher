@@ -1,0 +1,144 @@
+[
+ {
+  "kind": "event",
+  "sequence": 101,
+  "event": {
+   "id": "event:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:command:c1:e1",
+   "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+   "runId": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:1",
+   "providerInstanceId": "codex",
+   "occurredAt": "2026-11-19T10:00:01.000Z",
+   "type": "run.created",
+   "payload": {
+    "id": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:1",
+    "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+    "ordinal": 1,
+    "providerInstanceId": "codex",
+    "modelSelection": {
+     "instanceId": "codex",
+     "model": "gpt-6.1-sol"
+    },
+    "providerThreadId": null,
+    "userMessageId": "msg-1",
+    "rootNodeId": "node:run:run%3Athread%3A7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11%3Aordinal%3A1:root",
+    "activeAttemptId": null,
+    "status": "starting",
+    "queuePosition": null,
+    "requestedAt": "2026-11-19T10:00:01.000Z",
+    "startedAt": "2026-11-19T10:00:01.200Z",
+    "completedAt": null,
+    "checkpointId": null,
+    "contextHandoffId": null
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 102,
+  "event": {
+   "id": "event:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:command:c2:e2",
+   "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+   "runId": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:1",
+   "providerInstanceId": "codex",
+   "occurredAt": "2026-11-19T10:00:01.000Z",
+   "type": "turn-item.updated",
+   "payload": {
+    "id": "turn-item:message:msg-1",
+    "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+    "runId": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:1",
+    "nodeId": "node:run:run%3Athread%3A7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11%3Aordinal%3A1:root",
+    "providerThreadId": null,
+    "providerTurnId": null,
+    "nativeItemRef": null,
+    "parentItemId": null,
+    "ordinal": 1000001,
+    "status": "completed",
+    "title": null,
+    "startedAt": "2026-11-19T10:00:01.000Z",
+    "completedAt": "2026-11-19T10:00:01.000Z",
+    "updatedAt": "2026-11-19T10:00:01.000Z",
+    "createdBy": "user",
+    "creationSource": "web",
+    "type": "user_message",
+    "messageId": "msg-1",
+    "inputIntent": "turn_start",
+    "text": "refactor module",
+    "attachments": []
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 103,
+  "event": {
+   "id": "event:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:command:c3:e3",
+   "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+   "runId": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:1",
+   "providerInstanceId": "codex",
+   "occurredAt": "2026-11-19T10:00:04.000Z",
+   "type": "turn-item.updated",
+   "payload": {
+    "id": "turn-item:provider:codex:native-item:err-1",
+    "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+    "runId": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:1",
+    "nodeId": "node:run:run%3Athread%3A7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11%3Aordinal%3A1:root",
+    "providerThreadId": null,
+    "providerTurnId": null,
+    "nativeItemRef": null,
+    "parentItemId": null,
+    "ordinal": 1000070,
+    "status": "failed",
+    "title": null,
+    "startedAt": "2026-11-19T10:00:04.000Z",
+    "completedAt": "2026-11-19T10:00:04.000Z",
+    "updatedAt": "2026-11-19T10:00:04.000Z",
+    "type": "error",
+    "failure": {
+     "class": "usage_limit",
+     "message": "You hit the 5 hour usage limit.",
+     "code": "usage_limit_reached",
+     "retryable": false,
+     "resetAt": "2026-11-19T11:00:00.000Z"
+    },
+    "retry": {
+     "attempt": 2,
+     "maxAttempts": 3,
+     "retryDelayMs": 1000
+    }
+   }
+  }
+ },
+ {
+  "kind": "event",
+  "sequence": 104,
+  "event": {
+   "id": "event:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:command:c4:e4",
+   "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+   "runId": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:1",
+   "providerInstanceId": "codex",
+   "occurredAt": "2026-11-19T10:00:04.500Z",
+   "type": "run.updated",
+   "payload": {
+    "id": "run:thread:7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11:ordinal:1",
+    "threadId": "7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11",
+    "ordinal": 1,
+    "providerInstanceId": "codex",
+    "modelSelection": {
+     "instanceId": "codex",
+     "model": "gpt-6.1-sol"
+    },
+    "providerThreadId": null,
+    "userMessageId": "msg-1",
+    "rootNodeId": "node:run:run%3Athread%3A7d0f2c1e-5b1a-4c63-9d0e-3a2f1b9c8e11%3Aordinal%3A1:root",
+    "activeAttemptId": null,
+    "status": "failed",
+    "queuePosition": null,
+    "requestedAt": "2026-11-19T10:00:01.000Z",
+    "startedAt": "2026-11-19T10:00:01.200Z",
+    "completedAt": "2026-11-19T10:00:04.500Z",
+    "checkpointId": null,
+    "contextHandoffId": null
+   }
+  }
+ }
+]

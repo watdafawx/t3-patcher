@@ -1,0 +1,21 @@
+{
+  "name": "@t3p/contracts-vendor",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Type-only declarations vendored from upstream t3code packages/contracts (MIT, see LICENSE-UPSTREAM.md)",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts" },
+    "./methods.json": "./dist/methods.json"
+  },
+  "files": ["dist", "UPSTREAM.json", "LICENSE-UPSTREAM.md"],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node -e \"\""
+  },
+  "devDependencies": {
+    "effect": "4.1.3",
+    "typescript": "^5.9.3"
+  }
+}

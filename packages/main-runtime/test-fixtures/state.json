@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "plugins": {
+    "test-plugin": {
+      "enabled": true,
+      "granted": ["main", "patches", { "fs.read": { "roots": ["~/fsread-root"] } }]
+    },
+    "throw-main": { "enabled": true, "granted": ["main"] },
+    "throw-renderer": { "enabled": true, "granted": [] },
+    "after-renderer": { "enabled": true, "granted": [] }
+  }
+}

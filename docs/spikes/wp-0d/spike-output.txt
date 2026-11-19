@@ -1,0 +1,113 @@
+
+=== 0. HTTP auth surface ===
+GET /.well-known/t3/environment (no auth) 200 {"environmentId":"23430f49-10f0-417a-9203-52dd713e3f92","label":"RIG","platform":{"os":"windows","arch":"x64"},"serverVersion":"0.1.10","orchestrationProtocolVersion":2,"databaseMigration":96,"capabilities":{"repositoryIdentity":true,"connectionProbe":true,"attachmentUploads":true,"questionAttachments":true,"fileAttachments":{"maxUploadBytes":52428800},"pullRequests":true,"pullRequestChecks":true,"sideChats":true,"vcsBranchStatus":true,"inlineMessageContext":true,"requiredWorktreeBootstrap":true,"threadSettlement":true,"threadAutoSettlement":true,"storageCleanup":true,"storageCleanupRun":true,...<truncated 1489 chars>
+POST /api/auth/websocket-ticket, no credential -> 401 {"_tag":"EnvironmentAuthInvalidError","code":"auth_invalid","reason":"missing_credential","traceId":"3061167e4a3914d75a1d034983dc9716"}
+POST /api/auth/websocket-ticket, Bearer -> 200 keys [ 'ticket', 'expiresAt' ] expiresAt 2026-11-18T21:40:48.334Z
+POST /api/auth/websocket-ticket/rpc, Bearer -> 200 ttl seconds ~ 297
+GET /api/auth/session, Bearer -> 200 {"authenticated":true,"auth":{"policy":"desktop-managed-local","bootstrapMethods":["desktop-bootstrap"],"sessionMethods":["browser-session-cookie","bearer-access-token","dpop-access-token"],"sessionCookieName":"t3_session_3874","serverUpdateScope":"environment:maintain"},"scopes":["orchestration:read","orchestration:operate","terminal:operate","relay:read","access:read","access:write","relay:write...<truncated 388 chars>
+
+=== 1. Socket auth matrix ===
+socket without credentials -> REJECTED ws error: Received network error or non-101 status code.
+socket with bogus ticket -> REJECTED ws error: Received network error or non-101 status code.
+socket with Authorization Bearer header (no ticket) -> OPEN
+  bearer-header socket server.getConfig providers: 10
+GET /ws?orchestrationProtocol=1 (plain http) -> 426 {"code":"orchestration_protocol_incompatible","message":"Update this client to one that supports orchestration protocol 2.","orchestrationProtocolVersion":2}
+GET /ws (no orchestrationProtocol) -> 426
+same ticket a second time -> OPEN
+second concurrent socket (fresh ticket from desktop bearer) -> OPEN
+socket with frameParts=1 -> OPEN
+  second socket getConfig providers: 10
+  frameParts socket getConfig (joined client side) providers: 10
+
+=== 2. server.getConfig and providers ===
+top-level keys: environment, auth, cwd, hostname, keybindingsConfigPath, keybindings, issues, providers, availableEditors, remoteOpenTargets, directEndpoints, observability, settings, shellResumeCompletionMarker, shellThreadFamilies, threadLinkMetadata, shellOlderSettled, shellRevealInFileManager, shellRevealInFileManagerKind, threadResumeCompletionMarker, threadSnapshotPagination, threadFind, threadFindProgressive, secretProviderSettings, secretReferences, secretRequestReferences, scratchWorkspaceRoot, newProjectsRoot, serverTime
+auth: {"policy":"desktop-managed-local","bootstrapMethods":["desktop-bootstrap"],"sessionMethods":["browser-session-cookie","bearer-access-token","dpop-access-token"],"sessionCookieName":"t3_session_3874","serverUpdateScope":"environment:maintain"}
+  codex        driver=codex        enabled=true installed=false status=error auth=unknown models=0 usageLimits=absent
+  claudeAgent  driver=claudeAgent  enabled=true installed=true status=error auth=unauthenticated models=11 usageLimits=absent
+  cursor       driver=cursor       enabled=false installed=false status=disabled auth=unknown models=0 usageLimits=absent
+  grok         driver=grok         enabled=false installed=false status=disabled auth=unknown models=1 usageLimits=absent
+  opencode     driver=opencode     enabled=false installed=false status=disabled auth=unknown models=0 usageLimits={"checkedAt":"2026-11-18T21:35:13.272Z","windows":[],"unavailable":{"reason":"unsupported"}}
+  antigravity  driver=antigravity  enabled=false installed=false status=disabled auth=unknown models=0 usageLimits=absent
+  fx           driver=fx           enabled=false installed=false status=disabled auth=unknown models=1 usageLimits=absent
+  kiro         driver=kiro         enabled=false installed=false status=disabled auth=unknown models=1 usageLimits=absent
+  muse         driver=muse         enabled=false installed=false status=disabled auth=unknown models=0 usageLimits=absent
+  pi           driver=pi           enabled=false installed=false status=disabled auth=unknown models=1 usageLimits=absent
+getConfig with usageLimit flags -> ok; providers carrying usageLimits: opencode
+
+=== 3. subscribeServerConfig (stream) ===
+  item type=snapshot keys=version,type,config
+  item type=usageLimitSourcesUpdated keys=version,type,payload
+  item type=environmentThemesUpdated keys=version,type,payload
+  item type=providerStatuses keys=version,type,payload
+  item type=providerStatuses keys=version,type,payload
+server.refreshProviders -> {"providers":[{"instanceId":"codex","driver":"codex","displayName":"Codex","continuation":{"groupKey":"codex:home:C:\\Users\\<user>\\.codex"},"showInteractionModeToggle":true,"reportsContextWindow":true,"setup":{"canAuthenticate":false,"canInstall":false},"enabled":true,"installed":false,"version":n...<truncated 25702 chars>
+  item type=providerStatuses keys=version,type,payload
+after Interrupt, stream end: {"exit":{"_tag":"Failure","cause":[{"_tag":"Interrupt","fiberId":6828}]}}
+
+=== 4. ping / pong ===
+ping/pong frames: [
+  'sent {"_tag":"Ping"}',
+  'recv {"_tag":"Pong"}',
+  'sent {"_tag":"Ping"}',
+  'recv {"_tag":"Pong"}'
+]
+
+=== 5. project + thread, subscribeThread snapshot and live events ===
+projects.ensureScratch -> { projectId: '2944d7b0-c3b8-4c50-a436-4cd87975c348' }
+dispatch thread.create -> { sequence: 56 }
+  ITEM kind=snapshot seq=56 type=
+rename (live) -> { sequence: 57 }
+  ITEM kind=event seq=57 type=thread.metadata-updated
+
+=== 6. dispatch: thread.model-selection.set / provider.switch ===
+model-selection.set (valid, same provider) -> {"sequence":58}
+  ITEM kind=event seq=58 type=thread.model-selection-updated
+model-selection.set (unknown instance) -> {"error":{"_tag":"Failure","cause":[{"_tag":"Fail","error":{"_tag":"OrchestrationV2DispatchCommandError","commandId":"3ecdb582-3244-4e07-b1bf-f24e712fc49f","commandType":"thread.model-selection.set","message":"No orchestration provider adapter is registered for nope.","detail":"No orchestration provider adapter is registered for nope.","cause":{"name":"OrchestratorProviderAdapterError","message":"Provider adapter failed while dispatching orchestration command 3ecdb582-3244-4e07-b1bf-f24e712fc49f.","cause":{"name":"ProviderAdapterRegistryLookupError","message":"No orchestration provider adapter is registered for nope."}}}}]}}
+provider.switch (to codex, not installed on rig) -> {"sequence":59}
+  ITEM kind=event seq=59 type=thread.provider-switched
+provider.switch (back to claudeAgent) -> {"sequence":60}
+  ITEM kind=event seq=60 type=thread.provider-switched
+invalid command type -> {"error":{"_tag":"Failure","cause":[{"_tag":"Die","defect":"Expected { readonly \"type\": \"thread.stop\", ... } | { readonly \"type\": \"thread.create\", ... } | { readonly \"type\": \"thread.archive\", ... } | { readonly \"type\": \"thread.guest-share.close\", ... } | { readonly \"type\": \"thread.guest-message.dismiss\", ... } | { readonly \"type\": \"thread.unarchive\", ... } | { readonly \"type\": \"thread.delete\", ... } | { readonly \"type\": \"thread.settle\", ... } | { readonly \"type\": \"thread.auto-settle\", ... } | { readonly \"type\": \"thread.unsettle\", readonly \"reason\": \"user\", ... } | { readonly \"type\": \"thread.snooze\", ... } | { readonly \"type\": \"thread.unsnooze\", readonly \"reason\": \"user\", ... } | { readonly \"type\": \"thread.auto-settle.set\", ... } | { readonly \"type\": \"thread.pin\", ... } | { readonly \"type\": \"thread.unpin\", ... } | { reado...<truncated 2318 chars>
+message.dispatch to create a run (claude is unauthenticated on this rig, expect a fast failure):
+message.dispatch -> {"sequence":68}
+  ITEM kind=event seq=61 type=thread.metadata-updated
+  ITEM kind=event seq=62 type=provider-thread.updated
+  ITEM kind=event seq=63 type=run.created
+  ITEM kind=event seq=64 type=run-attempt.created
+  ITEM kind=event seq=65 type=node.updated
+  ITEM kind=event seq=66 type=checkpoint-scope.created
+  ITEM kind=event seq=67 type=message.updated
+  ITEM kind=event seq=68 type=turn-item.updated
+provider.switch error at +20ms: {"error":{"_tag":"Failure","cause":[{"_tag":"Fail","error":{"_tag":"OrchestrationV2DispatchCommandError","commandId":"ed9ac44c-a960-440b-9ed5-1d8706f95247","commandType":"provider.switch","message":"Thread 6caf85de-1c38-4bee-9ec8-9876bf94d9b3 has an active turn. Wait for it to finish, then retry the provider selection change.","detail":"Thread 6caf85de-1c38-4bee-9ec8-9876bf94d9b3 has an active turn. Wait for it to finish, then retry the provider selection change.","cause":{"name":"OrchestratorProviderSelectionBusyError","message":"Thread 6caf85de-1c38-4bee-9ec8-9876bf94d9b3 has an active turn. Wait for it to finish, then retry the provider selection change."}}}]}}
+provider.switch attempts after message.dispatch: 1 busy error reproduced: true
+  ITEM kind=event seq=69 type=provider-session.attached
+  ITEM kind=event seq=70 type=provider-session.updated
+  ITEM kind=event seq=71 type=provider-thread.updated
+  ITEM kind=event seq=72 type=run.updated
+  ITEM kind=event seq=73 type=run-attempt.updated
+  ITEM kind=event seq=74 type=node.updated
+  ITEM kind=event seq=75 type=provider-turn.updated
+  ITEM kind=event seq=76 type=provider-thread.updated
+  ITEM kind=event seq=77 type=node.updated
+  ITEM kind=event seq=78 type=message.updated
+  ITEM kind=event seq=79 type=turn-item.updated
+  ITEM kind=event seq=80 type=provider-turn.updated
+  ITEM kind=event seq=81 type=provider-thread.updated
+  ITEM kind=event seq=82 type=turn-item.updated
+  ITEM kind=event seq=83 type=run-attempt.updated
+  ITEM kind=event seq=84 type=run.updated
+  ITEM kind=event seq=85 type=node.updated
+  ITEM kind=event seq=86 type=provider-thread.updated
+events seen for the thread since subscribe: 31 snapshot, thread.metadata-updated, thread.model-selection-updated, thread.provider-switched, provider-thread.updated, run.created, run-attempt.created, node.updated, checkpoint-scope.created, message.updated, turn-item.updated, provider-session.attached, provider-session.updated, run.updated, run-attempt.updated, provider-turn.updated
+subscribeThread after Interrupt -> {"exit":{"_tag":"Failure","cause":[{"_tag":"Interrupt","fiberId":6828}]}}
+
+=== 7. error frames ===
+unknown method -> {"error":{"_tag":"Failure","cause":[{"_tag":"Die","defect":"Unknown request tag: no.such.method"}]}}
+bad payload -> {"error":{"_tag":"Failure","cause":[{"_tag":"Die","defect":"Missing key\n  at [\"threadId\"]"}]}}
+
+=== 8. reconnect / resubscribe from last sequence ===
+killed reader A after sequence 100 (items seen 14)
+A saw snapshot@87,88,89,90,91,92,93,94,95,96,97,98,99,100
+B (afterSequence=100) saw 101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126
+union: first 88 last 126 distinct 39 received total 39 => duplicates 0 | contiguous true
+B first item is an event (no snapshot)

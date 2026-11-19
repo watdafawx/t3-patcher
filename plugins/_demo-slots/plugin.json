@@ -1,0 +1,9 @@
+{
+  "id": "demo-slots",
+  "name": "Demo slots (WP-3D, not published)",
+  "version": "0.0.1",
+  "tier": 1,
+  "permissions": [],
+  "t3Versions": ["*"],
+  "renderer": "renderer.js"
+}

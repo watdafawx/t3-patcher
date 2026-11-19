@@ -1,0 +1,30 @@
+{
+  "name": "@t3p/plugin-build",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Build preset for T3 Patcher plugins: validates plugin.json and bundles src/index.ts to dist/renderer.js",
+  "bin": {
+    "t3p-plugin-build": "./dist/cli.mjs"
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@t3p/api": "workspace:*",
+    "tsdown": "^0.23.7"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}

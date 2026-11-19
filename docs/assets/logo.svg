@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="T3 Patcher logo">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8b6cff"/>
+      <stop offset="1" stop-color="#4b2fd1"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="224" height="224" rx="56" fill="url(#bg)"/>
+  <rect x="16" y="16" width="224" height="112" rx="56" fill="url(#shine)"/>
+  <!-- T -->
+  <path d="M64 78h84v22h-31v70H95v-70H64z" fill="#fff"/>
+  <!-- 3 -->
+  <path d="M164 78h26c13 0 22 7 22 18 0 8-5 13-12 16 9 2 15 9 15 18 0 14-11 24-28 24h-23v-19h22c5 0 8-2 8-6 0-4-3-6-8-6h-14V105h12c5 0 8-2 8-5 0-3-3-5-8-5h-20z" fill="#fff"/>
+  <!-- patch stitches -->
+  <path d="M52 196h152" stroke="#fff" stroke-opacity=".75" stroke-width="6" stroke-linecap="round" stroke-dasharray="14 12"/>
+</svg>

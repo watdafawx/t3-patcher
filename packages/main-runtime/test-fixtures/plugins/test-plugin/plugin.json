@@ -1,0 +1,10 @@
+{
+  "id": "test-plugin",
+  "name": "Test plugin",
+  "version": "1.0.0",
+  "tier": 1,
+  "permissions": ["main", "patches", { "fs.read": { "roots": ["~/fsread-root"] } }],
+  "t3Versions": ["*"],
+  "main": "main.cjs",
+  "renderer": "renderer.js"
+}

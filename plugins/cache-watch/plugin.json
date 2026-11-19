@@ -1,0 +1,10 @@
+{
+  "id": "cache-watch",
+  "name": "Cache watch",
+  "description": "Prompt-cache countdown per thread, a list sorted by time to expiry, and an optional warning before it expires.",
+  "version": "0.1.0",
+  "tier": 1,
+  "permissions": ["rpc"],
+  "t3Versions": ["*"],
+  "renderer": "dist/renderer.js"
+}

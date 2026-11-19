@@ -1,0 +1,10 @@
+{
+  "id": "session-inspector",
+  "name": "Session inspector",
+  "description": "Timeline of a thread with durations and cause chains, plus an all-sessions view.",
+  "version": "0.1.0",
+  "tier": 1,
+  "permissions": ["rpc"],
+  "t3Versions": ["*"],
+  "renderer": "dist/renderer.js"
+}

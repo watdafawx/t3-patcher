@@ -1,0 +1,33 @@
+{
+  "name": "@t3p/compat",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Compat checker: fetch an upstream T3 Code release, run the first-party patch finds, diff RPC methods and data-slots",
+  "bin": {
+    "t3p-compat": "./dist/cli.mjs"
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "compat": "node dist/cli.mjs"
+  },
+  "dependencies": {
+    "@t3p/main-runtime": "workspace:*",
+    "@t3p/patch-engine": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22",
+    "tsdown": "^0.23.7",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}
