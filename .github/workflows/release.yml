@@ -13,6 +13,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Fetch pinned upstream (type-only vendoring)
+        shell: bash
+        run: git clone --depth 1 --branch v0.1.10 https://github.com/pingdotgg/t3code .upstream
+
       - uses: pnpm/action-setup@v4
         with:
           version: 9.12.3
@@ -58,7 +62,7 @@ jobs:
 
           **Windows SmartScreen may warn "Windows protected your PC".** `t3p.exe` is not code-signed yet, so this is expected: click **More info**, then **Run anyway**. To check the file is the one built here, compare its SHA-256 with `t3p.exe.sha256` (`certutil -hashfile t3p.exe SHA256`).
 
-          Prefer npm? `npx @t3p/installer install`. Details: [README](https://github.com/${{ github.repository }}#installation).
+          Prefer npm? `npx t3p install`. Details: [README](https://github.com/${{ github.repository }}#installation).
 
           ## Changes
           NOTES

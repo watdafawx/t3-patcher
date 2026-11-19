@@ -277,6 +277,13 @@ export class Shell {
         },
         isOpen: (): boolean => this.slots.dockControl(plugin).isOpen(),
       }),
+      threadDetails: Object.freeze({
+        hide: (labels: string[]): T3Disposable => {
+          scope.assertAlive();
+          const forget = scope.add(this.slots.hideStockRows(labels));
+          return Object.freeze({ dispose: () => forget() });
+        },
+      }),
     });
     const internals: T3Internals = Object.freeze({
       get: <K extends keyof InternalHandles>(name: K): InternalHandles[K] | null => this.hub.get(name),

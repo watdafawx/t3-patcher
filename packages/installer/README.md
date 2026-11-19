@@ -1,10 +1,10 @@
-# @t3p/installer
+# t3p
 
 The `t3p` command line installer for T3 Patcher, a plugin loader for the T3 Code desktop app (Windows).
 
 ```sh
-npx @t3p/installer install       # one-off, no global install
-npm i -g @t3p/installer          # or install once...
+npx t3p install       # one-off, no global install
+npm i -g t3p          # or install once...
 t3p install                      # ...then use `t3p`
 t3p status
 t3p uninstall                    # restores the stock app exactly

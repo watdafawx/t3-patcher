@@ -407,7 +407,8 @@ export type UiSlotName =
   | "statusBar"
   | "settingsPage"
   | "timelineRowDecorator"
-  | "contextMenuItem";
+  | "contextMenuItem"
+  | "threadDetails";
 
 /** Context a slot render function gets. */
 export interface UiSlotContext {
@@ -431,6 +432,19 @@ export interface UiSlotRegistration {
   order?: number;
   /** Renders into `host`. May return a cleanup. */
   render(host: HTMLElement, context: UiSlotContext): void | (() => void);
+}
+
+/**
+ * The stock thread details popover (the card with environment, branch, limits, context).
+ * It only exists while open: `threadDetails` registrations mount when it opens and are cleaned up when it closes.
+ */
+export interface T3UiThreadDetails {
+  /**
+   * Hides stock rows whose visible label text equals one of `labels` (trimmed, case-insensitive),
+   * for example `["Open in VS Code", "Weekly"]`. Reapplied every time the card opens or re-renders.
+   * A stock section whose rows are all hidden is hidden too. Dispose to show the rows again.
+   */
+  hide(labels: string[]): T3Disposable;
 }
 
 /** A toast. */
@@ -521,6 +535,8 @@ export interface T3Ui {
    * Dispose to remove the controls.
    */
   settingsPanel(host: HTMLElement, options?: SettingsPanelOptions): T3Disposable;
+  /** Tweaks to the stock thread details popover (see the `threadDetails` slot). */
+  readonly threadDetails: T3UiThreadDetails;
 }
 
 /** Options of {@link T3Ui.settingsPanel}. */

@@ -44,7 +44,7 @@ ig-run	3patcherp-s<N>` (harmless on a stock slot).
 
 ## Patching a slot (`patch-slot.ps1`)
 
-Build on FOX first: `pnpm --filter @t3p/installer --filter @t3p/main-runtime... build`. Then:
+Build on FOX first: `pnpm --filter t3p --filter @t3p/main-runtime... build`. Then:
 
 1. It stops the slot.
 2. It copies `packages/installer/dist/standalone/t3p.cjs` and `packages/main-runtime/dist/*` (no maps) to `tools-s<N>` as plain files over `Q:`. No junctions over the share.

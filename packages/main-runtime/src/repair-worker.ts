@@ -11,7 +11,7 @@ import { statSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 
-import { AppRunningError, repair, status } from "@t3p/installer";
+import { AppRunningError, repair, status } from "t3p";
 
 import { createFileLogger } from "./log.js";
 import { resolvePaths } from "./paths.js";

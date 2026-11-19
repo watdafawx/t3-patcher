@@ -17,7 +17,21 @@ interface SlotDef {
   key?(anchor: Element): string;
 }
 
-export const SLOT_NAMES: readonly UiSlotName[] = ["sidebarSection", "threadHeader", "composerBanner", "rightPanel", "statusBar", "settingsPage", "timelineRowDecorator", "contextMenuItem"];
+export const SLOT_NAMES: readonly UiSlotName[] = ["sidebarSection", "threadHeader", "composerBanner", "rightPanel", "statusBar", "settingsPage", "timelineRowDecorator", "contextMenuItem", "threadDetails"];
+
+const CARD = "[data-thread-details-card]";
+
+/** Normalised label text for matching stock rows. */
+function norm(text: string | null): string {
+  return (text ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+/** Stock sections of the card (ours excluded), all siblings under the card's items container. */
+function stockSections(card: Element): HTMLElement[] {
+  const all = Array.from(card.querySelectorAll("section")).filter((s) => !s.closest("[data-t3p-container]")) as HTMLElement[];
+  const parent = all[0]?.parentElement;
+  return all.filter((s) => s.parentElement === parent);
+}
 
 const MAX_ROWS = 400;
 
@@ -71,6 +85,20 @@ const DEFS: Record<UiSlotName, SlotDef> = {
     find: () => Array.from(document.querySelectorAll('[data-slot="menu-popup"],[role="menu"]')).filter(visible),
     place: (anchor, container) => anchor.appendChild(container),
   },
+  // The stock thread details popover (`[data-thread-details-card]`, exists only while open): our section goes
+  // after the last stock section, before the "Choose what to show" row. Idempotent, so sync can re-run it.
+  threadDetails: {
+    find: () => Array.from(document.querySelectorAll(CARD)).slice(0, 1),
+    place: (anchor, container) => {
+      const last = stockSections(anchor).at(-1);
+      if (last) {
+        if (last.nextElementSibling !== container) last.after(container);
+      } else if (!container.isConnected) {
+        const items = anchor.querySelector('[class~="group/details-items"]') ?? anchor.firstElementChild ?? anchor;
+        items.appendChild(container);
+      }
+    },
+  },
 };
 
 interface Mount {
@@ -111,6 +139,7 @@ export class SlotEngine {
   #dockOpen = false;
   #dockTab: Registration | null = null;
   #setDockOpen: ((open: boolean) => void) | null = null;
+  readonly #hidden = new Set<{ labels: string[] }>();
 
   constructor(private readonly deps: SlotEngineDeps) {}
 
@@ -120,6 +149,10 @@ export class SlotEngine {
     this.#observer = new MutationObserver((records) => {
       // Ignore our own churn: mutations whose every target is inside a plugin container.
       if (records.every((r) => r.target instanceof Element && r.target.closest("[data-t3p-container]"))) return;
+      // The details card is a short-lived portal: mount synchronously (this callback runs before paint) so it never flashes without our section.
+      if (this.#mounts.get("threadDetails")?.size || this.#hidden.size || this.#hasRegs("threadDetails")) {
+        if (document.querySelector(CARD) || this.#mounts.get("threadDetails")?.size) this.#syncSlot("threadDetails");
+      }
       this.schedule();
     });
     this.#observer.observe(document.documentElement, { childList: true, subtree: true });
@@ -159,6 +192,47 @@ export class SlotEngine {
       }
       this.schedule();
     };
+  }
+
+  #hasRegs(slot: UiSlotName): boolean {
+    for (const r of this.#regs) if (r.reg.slot === slot) return true;
+    return false;
+  }
+
+  /** `t3.ui.threadDetails.hide`: hides stock card rows by visible label. Returns the remover. */
+  hideStockRows(labels: string[]): () => void {
+    if (!Array.isArray(labels) || labels.some((l) => typeof l !== "string")) throw new Error("t3.ui.threadDetails.hide: labels must be an array of strings");
+    const entry = { labels: labels.map(norm).filter(Boolean) };
+    this.#hidden.add(entry);
+    this.start();
+    this.schedule();
+    return () => {
+      if (!this.#hidden.delete(entry)) return;
+      this.#applyHidden();
+    };
+  }
+
+  /** Marks matching stock rows (`data-t3p-hidden`) and collapses sections whose rows are all hidden. Idempotent. */
+  #applyHidden(): void {
+    for (const el of Array.from(document.querySelectorAll(`${CARD} [data-t3p-hidden]`))) el.removeAttribute("data-t3p-hidden");
+    const wanted = new Set<string>();
+    for (const e of this.#hidden) for (const l of e.labels) wanted.add(l);
+    if (wanted.size === 0) return;
+    for (const card of Array.from(document.querySelectorAll(CARD))) {
+      for (const section of stockSections(card)) {
+        const body = section.lastElementChild;
+        if (!body) continue;
+        // A row is a child of the section body (or of the body's single flex column). Match on a descendant's own label text.
+        const column = body.children.length === 1 && body.firstElementChild?.children.length ? body.firstElementChild : body;
+        const rows = Array.from(column.children) as HTMLElement[];
+        for (const row of rows) {
+          const texts = [norm(row.getAttribute("aria-label")), ...Array.from(row.querySelectorAll("span,p,h3,div,button")).filter((n) => n.children.length === 0).map((n) => norm(n.textContent))];
+          if (texts.includes("") && texts.length === 1) continue;
+          if (texts.some((t) => wanted.has(t)) || wanted.has(norm(row.textContent))) row.setAttribute("data-t3p-hidden", "");
+        }
+        if (rows.length > 0 && rows.every((r) => r.hasAttribute("data-t3p-hidden"))) section.setAttribute("data-t3p-hidden", "");
+      }
+    }
   }
 
   /** `t3.ui.dock` for one plugin. `tabId` picks one of that plugin's own `rightPanel` registrations. */
@@ -221,9 +295,12 @@ export class SlotEngine {
         mounts.delete(anchor);
       }
     }
+    if (slot === "threadDetails") this.#applyHidden();
     if (regs.length === 0) return;
 
     const def = DEFS[slot];
+    // The card re-renders under us: keep our section right after the last stock section.
+    if (slot === "threadDetails") for (const [anchor, mount] of mounts) def.place(anchor, mount.container);
     const anchors = def.find();
     for (const anchor of anchors) {
       let mount = mounts.get(anchor);
@@ -236,7 +313,9 @@ export class SlotEngine {
           const container =
             slot === "statusBar"
               ? h("div", { class: "t3p-statusbar", "data-t3p-root": "", "data-t3p-container": "statusBar" })
-              : h("div", { "data-t3p-root": "", "data-t3p-container": slot, style: slot === "threadHeader" ? "" : "display:flex;flex-direction:column;gap:4px" });
+              : slot === "threadDetails"
+                ? h("section", { class: "t3p-td-section", "data-t3p-root": "", "data-t3p-container": slot, "aria-label": "Plugins", style: "display:flex;flex-direction:column;gap:4px" })
+                : h("div", { "data-t3p-root": "", "data-t3p-container": slot, style: slot === "threadHeader" ? "" : "display:flex;flex-direction:column;gap:4px" });
           def.place(anchor, container);
           mount = { container, host: container, roots: new Map() };
         }

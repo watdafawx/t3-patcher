@@ -42,9 +42,9 @@ The same exe is the command line tool: open a terminal and run `t3p.exe status`,
 ### Option 2: npm (needs Node 22 or newer)
 
 ```sh
-npx @t3p/installer install          # one-off
+npx t3p install          # one-off
 # or install the command once:
-npm i -g @t3p/installer
+npm i -g t3p
 t3p install
 ```
 
@@ -57,7 +57,7 @@ Close T3 Code, run `t3p.exe` (or `t3p`) and choose **Uninstall**, or from a term
 ### Update
 
 - **T3 Code updates:** nothing to do. The patcher puts itself back after an app update (a background worker, plus a repair task at logon). If it did not, run `t3p repair` or choose **Repair** in the menu. See [Updating and survival](docs/updating.md).
-- **T3 Patcher updates:** download the newer `t3p.exe` (or `npm i -g @t3p/installer@latest`), close T3 Code, then run `t3p install` again or choose **Update** in the menu (no Uninstall needed). It refreshes the runtime and says `Updated runtime X -> Y` or `Already up to date`. Your plugins and settings are kept.
+- **T3 Patcher updates:** download the newer `t3p.exe` (or `npm i -g t3p@latest`), close T3 Code, then run `t3p install` again or choose **Update** in the menu (no Uninstall needed). It refreshes the runtime and says `Updated runtime X -> Y` or `Already up to date`. Your plugins and settings are kept.
 - A T3 Code version newer than 0.1.10 is refused until the patcher is updated for it. `--force` overrides that at your own risk.
 
 ### Safe mode / if something breaks
@@ -237,6 +237,10 @@ T3 Patcher includes these first-party plugins located in the `plugins/` director
 7. **`notes`**:
    - Quick plain-text notes in the sidebar, tied to the project of the thread you are in (plus a General note). Autosaves, remembers its height and collapsed state.
    - Dropdown to pick another project's note; opening another thread switches back to its project. Command palette: Notes: focus, toggle section, open General.
+6. **`media`**:
+   - Now-playing section in the thread details popover: cover, title, artist, previous / play-pause / next, progress. Reads the Windows system media session (Spotify, browsers, anything that shows in the Windows media overlay).
+   - "Paste YouTube link" row and a command palette entry that play a video in a small embedded player, which can pop out to a draggable mini player above the status bar.
+   - Optional status bar chip with the current title. Everything is off or on demand: nothing runs while no view needs it. See `plugins/media/README.md`.
 
 ## Safety Model
 

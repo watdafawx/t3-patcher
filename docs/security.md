@@ -179,6 +179,17 @@ Rig evidence (10) on slot 1:
 - The env is scrubbed to a fixed list (`SystemRoot`, `PATH`, `TEMP`, ...). Provider tokens and `ELECTRON_*`/`NODE_*` variables are not passed.
 - cwd = patcher home. Timeout kills the process. Output is capped.
 
+### 5.4 Spawn sessions (long-lived helper)
+
+`ctx.native.spawnSession` (main entry only, same `spawn` grant) starts one long-lived process, for helpers that must stay up between calls (the Media plugin's SMTC reader). The executable must be granted as in 5.3, and the arguments are restricted far more than for `spawn`:
+
+- only `-NoProfile -NonInteractive -NoLogo -STA -MTA -ExecutionPolicy Bypass|RemoteSigned|Unrestricted -WindowStyle Hidden`, then `-File <script>` as the last two arguments;
+- `-Command`, `-EncodedCommand`, `-c`, `-e` and every other argument are refused;
+- `<script>` must be a `.ps1` whose real path equals the real path of a granted allowlist entry. So `spawn.allow` for Media is exactly `powershell.exe` plus `~/.t3-patcher/plugins/media/smtc.ps1`;
+- same env scrub, `windowsHide`, cwd as 5.3. Lines over 1 MiB are dropped, stderr keeps the last 8 KiB. `kill()` closes stdin first (the script exits on EOF) then kills.
+
+Granting `powershell.exe` still means "can run the granted script". Review the script when you grant.
+
 ## 6. Patches, protocol and CSP
 
 - The runtime wraps `protocol.handle("t3code", ...)` before the app registers it. It calls the app's handler and post-processes only:
@@ -191,6 +202,7 @@ Rig evidence (10) on slot 1:
   - plugin files only for plugins whose renderer may load, only inside that plugin's folder (path guard);
   - everything else below `/__t3p/` is a 404.
 - **CSP is unchanged.** The bootstrap and plugin files are same-origin (`'self'`), so the stock policy already allows them. Measured on rig with the runtime loaded: `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://clerk.t3.codes https://challenges.cloudflare.com`, and `eval` still throws `EvalError`.
+- **Framing YouTube needs no CSP change (Media plugin).** Upstream sets the policy as a response header on `t3code://app` in `apps/desktop/src/electron/ElectronProtocol.ts`: `frame-src 'self' blob: http: https:`, `img-src 'self' t3code: blob: data: http: https:`, `connect-src 'self' blob: http: https: ws: wss:`. So `https://www.youtube-nocookie.com` iframes, `https://i.ytimg.com` thumbnails and oEmbed fetches are already allowed and the loader adds no relaxation. What the policy does block is `script-src` for `https://www.youtube.com/iframe_api`, so the plugin controls the embed through its documented `postMessage` channel (`enablejsapi=1`, `{event:"command",func:"playVideo"}`) instead of the IFrame API script. If a future T3 release narrows `frame-src`, the fix would be a permission-gated header edit that adds only `frame-src https://www.youtube-nocookie.com` (diff: `frame-src 'self' blob: http: https:` to the same value plus that origin) and would be recorded here before shipping. Not needed today.
 - The chunk index (984 chunks, about 40 M chars, 205 ms first scan) and patched outputs are cached under `~/.t3-patcher/cache/`, keyed by content hash. A changed patch gets a new cache entry (evidence 9).
 
 ## 7. Fail-open

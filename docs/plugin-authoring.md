@@ -215,6 +215,8 @@ single source of truth is [`packages/api/src/t3.ts`](../packages/api/src/t3.ts).
 | `t3.cache` | stub (WP-4C) | prompt-cache state and expiry notifications |
 | `t3.usage` | stub (WP-3B) | token totals by range, thread and provider |
 | `t3.ui` | live | slots, toast (optional `actions` buttons), modal, theme variables, `dock.open/close/toggle/isOpen` for the `rightPanel` dock, `settingsPanel(host)` live controls from your settings schemas |
+| `t3.ui` | live | slots, toast (optional `actions` buttons), modal, theme variables, `dock.open/close/toggle/isOpen` for the `rightPanel` dock |
+| `t3.ui.threadDetails` | live | `hide(labels)`: hides stock rows of the thread details popover by visible label |
 | `t3.commands` | stub (WP-3D) | command palette entries |
 | `t3.keybinds` | stub (WP-3D) | keyboard shortcuts bound to commands |
 | `t3.patches` | stub (WP-3D, needs `patches`) | tier 3 text patches |
@@ -245,3 +247,27 @@ vars only. See [ui-style.md](ui-style.md).
 - Scaffolder: [`packages/create-t3p-plugin`](../packages/create-t3p-plugin).
 - Trust model and the limits of renderer permissions: [`docs/security.md`](security.md).
 - WP-3E transcript and implementation notes: [`docs/wp-3e-notes.md`](wp-3e-notes.md).
+
+## UI slots
+
+`t3.ui.register({ slot, id, order, render })`. Slots: `sidebarSection`, `threadHeader`, `composerBanner`, `rightPanel`, `statusBar`, `settingsPage`, `timelineRowDecorator`, `contextMenuItem`, `threadDetails`.
+
+**`threadDetails`** is the stock thread details popover (environment, branch, Commit & push, limits, context). It only exists
+while open, so your `render` runs each time it opens and its cleanup runs when it closes. All registrations share one
+section appended after the last stock section, with the stock divider and padding, ordered by `order` (then registration
+order). The section is hidden while every root in it is empty, so there is no stray divider. Mounting happens in the
+MutationObserver callback, before paint, so the card never shows without your section.
+
+```ts
+t3.ui.register({ slot: "threadDetails", id: "hello", order: 10, render(host) {
+  host.className = "t3p-td-row";      // 32px row, 13px text, like stock rows
+  host.textContent = "Hello";
+} });
+const hidden = t3.ui.threadDetails.hide(["Open in VS Code"]); // visible label text, case-insensitive
+hidden.dispose();                                              // shows the rows again
+```
+
+Shared classes for the section: `t3p-td-row` (stock row; `<button class="t3p-td-row">` gets hover and focus ring),
+`t3p-td-thumb` (40px rounded cover), `t3p-td-title`, `t3p-bar` with an inner `<span>` (3px progress bar), `t3p-meta`.
+`hide` matches a row by the text of its label (or its `aria-label`) and also hides a stock section once all its rows are hidden.
+Anchors: `[data-thread-details-card]` and its `<section>` children (upstream `ThreadDetailsCard.tsx` and `ThreadDetailsSection.tsx`; the slot finds sections by element, never by class).
