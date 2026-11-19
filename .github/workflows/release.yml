@@ -62,7 +62,7 @@ jobs:
 
           **Windows SmartScreen may warn "Windows protected your PC".** `t3p.exe` is not code-signed yet, so this is expected: click **More info**, then **Run anyway**. To check the file is the one built here, compare its SHA-256 with `t3p.exe.sha256` (`certutil -hashfile t3p.exe SHA256`).
 
-          Prefer npm? `npx t3p install`. Details: [README](https://github.com/${{ github.repository }}#installation).
+          Prefer npm? `npx t3-patcher install`. Details: [README](https://github.com/${{ github.repository }}#installation).
 
           ## Changes
           NOTES

@@ -195,7 +195,7 @@ Exit 0 means every first-party patch `find` still matches exactly one chunk. Exi
 
 ## Installing and updating the patcher itself
 
-Users get the patcher from the single-file `t3p.exe` (GitHub Releases) or `npx t3p` / `npm i -g t3p`; see the README. Updating the patcher is: new `t3p.exe` (or `npm i -g t3p@latest`), close T3 Code, then run `t3p install` (or choose **Update** in the double-click menu). No Uninstall needed. Plugins, `state.json` and settings in `~/.t3-patcher` are kept.
+Users get the patcher from the single-file `t3p.exe` (GitHub Releases) or `npx t3-patcher` / `npm i -g t3-patcher`; see the README. Updating the patcher is: new `t3p.exe` (or `npm i -g t3-patcher@latest`), close T3 Code, then run `t3p install` (or choose **Update** in the double-click menu). No Uninstall needed. Plugins, `state.json` and settings in `~/.t3-patcher` are kept.
 
 ### Refresh on reinstall
 

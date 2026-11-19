@@ -74,6 +74,25 @@ const smooth = (a: number, b: number, x: number): number => {
   return t * t * (3 - 2 * t);
 };
 
+/** Marks the opaque, viewport-sized layers stacked over `anchor` with `attr` (also used by the custom background). */
+export function markSurfaces(anchor: Element, attr: string): void {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  if (!(vw > 0 && vh > 0) || typeof document.elementsFromPoint !== "function") return;
+  for (const fx of [0.5, 0.3, 0.7]) {
+    for (const fy of [0.5, 0.3, 0.7]) {
+      for (const el of document.elementsFromPoint(vw * fx, vh * fy)) {
+        if (el === anchor || el === document.documentElement || el === document.body || el.hasAttribute(attr)) continue;
+        if (el.closest("[data-t3p-root]")) continue;
+        const r = el.getBoundingClientRect();
+        if (r.width * r.height < vw * vh * 0.35) continue;
+        const bg = getComputedStyle(el).backgroundColor;
+        if (bg && bg !== "transparent" && !/^rgba\(.*,\s*0\)$|\/\s*0\)$/.test(bg)) el.setAttribute(attr, "");
+      }
+    }
+  }
+}
+
 export interface OceanHost {
   config(): OceanConfig;
 }
@@ -230,22 +249,7 @@ export class Ocean {
 
   /** Marks the opaque, viewport-sized layers over the canvas so the letters show through them. */
   #clearSurfaces(): void {
-    if (!this.#canvas) return;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    if (!(vw > 0 && vh > 0) || typeof document.elementsFromPoint !== "function") return;
-    for (const fx of [0.5, 0.3, 0.7]) {
-      for (const fy of [0.5, 0.3, 0.7]) {
-        for (const el of document.elementsFromPoint(vw * fx, vh * fy)) {
-          if (el === this.#canvas || el === document.documentElement || el === document.body || el.hasAttribute(OCEAN_CLEAR_ATTR)) continue;
-          if (el.closest("[data-t3p-root]")) continue;
-          const r = el.getBoundingClientRect();
-          if (r.width * r.height < vw * vh * 0.35) continue;
-          const bg = getComputedStyle(el).backgroundColor;
-          if (bg && bg !== "transparent" && !/^rgba\(.*,\s*0\)$|\/\s*0\)$/.test(bg)) el.setAttribute(OCEAN_CLEAR_ATTR, "");
-        }
-      }
-    }
+    if (this.#canvas) markSurfaces(this.#canvas, OCEAN_CLEAR_ATTR);
   }
 
   // ---- colors --------------------------------------------------------------------------------------

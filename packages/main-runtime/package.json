@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@t3p/api": "workspace:*",
-    "t3p": "workspace:*",
+    "t3-patcher": "workspace:*",
     "@t3p/patch-engine": "workspace:*",
     "@t3p/preload-runtime": "workspace:*",
     "@t3p/renderer-runtime": "workspace:*",

@@ -1,9 +1,10 @@
 import type { SettingValue, T3Api } from "@t3p/api";
 
+import { CUSTOM_PANEL_CSS, renderCustomSection, type CustomApi } from "./custom-panel.js";
 import { HUE_DEFAULT_FIXED, PRESETS, PRESET_LABELS, layerVars, type ArtworkConfig, type Preset, type SavedArtwork } from "./model.js";
 
 /** Styles of the dock tab. Colors come only from app variables, so dark, light and custom themes follow. */
-export const PANEL_CSS = `
+export const PANEL_CSS = CUSTOM_PANEL_CSS + `
 .t3p-art-panel{display:flex;flex-direction:column;gap:14px;padding:10px 12px 16px;font-size:12px}
 .t3p-art-sec{display:flex;flex-direction:column;gap:8px;min-width:0}
 .t3p-art-sec>h3{margin:0;font-size:11px;font-weight:500;color:var(--muted-foreground,inherit);text-transform:none}
@@ -49,6 +50,7 @@ export interface PanelContext {
   clearLogo(): Promise<void>;
   /** Fires when images or the logo changed. */
   subscribe(fn: () => void): () => void;
+  custom: CustomApi;
   /** Applies a not yet saved value at once (live preview). `undefined` drops the preview. */
   preview(key: string, value: SettingValue | undefined): void;
 }
@@ -58,7 +60,7 @@ export const LOOK_KEYS = ["intensity", "speed", "fadeHeight", "blur", "angle", "
 export const OCEAN_KEYS = ["oceanOn", "oceanIntensity", "oceanSpeed", "oceanRipples"];
 export const LOGO_KEYS = ["logoMode", "logoText", "logoHeight"];
 /** Every setting the panel can reset. */
-export const ALL_KEYS = ["preset", "intensity", "speed", "hue", "fadeHeight", "blur", "angle", "scrim", "artworkName", "mainGlow", "oceanOn", "oceanIntensity", "oceanSpeed", "oceanRipples", "logoMode", "logoText", "logoHeight"];
+export const ALL_KEYS = ["preset", "intensity", "speed", "hue", "fadeHeight", "blur", "angle", "scrim", "artworkName", "mainGlow", "oceanOn", "oceanIntensity", "oceanSpeed", "oceanRipples", "logoMode", "logoText", "logoHeight", "allowRemoteAssets"];
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string, string> = {}, ...kids: Array<Node | string>): HTMLElementTagNameMap[K] => {
   const node = document.createElement(tag);
@@ -170,6 +172,10 @@ export function renderPanel(host: HTMLElement, ctx: PanelContext): () => void {
   const logoRow = el("div", { class: "t3p-art-img" });
   logoSec.appendChild(logoRow);
 
+  // ---- custom -------------------------------------------------------------------------------------
+  const customSec = section("Custom HTML / CSS");
+  disposers.push(renderCustomSection(customSec, ctx.custom, t3));
+
   // ---- images ------------------------------------------------------------------------------------
   const imgSec = section("Saved images");
   const list = el("div", { class: "t3p-art-imgs", "data-t3p-images": "" });
@@ -184,7 +190,7 @@ export function renderPanel(host: HTMLElement, ctx: PanelContext): () => void {
     }, "ghost"),
   );
 
-  root.append(presetSec, hueSec, lookSec, oceanSec, logoSec, imgSec, foot);
+  root.append(presetSec, hueSec, lookSec, oceanSec, logoSec, customSec, imgSec, foot);
 
   // ---- state sync --------------------------------------------------------------------------------
   const drawImages = (): void => {

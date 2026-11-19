@@ -38,7 +38,7 @@ if (process.platform !== "win32") console.warn("build-exe: not Windows; the outp
 const [major] = process.versions.node.split(".").map(Number);
 if (major < 22) throw new Error(`Node 22+ needed (SEA assets), running ${process.version}`);
 
-if (!skipBuild) runPnpm(["--filter", "t3p", "--filter", "@t3p/main-runtime...", "build"]);
+if (!skipBuild) runPnpm(["--filter", "t3-patcher", "--filter", "@t3p/main-runtime...", "build"]);
 for (const f of [bundle, join(runtimeDir, "main.cjs")]) {
   if (!existsSync(f)) throw new Error(`missing ${f}; run without --skip-build`);
 }

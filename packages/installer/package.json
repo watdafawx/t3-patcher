@@ -1,7 +1,7 @@
 {
-  "name": "t3p",
+  "name": "t3-patcher",
   "version": "0.1.1",
-  "description": "Installer CLI for T3 Patcher: a plugin loader for the T3 Code desktop app (Windows). Run with npx t3p install.",
+  "description": "Installer CLI for T3 Patcher: a plugin loader for the T3 Code desktop app (Windows). Run with npx t3-patcher install.",
   "keywords": [
     "t3-code",
     "t3",

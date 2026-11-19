@@ -42,9 +42,9 @@ The same exe is the command line tool: open a terminal and run `t3p.exe status`,
 ### Option 2: npm (needs Node 22 or newer)
 
 ```sh
-npx t3p install          # one-off
+npx t3-patcher install          # one-off
 # or install the command once:
-npm i -g t3p
+npm i -g t3-patcher
 t3p install
 ```
 
@@ -57,7 +57,7 @@ Close T3 Code, run `t3p.exe` (or `t3p`) and choose **Uninstall**, or from a term
 ### Update
 
 - **T3 Code updates:** nothing to do. The patcher puts itself back after an app update (a background worker, plus a repair task at logon). If it did not, run `t3p repair` or choose **Repair** in the menu. See [Updating and survival](docs/updating.md).
-- **T3 Patcher updates:** download the newer `t3p.exe` (or `npm i -g t3p@latest`), close T3 Code, then run `t3p install` again or choose **Update** in the menu (no Uninstall needed). It refreshes the runtime and says `Updated runtime X -> Y` or `Already up to date`. Your plugins and settings are kept.
+- **T3 Patcher updates:** download the newer `t3p.exe` (or `npm i -g t3-patcher@latest`), close T3 Code, then run `t3p install` again or choose **Update** in the menu (no Uninstall needed). It refreshes the runtime and says `Updated runtime X -> Y` or `Already up to date`. Your plugins and settings are kept.
 - A T3 Code version newer than 0.1.10 is refused until the patcher is updated for it. `--force` overrides that at your own risk.
 
 ### Safe mode / if something breaks

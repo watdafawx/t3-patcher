@@ -27,7 +27,7 @@
     "@t3p/api": "workspace:*"
   },
   "devDependencies": {
-    "t3p": "workspace:*",
+    "t3-patcher": "workspace:*",
     "@t3p/plugin-build": "workspace:*",
     "@types/node": "22",
     "tsdown": "^0.23.7",

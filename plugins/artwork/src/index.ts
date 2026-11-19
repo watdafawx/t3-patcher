@@ -1,5 +1,7 @@
 import type { PluginModule, SettingSchema, SettingValue, T3Api } from "@t3p/api";
 
+import { CUSTOM_KEY, CustomLayers, emptyBundle, parseBundle, serializeBundle, type CustomId } from "./custom.js";
+import { backgroundTemplate, headerTemplate } from "./custom-templates.js";
 import { Ocean } from "./ocean.js";
 import { PANEL_CSS, renderPanel } from "./panel.js";
 import {
@@ -108,6 +110,7 @@ const settings: SettingSchema[] = [
   { key: "oceanIntensity", type: "range", default: 60, min: 0, max: 100, label: "Ocean intensity", description: "How bright the letters are. Their color follows the app text color." },
   { key: "oceanSpeed", type: "range", default: 50, min: 0, max: 100, label: "Ocean speed", description: "Drift, shimmer and ripple speed. 0 is a still frame. Also still under reduced motion and paused while the window is hidden." },
   { key: "oceanRipples", type: "boolean", default: true, label: "Ocean ripples", description: "Clicks send a ripple through the letters and the pointer lights them up. Clicks always still reach the app." },
+  { key: "allowRemoteAssets", type: "boolean", default: false, label: "Allow remote assets", description: "Custom HTML/CSS may load http(s) images and urls. Off by default: remote files can track you and can change." },
   { key: "logoText", type: "string", default: "T3 Code", label: "Logo text", description: "Used when Logo is Custom text." },
   { key: "logoHeight", type: "range", default: 18, min: 10, max: 28, label: "Logo image height (px)", description: "Used when Logo is Custom image." },
 ];
@@ -146,8 +149,16 @@ const plugin: PluginModule = {
       angle: get<number>("angle"),
     });
 
+    const custom = new CustomLayers({ allowRemote: () => get<boolean>("allowRemoteAssets") });
+    disposers.push(() => custom.dispose());
+    let saveError = "";
+    let savedBytes = 0;
+    let saveTimer: ReturnType<typeof setTimeout> | undefined;
+    disposers.push(() => saveTimer && clearTimeout(saveTimer));
+    let customLoaded = false;
+
     const oceanConfig = (): OceanConfig => ({
-      on: get<boolean>("oceanOn"),
+      on: get<boolean>("oceanOn") && !custom.active("background"),
       intensity: get<number>("oceanIntensity"),
       speed: get<number>("oceanSpeed"),
       ripples: get<boolean>("oceanRipples"),
@@ -190,7 +201,8 @@ const plugin: PluginModule = {
       const vars = layerVars(cfg);
       // Image preset with nothing picked yet shows nothing rather than a blank gradient.
       const preset: Preset = cfg.preset === "image" && !activeImage ? "none" : cfg.preset;
-      applyLayer(sideLayer, preset, vars);
+      // Custom header takes over the sidebar backdrop only while it is on and valid.
+      applyLayer(sideLayer, custom.active("header") ? "none" : preset, vars);
       const mainPreset: Preset = preset === "image" || preset === "gradient" ? "mesh" : preset;
       const mainOn = get<boolean>("mainGlow") && preset !== "none";
       applyLayer(mainLayer, mainOn ? mainPreset : "none", { ...vars, "--t3p-art-height": "150px" }, mainGlowOpacity(cfg.intensity));
@@ -205,6 +217,7 @@ const plugin: PluginModule = {
         sideLayer.style.borderTopLeftRadius = sideLayer.style.borderTopRightRadius = getComputedStyle(inner as HTMLElement).borderTopLeftRadius;
         sideHost = host;
       }
+      custom.ensure(host);
       const inset = document.querySelector<HTMLElement>('[data-slot="sidebar-inset"]');
       if (inset && mainLayer.parentElement !== inset) {
         inset.insertBefore(mainLayer, inset.firstChild);
@@ -310,6 +323,47 @@ const plugin: PluginModule = {
       notify();
     };
 
+    // ---- custom bundle storage ---------------------------------------------------------------
+    const STORAGE_HEADROOM = 16_000;
+    const persist = (): void => {
+      if (!customLoaded) return;
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(async () => {
+        saveTimer = undefined;
+        const text = serializeBundle(custom.bundle());
+        const bytes = new TextEncoder().encode(text).length;
+        try {
+          const u = await t3.storage.usage().catch(() => ({ usedBytes: 0, limitBytes: 1_048_576 }));
+          if (bytes > u.limitBytes - u.usedBytes + savedBytes - STORAGE_HEADROOM) {
+            saveError = `Not saved: ${Math.round(bytes / 1024)} KB of custom code does not fit in the plugin storage. It stays applied until you restart. Shorten it or delete saved images.`;
+          } else {
+            await t3.storage.set(CUSTOM_KEY, custom.bundle() as never);
+            savedBytes = bytes;
+            saveError = "";
+          }
+        } catch (error) {
+          saveError = `Not saved: ${String(error)}`;
+        }
+        notify();
+      }, 500);
+    };
+    const loadCustom = async (): Promise<void> => {
+      const raw = await t3.storage.get(CUSTOM_KEY).catch(() => undefined);
+      const parsed = raw === undefined ? { bundle: emptyBundle() } : parseBundle(raw);
+      if (parsed.bundle) {
+        savedBytes = raw === undefined ? 0 : new TextEncoder().encode(serializeBundle(parsed.bundle)).length;
+        custom.load(parsed.bundle);
+      }
+      customLoaded = true;
+    };
+    disposers.push(
+      custom.onChange(() => {
+        applyAll();
+        persist();
+        notify();
+      }),
+    );
+
     // ---- image encode ------------------------------------------------------------------------
     const encodeImage = async (file: File, maxEdge: number, budget: number, alpha: boolean): Promise<string | null> => {
       const bitmap = await createImageBitmap(file);
@@ -402,6 +456,33 @@ const plugin: PluginModule = {
       activeImage = null;
       await refresh();
     };
+    const customApi = {
+      view: (id: CustomId) => custom.view(id),
+      update: (id: CustomId, patch: Partial<{ enabled: boolean; html: string; css: string }>) => custom.update(id, patch),
+      fromPreset(id: CustomId) {
+        const tpl = id === "header" ? headerTemplate(config()) : backgroundTemplate(config());
+        custom.update(id, { html: tpl.html, css: tpl.css });
+      },
+      reset: (id: CustomId) => void custom.update(id, { enabled: false, html: "", css: "" }),
+      exportText: () => JSON.stringify(custom.bundle(), null, 2),
+      importText(text: string): string | null {
+        const parsed = parseBundle(text.trim());
+        if (!parsed.bundle) return parsed.error ?? "Could not read that bundle.";
+        custom.load(parsed.bundle);
+        return null;
+      },
+      allowRemote: () => get<boolean>("allowRemoteAssets"),
+      setAllowRemote: (value: boolean) => void t3.settings.set("allowRemoteAssets", value),
+      async stats() {
+        const u = await t3.storage.usage().catch(() => ({ usedBytes: 0, limitBytes: 1_048_576 }));
+        return { bundleBytes: new TextEncoder().encode(serializeBundle(custom.bundle())).length, usedBytes: u.usedBytes, limitBytes: u.limitBytes };
+      },
+      status: () => saveError,
+      subscribe(fn: () => void) {
+        listeners.add(fn);
+        return () => listeners.delete(fn);
+      },
+    };
     const tab = t3.ui.register({
       slot: "rightPanel",
       id: "panel",
@@ -429,6 +510,7 @@ const plugin: PluginModule = {
           },
           setLogo,
           clearLogo,
+          custom: customApi,
           subscribe(fn) {
             listeners.add(fn);
             return () => listeners.delete(fn);
@@ -581,11 +663,12 @@ const plugin: PluginModule = {
     // ---- go ----------------------------------------------------------------------------------
     const unsub = t3.settings.onChange((change) => {
       live.delete(change.key);
+      if (change.key === "allowRemoteAssets") custom.revalidate();
       void refresh();
     });
     disposers.push(unsub);
     applyAll();
-    void Promise.all([loadArts(), loadLogo()]).then(refresh);
+    void Promise.all([loadArts(), loadLogo(), loadCustom()]).then(refresh);
 
     return () => {
       for (const d of disposers.reverse()) {

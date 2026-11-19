@@ -7,7 +7,7 @@ Two artifacts ship from one version number (`packages/installer/package.json`):
 | Route | Artifact | Built by |
 |---|---|---|
 | A (primary) | `t3p.exe` + `t3p.exe.sha256` on the GitHub release | `.github/workflows/release.yml` on a `v*` tag |
-| B | `t3p` on npm | by hand with your npm login (never from CI) |
+| B | `t3-patcher` on npm | by hand with your npm login (never from CI) |
 
 ## Cut a release
 
@@ -34,7 +34,7 @@ Two artifacts ship from one version number (`packages/installer/package.json`):
 
 `tools/build-exe.mjs` (about 80 lines, no extra tooling except the `postject` devDependency):
 
-1. Builds `t3p` and `@t3p/main-runtime` with their dependencies (`--skip-build` reuses existing output).
+1. Builds `t3-patcher` and `@t3p/main-runtime` with their dependencies (`--skip-build` reuses existing output).
 2. The main script is `packages/installer/dist/standalone/t3p.cjs`: the whole CLI in one file, with the shim text (`@t3p/shim`), `@t3p/api`, `@electron/asar` and `@electron/fuses` bundled in.
 3. The runtime folder (`packages/main-runtime/dist`: `main.cjs`, `preload.cjs`, `renderer.js`, `repair-worker.cjs`, `server-hook.mjs`, `sqlite-worker.cjs`, the patch catalogs) is packed into one gzip asset, `runtime.pack.gz` (source maps and `.d.mts` files left out; about 340 KB). Format and code: `packages/installer/src/runtime-pack.ts`.
 4. `node --experimental-sea-config` builds the SEA blob (main script plus that asset). The build copies the running `node.exe` to `dist-exe/t3p.exe` and `postject` injects the blob (`NODE_SEA_BLOB`). Injecting also drops Node's own Authenticode signature (the file reads as "not signed", never as a broken signature).
