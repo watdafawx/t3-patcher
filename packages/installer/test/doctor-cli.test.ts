@@ -134,7 +134,7 @@ describe("doctor", () => {
   });
 });
 
-describe("cli", () => {
+describe("cli", { timeout: 30_000 }, () => { // each case spawns the CLI; slow CI runners need more than 5 s
   it("prints valid JSON and exits 0 for a patched tree", async () => {
     await install(opts());
 
