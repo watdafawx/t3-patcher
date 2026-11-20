@@ -160,6 +160,9 @@ const plugin: PluginModule = {
     let player: Player | null = null;
     let recent: Recent[] = [];
     let lastError = "";
+    /** What is in the link field. Survives the section being re-rendered (the DOM does not). */
+    let draft = "";
+    let draftFocused = false;
     const remember = (): boolean => t3.settings.get<boolean>("rememberLinks");
     void t3.storage.get<JsonValue>("recent").then((v) => {
       if (Array.isArray(v)) recent = (v as unknown as Recent[]).filter((r) => r && typeof r.url === "string" && parseYouTube(r.url)).slice(0, MAX_RECENT);
@@ -359,7 +362,7 @@ const plugin: PluginModule = {
           timeText.textContent = poll.media.durSec > 0 ? `${formatTime(currentPosition(poll.media, Date.now()))} / ${formatTime(poll.media.durSec)}` : "";
         };
 
-        const buildYouTube = (): HTMLElement => {
+        const buildYouTube = (): { wrap: HTMLElement; input: HTMLInputElement } => {
           const wrap = el("div", "md-col");
           const row = el("div", "t3p-td-row md-yt");
           const input = el("input", "t3p-input");
@@ -369,11 +372,27 @@ const plugin: PluginModule = {
           input.autocomplete = "off";
           input.spellcheck = false;
           const go = (): void => {
-            if (play(input.value, "inline")) input.value = "";
+            if (play(input.value, "inline")) {
+              draft = "";
+              input.value = "";
+            }
           };
           input.addEventListener("keydown", (e) => {
             e.stopPropagation();
             if (e.key === "Enter") go();
+          });
+          // The section is re-rendered by the slot engine (and by our own redraw) whenever the app
+          // re-creates the details card, so the live DOM is not a safe place to keep what the user
+          // typed or pasted. Keep the text outside and put it (and the caret) back on every build.
+          input.value = draft;
+          input.addEventListener("input", () => {
+            draft = input.value;
+          });
+          input.addEventListener("focus", () => {
+            draftFocused = true;
+          });
+          input.addEventListener("blur", () => {
+            draftFocused = false;
           });
           const btn = iconButton("play", "Play link", go);
           row.append(input, btn);
@@ -392,7 +411,7 @@ const plugin: PluginModule = {
             }
             wrap.append(list);
           }
-          return wrap;
+          return { wrap, input };
         };
 
         const draw = (): void => {
@@ -415,7 +434,8 @@ const plugin: PluginModule = {
             const msg = poll.state === "unavailable" ? "Media session unavailable" : poll.state === "error" ? "Media session error" : "Nothing playing";
             root.append(el("div", "t3p-td-row md-now", msg));
           }
-          root.append(buildYouTube());
+          const youtube = buildYouTube();
+          root.append(youtube.wrap);
           if (player) {
             const p = player;
             const card = el("div", "md-col");
@@ -443,13 +463,21 @@ const plugin: PluginModule = {
               embedFor = p;
             }
           }
+          // The freshly built field is in the DOM now: give the text and caret back (a remount by the
+          // slot engine, or a redraw that had to happen, must not steal what the user was typing).
+          if (draft && draftFocused) {
+            youtube.input.focus();
+            youtube.input.setSelectionRange(draft.length, draft.length);
+          }
         };
 
         // Redraw on state changes, but never while the user is typing in the link field or the iframe would reload.
         const redraw = (): void => {
           const active = root.contains(document.activeElement) && document.activeElement instanceof HTMLInputElement;
           const needsEmbedChange = (player && player.where === "inline") !== (embedFor !== null) || (embedFor !== null && embedFor !== player);
-          if (active && !needsEmbedChange && poll.state === "ok" && lastPollKey === pollKey()) {
+          // Never rebuild the DOM under a focused field: it would drop the caret (and, before the
+          // draft above, the text). A pending embed change still redraws.
+          if (active && !needsEmbedChange) {
             updateProgress();
             return;
           }

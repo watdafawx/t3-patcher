@@ -80,8 +80,7 @@ it("redraws the now-playing button when the status changes: pause glyph while pl
   dispose();
 });
 
-it("status bar chip shows the action the click takes, like the popover button", async () => {
-  vi.useFakeTimers();
+it("status bar chip shows the action the click takes, like the popover button", async () => {  vi.useFakeTimers();
   let status: "Playing" | "Paused" = "Playing";
   const { t3, slots } = fakeT3(() => poll(status), true);
   stop = (plugin as unknown as { start(t3: unknown): () => void }).start(t3);
@@ -99,5 +98,60 @@ it("status bar chip shows the action the click takes, like the popover button", 
   expect(chip().textContent).toBe("▶ Song");
   expect(chip().title).toContain("click to play");
 
+  dispose();
+});
+
+it("keeps a pasted YouTube link when the section is re-rendered, and keeps the caret", async () => {
+  const { t3, slots } = fakeT3(() => poll("Playing"), false);
+  stop = (plugin as unknown as { start(t3: unknown): () => void }).start(t3);
+  const first = document.createElement("div");
+  document.body.appendChild(first);
+  const disposeFirst = slots.get("threadDetails")!.render(first);
+
+  const paste = (input: HTMLInputElement, text: string): void => {
+    input.focus();
+    input.value = text;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+  const url = "https://youtu.be/dQw4w9WgXcQ";
+  paste(first.querySelector("input")!, url);
+
+  // The slot engine drops and re-renders the section whenever the details card is re-created.
+  disposeFirst();
+  const second = document.createElement("div");
+  document.body.appendChild(second);
+  const disposeSecond = slots.get("threadDetails")!.render(second);
+  await Promise.resolve();
+
+  const again = second.querySelector("input")!;
+  expect(again.value).toBe(url);
+  expect(document.activeElement).toBe(again);
+  expect(again.selectionStart).toBe(url.length);
+
+  disposeSecond();
+});
+
+it("does not wipe the link field when the media session goes idle or unavailable", async () => {
+  vi.useFakeTimers();
+  let answer: object = poll("Playing");
+  const { t3, slots } = fakeT3(() => answer, false);
+  stop = (plugin as unknown as { start(t3: unknown): () => void }).start(t3);
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const dispose = slots.get("threadDetails")!.render(host);
+
+  await vi.advanceTimersByTimeAsync(1100);
+  const input = host.querySelector("input")!;
+  input.focus();
+  input.value = "https://youtu.be/dQw4w9WgXcQ";
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+
+  answer = { state: "idle" };
+  await vi.advanceTimersByTimeAsync(1100);
+  answer = { state: "unavailable", retryInMs: 1000 };
+  await vi.advanceTimersByTimeAsync(1100);
+
+  expect(host.querySelector("input")!.value).toBe("https://youtu.be/dQw4w9WgXcQ");
+  expect(document.activeElement).toBe(host.querySelector("input"));
   dispose();
 });
