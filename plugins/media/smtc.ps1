@@ -96,7 +96,8 @@ function Get-State {
     album    = [string]$props.AlbumTitle
     status   = [string]$info.PlaybackStatus
     app      = [string]$s.SourceAppUserModelId
-    posSec   = [math]::Round($tl.Position.TotalSeconds, 2)
+    # Position is relative to the item's start (streams can start at a non-zero timestamp).
+    posSec   = [math]::Round(($tl.Position - $tl.StartTime).TotalSeconds, 2)
     durSec   = [math]::Round(($tl.EndTime - $tl.StartTime).TotalSeconds, 2)
     updated  = [int64]$tl.LastUpdatedTime.ToUnixTimeMilliseconds()
     canPrev  = [bool]$info.Controls.IsPreviousEnabled
@@ -138,7 +139,16 @@ while ($true) {
         else {
           $s = (Get-Manager).GetCurrentSession()
           $ok = $false
-          if ($s) { $ok = Await ($s.TryChangePlaybackPositionAsync([long][math]::Round($sec * 10000000.0))) ([bool]) }
+          if ($s) {
+            # Absolute ticks = item start + requested offset, clamped to the seekable range.
+            $tl = $s.GetTimelineProperties()
+            $ticks = $tl.StartTime.Ticks + [long][math]::Round($sec * 10000000.0)
+            $min = $tl.MinSeekTime.Ticks
+            $max = $tl.MaxSeekTime.Ticks
+            if ($max -gt $min) { $ticks = [math]::Min([math]::Max($ticks, $min), $max) }
+            if ($ticks -lt 0) { $ticks = 0 }
+            $ok = Await ($s.TryChangePlaybackPositionAsync([long]$ticks)) ([bool])
+          }
           Send @{ id = $id; ok = $true; done = [bool]$ok }
         }
       }

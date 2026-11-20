@@ -126,10 +126,10 @@ describe("install", () => {
 
   it("refuses an unsupported version unless forced", async () => {
     tree.cleanup();
-    tree = await createFakeInstall({ version: "0.1.11" });
+    tree = await createFakeInstall({ version: "0.1.12" });
     runtimeSource = createRuntimeSource(tree.root);
 
-    await expect(install(opts())).rejects.toThrow(/0\.1\.11 is not supported/);
+    await expect(install(opts())).rejects.toThrow(/0\.1\.12 is not supported/);
     const forced = await install(opts({ force: true }));
     expect(forced.status).toBe("installed");
     expect(forced.warnings.join("\n")).toMatch(/outside the supported versions/);

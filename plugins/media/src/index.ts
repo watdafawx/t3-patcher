@@ -229,6 +229,7 @@ const plugin: PluginModule = {
 
     /** Builds the iframe + postMessage control. Returns the controls and a dispose. */
     const mountEmbed = (host: HTMLElement, p: Player): { toggle(): void; dispose(): void } => {
+      t3.log("debug", `embed mount ${targetKey(p.target)} where=${p.where} autoplay=${String(p.autoplay)} start=${p.startAt}`);
       const frame = el("div", "md-frame");
       const iframe = document.createElement("iframe");
       iframe.src = embedUrl(p.target, { autoplay: p.autoplay, start: p.startAt });
@@ -249,7 +250,10 @@ const plugin: PluginModule = {
         // Playback state lives in the iframe; the embed owns its UI. Keep our copy for pop-out and
         // for restoring the position later, but do not redraw: a redraw rebuilds the iframe, which
         // restarts the video (that used to play/pause-loop every time YouTube reported a change).
-        if (update.playing !== undefined) p.playing = update.playing;
+        if (update.playing !== undefined) {
+          if (update.playing !== p.playing) t3.log("debug", `embed state playing=${String(update.playing)}`);
+          p.playing = update.playing;
+        }
         if (update.currentTime !== undefined) p.currentTime = update.currentTime;
       };
       window.addEventListener("message", onMessage);
@@ -334,7 +338,6 @@ const plugin: PluginModule = {
         host.append(style, root);
         need("view", true);
         let embed: { toggle(): void; dispose(): void } | null = null;
-        let embedFor: Player | null = null;
         const progressBar = el("span");
         const timeText = el("span", "t3p-meta");
         /** The clickable progress bar of the latest draw, when the player accepts a position. */
@@ -503,30 +506,40 @@ const plugin: PluginModule = {
           return { wrap, input };
         };
 
-        const draw = (): void => {
-          embed?.dispose();
-          embed = null;
-          embedFor = null;
+        // Two independent hosts: the now-playing part follows the media session, the YouTube part
+        // only changes when the player itself changes. Rebuilding the iframe on any media-session
+        // update restarted the video (play/pause loop, and a lost position on every poll).
+        const nowHost = el("div");
+        const ytHost = el("div");
+        root.append(nowHost, ytHost);
+
+        const drawNow = (): void => {
           seekBar = null;
-          root.textContent = "";
+          nowHost.textContent = "";
           if (poll.state === "ok") {
-            root.append(buildNow(poll.media));
+            nowHost.append(buildNow(poll.media));
             if (poll.media.durSec > 0) {
               const prog = el("div", "md-prog");
               const bar = el("div", "t3p-bar");
               progressBar.style.width = "0%";
               bar.append(progressBar);
               prog.append(bar, timeText);
-              root.append(prog);
+              nowHost.append(prog);
               bindSeek(bar);
               updateProgress();
             }
           } else {
             const msg = poll.state === "unavailable" ? "Media session unavailable" : poll.state === "error" ? "Media session error" : "Nothing playing";
-            root.append(el("div", "t3p-td-row md-now", msg));
+            nowHost.append(el("div", "t3p-td-row md-now", msg));
           }
+        };
+
+        const drawYouTube = (): void => {
+          embed?.dispose();
+          embed = null;
+          ytHost.textContent = "";
           const youtube = buildYouTube();
-          root.append(youtube.wrap);
+          ytHost.append(youtube.wrap);
           if (player) {
             const p = player;
             const card = el("div", "md-col");
@@ -545,13 +558,12 @@ const plugin: PluginModule = {
             ctl.append(iconButton(p.where === "floating" ? "dock" : "popout", p.where === "floating" ? "Show here" : "Pop out", p.where === "floating" ? dockBack : popOut), iconButton("close", "Close player", closePlayer));
             head.append(text, ctl);
             card.append(head);
-            root.append(card);
+            ytHost.append(card);
             if (p.where === "inline") {
               const holder = el("div", "md-col");
               holder.style.padding = "0 .625rem";
               card.append(holder);
               embed = mountEmbed(holder, p);
-              embedFor = p;
             }
           }
           // The freshly built field is in the DOM now: give the text and caret back (a remount by the
@@ -562,32 +574,31 @@ const plugin: PluginModule = {
           }
         };
 
-        // Redraw on state changes, but never while the user is typing in the link field or the iframe would reload.
-        const redraw = (): void => {
-          const active = root.contains(document.activeElement) && document.activeElement instanceof HTMLInputElement;
-          const needsEmbedChange = (player && player.where === "inline") !== (embedFor !== null) || (embedFor !== null && embedFor !== player);
-          // Never rebuild the DOM under a focused field: it would drop the caret (and, before the
-          // draft above, the text). A pending embed change still redraws.
-          if (active && !needsEmbedChange) {
-            updateProgress();
-            return;
-          }
-          if (!needsEmbedChange && lastPollKey === pollKey() && lastErr === lastError && lastRecent === recent.length) {
-            updateProgress();
-            return;
-          }
-          lastPollKey = pollKey();
-          lastErr = lastError;
-          lastRecent = recent.length;
-          draw();
-        };
-        let lastPollKey = "";
-        let lastErr = "";
-        let lastRecent = -1;
-        const pollKey = (): string =>
+        // The now-playing block changes with the session; the YouTube block only with the player.
+        let lastNow = "";
+        let lastYt = "";
+        const nowKey = (): string =>
           poll.state === "ok"
             ? `${poll.media.key}|${poll.media.status}|${poll.media.canPrev}|${poll.media.canNext}|${poll.media.canSeek}|${poll.media.thumb ? 1 : 0}`
             : poll.state;
+        const ytKey = (): string =>
+          `${player ? `${targetKey(player.target)}|${player.where}|${player.startAt}|${player.autoplay}` : "none"}|${recent.length}|${lastError}`;
+        const redraw = (): void => {
+          let drew = false;
+          const nk = nowKey();
+          if (nk !== lastNow) {
+            lastNow = nk;
+            drawNow();
+            drew = true;
+          }
+          const yk = ytKey();
+          if (yk !== lastYt) {
+            lastYt = yk;
+            drawYouTube();
+            drew = true;
+          }
+          if (!drew) updateProgress();
+        };
         listeners.add(redraw);
         redraw();
         tick = setInterval(updateProgress, 500);
@@ -597,6 +608,7 @@ const plugin: PluginModule = {
           // The details card is short-lived (thread switch closes it). A playing inline video moves
           // to the floating mini player so playback continues; a paused one remembers its position.
           if (player && player.where === "inline") {
+            t3.log("debug", `card closed, inline video ${player.playing ? "floats" : "pauses"} at ${player.currentTime}s`);
             player = player.playing
               ? { ...player, where: "floating", startAt: player.currentTime }
               : { ...player, startAt: player.currentTime, autoplay: false, playing: false };
@@ -701,3 +713,4 @@ const plugin: PluginModule = {
 };
 
 export default plugin;
+

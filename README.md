@@ -38,7 +38,7 @@ T3 Code is an Electron-based desktop application. T3 Patcher uses a non-destruct
 
 ## Installation
 
-T3 Patcher supports Windows and T3 Code **0.1.10** (stable, Beta or Nightly channel). Two ways to install; pick one.
+T3 Patcher supports Windows and T3 Code **0.1.10 / 0.1.11** (stable, Beta or Nightly channel). Two ways to install; pick one.
 
 ### Option 1: download `t3p.exe` (recommended, no Node needed)
 
@@ -67,7 +67,7 @@ Close T3 Code, run `t3p.exe` (or `t3p`) and choose **Uninstall**, or from a term
 
 - **T3 Code updates:** nothing to do. The patcher puts itself back after an app update (a background worker, plus a repair task at logon). If it did not, run `t3p repair` or choose **Repair** in the menu. See [Updating and survival](docs/updating.md).
 - **T3 Patcher updates:** run `t3p update` (single-file exe): it asks GitHub for the latest release, verifies the published SHA-256 and replaces the exe in place, then refreshes the runtime. `t3p update --check` only reports. Or download the newer `t3p.exe`, close T3 Code and run `t3p install` again. With npm use `npm i -g t3-patcher@latest` (or `npx t3-patcher@latest`); `t3p update` says so instead of touching npm files. Your plugins and settings are kept.
-- A T3 Code version newer than 0.1.10 is refused until the patcher is updated for it. `--force` overrides that at your own risk.
+- A T3 Code version newer than 0.1.11 is refused until the patcher is updated for it. `--force` overrides that at your own risk.
 
 ### Safe mode / if something breaks
 
@@ -300,7 +300,7 @@ For complete architectural details and threat analysis, see [Security model](doc
 
 T3 Patcher targets a single supported upstream release of T3 Code at any given time.
 
-- Supported upstream version: **`0.1.10`** (tag `v0.1.10`, commit `7d32075e3757ded707914e2450c3e392a9665765`).
+- Supported upstream versions: **`0.1.10`, `0.1.11`**. The vendored contracts are from tag `v0.1.10` (commit `7d32075e3757ded707914e2450c3e392a9665765`); 0.1.11 passes the same patch and capture checks.
 - Electron version: `44.10.1`.
 - The installer verifies version compatibility before applying modifications unless `--force` is supplied.
 - When upstream releases a new version, the compatibility checker (`tools/compat`) evaluates patch match integrity, RPC contracts, and UI slot anchors before updating the supported version target.
@@ -318,3 +318,4 @@ For information on upstream version tracking and bump procedures, see [Upstream 
 - [Releasing](docs/release.md): Tagging a release, how `t3p.exe` is built, npm publish, checksum verification.
 - [Security model](docs/security.md): Detailed threat model, IPC sender verification, and service sandboxing.
 - [Upstream version](docs/upstream-version.md): Upstream commit tracking and version bump instructions.
+

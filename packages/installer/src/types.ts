@@ -1,7 +1,7 @@
 import type { Stats } from "node:fs";
 
 /** T3 Code builds this installer knows how to patch. */
-export const SUPPORTED_VERSIONS: readonly string[] = ["0.1.10"];
+export const SUPPORTED_VERSIONS: readonly string[] = ["0.1.10", "0.1.11"];
 
 /** The three Electron fuses that decide whether a replacement app.asar can load. */
 export interface FuseState {

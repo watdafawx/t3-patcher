@@ -196,11 +196,14 @@ it("leaves the progress bar inert when the session cannot seek", async () => {
 });
 
 it("keeps the YouTube iframe alive when playback state messages arrive", async () => {
-  const { t3, slots } = fakeT3(() => poll("Paused"), false);
+  vi.useFakeTimers();
+  let state = poll("Paused");
+  const { t3, slots } = fakeT3(() => state, false);
   stop = (plugin as unknown as { start(t3: unknown): () => void }).start(t3);
   const host = document.createElement("div");
   document.body.appendChild(host);
   const dispose = slots.get("threadDetails")!.render(host);
+  await vi.advanceTimersByTimeAsync(1100);
 
   const input = host.querySelector("input")!;
   input.value = "https://youtu.be/dQw4w9WgXcQ";
@@ -214,6 +217,13 @@ it("keeps the YouTube iframe alive when playback state messages arrive", async (
     );
   }
   expect(host.querySelector("iframe")).toBe(frame);
+
+  // A media-session update must not touch the embed either (that rebuilt the iframe and restarted
+  // the video, which looked like "plays, then pauses right away").
+  state = poll("Playing", { key: "Other|Artist|", title: "Other" });
+  await vi.advanceTimersByTimeAsync(1100);
+  expect(host.querySelector("iframe")).toBe(frame);
+  expect(host.querySelectorAll(".t3p-td-title")[0]!.textContent).toBe("Other");
   dispose();
 });
 

@@ -193,7 +193,8 @@ function createSmtcService(deps) {
       line = `${name} ${arg.toFixed(2)}`;
     }
     try {
-      await request(line);
+      const msg = await request(line);
+      if (name === "seek") log.info(`seek ${arg}s -> ${msg && msg.done ? "accepted by the player" : "refused by the player"}`);
     } catch {
       return unavailable();
     }

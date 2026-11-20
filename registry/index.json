@@ -106,7 +106,7 @@
       "homepage": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/media",
       "source": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/media",
       "license": "MIT",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "apiVersion": "1",
       "permissions": [
         "main",
@@ -125,9 +125,9 @@
         "youtube"
       ],
       "download": {
-        "url": "https://github.com/watdafawx/t3-patcher/releases/download/plugin-registry/t3p-plugin-media-0.1.2.zip",
-        "sha256": "cec0712034d95f35d8d9d84fdb9bfec896783109773c510e2873ff1a8e4dbdde",
-        "size": 18815
+        "url": "https://github.com/watdafawx/t3-patcher/releases/download/plugin-registry/t3p-plugin-media-0.1.3.zip",
+        "sha256": "ec3640b73723f5286166a2494c346eecd98406186cf92dee552ccc793924f69c",
+        "size": 19151
       }
     },
     {
