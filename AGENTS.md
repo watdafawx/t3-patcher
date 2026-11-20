@@ -17,7 +17,7 @@ T3 Patcher is a Vencord/Spicetify-style mod loader for the **T3 Code** Electron 
 | `packages/plugin-build`, `create-t3p-plugin` | build preset and scaffolder for plugin authors |
 | `plugins/*` | first-party plugins (cache-watch, keep-warm, provider-limits, provider-switcher, session-inspector, devtools, artwork, notes, media) and two samples (`_sample-hello`, `_demo-slots`) |
 | `registry/index.json` | the plugin registry (Browse tab, `t3p plugins install`); format and review in `docs/registry.md` |
-| `tools/registry` | `build-registry.mjs` (first-party zips + index, run by release.yml) and `validate-registry.mjs` (run by ci.yml) |
+| `tools/registry` | `build-registry.mjs` (first-party zips + index, run by `registry.yml`) and `validate-registry.mjs` (run by `ci.yml`) |
 | `tools/compat` | compatibility checker: runs every capture and patch against an upstream release |
 | `tools/rig` | scripts to run a patched app on a spare Windows machine with a debug port (optional) |
 | `docs/` | all documentation; `docs/api.md` is generated |

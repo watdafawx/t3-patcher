@@ -15,6 +15,8 @@
     "lint": "eslint .",
     "typecheck": "pnpm -r --filter \"!@t3p/contracts-vendor\" --filter \"!@t3p/tool-rig\" exec tsc --noEmit",
     "docs:api": "node tools/gen-api-docs.mjs",
+    "registry:build": "node tools/registry/build-registry.mjs --base-url https://github.com/watdafawx/t3-patcher/releases/download/plugin-registry --write-index",
+    "registry:validate": "node tools/registry/validate-registry.mjs --strict",
     "dev:sync": "node tools/dev-sync.mjs",
     "build:exe": "node tools/build-exe.mjs"
   },

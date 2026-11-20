@@ -11,7 +11,8 @@
  * --version      release version; download URLs point at release tag v<version>
  *                (default: packages/installer/package.json version)
  * --repo         GitHub owner/name for the download and homepage URLs
- * --base-url     use <base-url>/<asset> as download URL instead of the GitHub release (local test registries)
+ * --base-url     use <base-url>/<asset> as download URL instead of the GitHub release: the rolling
+ *                `plugin-registry` release (`pnpm registry:build`), or a local test registry
  * --write-index  also write registry/index.json in the repo (commit-ready; never pushed by this script)
  * --only         build only these plugin ids
  *
@@ -160,7 +161,9 @@ const text = `${JSON.stringify(index, null, 2)}\n`;
 writeFileSync(join(outDir, "index.json"), text);
 console.log(`index.json  ${entries.length} plugins  -> ${relative(ROOT, outDir) || "."}`);
 if (values["write-index"]) {
-  if (values["base-url"]) throw new Error("--write-index with --base-url would commit test URLs; refusing");
+  // A local test registry must never end up in the committed index; the rolling plugin release is fine.
+  const local = values["base-url"] && /^(http:\/\/)?(127\.0\.0\.1|localhost)(:|\/|$)/i.test(values["base-url"]);
+  if (local) throw new Error("--write-index with a local --base-url would commit test URLs; refusing");
   writeFileSync(indexPath, text);
   console.log("registry/index.json updated (commit it; this script never pushes)");
 }

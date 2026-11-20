@@ -1,6 +1,6 @@
 # Plugin registry
 
-The registry is one JSON file, [`registry/index.json`](../registry/index.json), in this repo. T3 Patcher reads it to show the **Browse** tab in Settings > Plugins and for `t3p plugins search|info|install|update`. Each entry points at a zip on a GitHub release and pins it by SHA-256.
+The registry is one JSON file, [`registry/index.json`](../registry/index.json), in this repo. T3 Patcher reads it to show the **Browse** tab in Settings > Plugins and for `t3p plugins search|info|install|update`. Each entry points at a zip on the rolling `plugin-registry` GitHub release and pins it by SHA-256. Plugin assets are published separately from patcher releases, so a plugin update needs no new `t3p.exe` (see [release.md](release.md#plugin-registry)).
 
 - Default URL: `https://raw.githubusercontent.com/watdafawx/t3-patcher/main/registry/index.json`.
 - Override with the `T3P_REGISTRY_URL` environment variable, or `"registryUrl"` in `~/.t3-patcher/config.json`. The environment variable wins. The URL must be https.
@@ -111,12 +111,14 @@ An update is reviewed like a new entry: the diff between the two tagged sources,
 
 ## First-party plugins
 
-`tools/registry/build-registry.mjs` builds the first-party entries from `plugins/*` (folders starting with `_` are samples and skipped). It is part of the release workflow, see [release.md](release.md#plugin-registry). Run it by hand after `pnpm -r build`:
+`tools/registry/build-registry.mjs` builds the first-party entries from `plugins/*` (folders starting with `_` are samples and skipped). The **Plugin registry** workflow runs it on `main` and publishes the zips to the rolling `plugin-registry` release; see [release.md](release.md#plugin-registry). To reproduce the committed index by hand after `pnpm -r build`:
 
 ```sh
-node tools/registry/build-registry.mjs                  # zips + index.json into dist-registry/
-node tools/registry/build-registry.mjs --write-index    # also rewrites registry/index.json (commit it)
+pnpm registry:build                                      # rolling-release URLs, rewrites registry/index.json
+node tools/registry/build-registry.mjs                   # zips + index.json into dist-registry/ only
 node tools/registry/build-registry.mjs --base-url http://127.0.0.1:8787   # a local test registry
 ```
+
+Uploading every zip of a plugin version is required before its index entry goes live: installed clients pin the SHA-256 from the index. Bump the plugin version (`plugin.json` + `package.json`) for any change users should receive; `t3p plugins update` compares versions.
 
 The zips are deterministic (fixed timestamps, sorted entries), so the same build gives the same hashes. Curated fields of an existing entry (tags, homepage, icon, screenshots, author, license) are kept; third-party entries are left alone.

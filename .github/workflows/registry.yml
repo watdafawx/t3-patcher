@@ -1,0 +1,131 @@
+name: Plugin registry
+
+# Publishes the plugin registry on its own release line, independent of patcher releases.
+# Push to main (or run by hand) builds one zip per first-party plugin, uploads them to the
+# rolling `plugin-registry` release and attaches the matching index.json. The zips and
+# index carry the plugin version in their names, so URLs stay stable across uploads.
+# Nothing is pushed: commit registry/index.json from the `registry-index` artifact.
+# See docs/release.md ("Plugin registry").
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "plugins/**"
+      - "packages/api/**"
+      - "packages/plugin-build/**"
+      - "tools/registry/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/registry.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: plugin-registry
+  cancel-in-progress: false
+
+env:
+  # Rolling release that holds every plugin zip. Never bump this tag.
+  RELEASE_TAG: plugin-registry
+  BASE_URL: https://github.com/${{ github.repository }}/releases/download/plugin-registry
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned upstream (type-only vendoring)
+        shell: bash
+        run: git clone --depth 1 --branch v0.1.10 https://github.com/pingdotgg/t3code .upstream
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The plugins call the `t3p-plugin-build` bin, which only links once its package is built.
+      - run: pnpm --filter "@t3p/plugin-build..." build
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r build
+      - run: pnpm -r test
+      - run: pnpm lint
+
+      # Download URLs point at the rolling release, not at a patcher tag: a plugin update no
+      # longer needs a patcher version bump. Deterministic zips (fixed timestamps, sorted).
+      - name: Build the registry
+        run: node tools/registry/build-registry.mjs --base-url ${{ env.BASE_URL }}
+      - name: Validate the registry
+        run: node tools/registry/validate-registry.mjs --strict dist-registry/index.json
+
+      # Create the rolling release once; keep it out of "Latest release" so the patcher stays there.
+      - name: Ensure the rolling release exists
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release create "${RELEASE_TAG}" \
+              --title "Plugin registry" \
+              --latest=false \
+              --notes "Machine-managed by .github/workflows/registry.yml. Holds the first-party plugin zips and index.json. Do not delete assets: installed clients pin their SHA-256."
+          fi
+
+      - name: Upload the zips and the index
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Filenames carry the plugin version. An existing zip is never replaced: installed clients
+          # pin its SHA-256, so a changed build with the same version would break them. Bump the
+          # plugin version instead; the verification step below fails loudly if a stale asset is kept.
+          published=$(gh release view "${RELEASE_TAG}" --json assets --jq '.assets[].name')
+          for file in dist-registry/*.zip; do
+            name=$(basename "$file")
+            if grep -qxF "$name" <<<"$published"; then
+              echo "keep $name (already published)"
+            else
+              gh release upload "${RELEASE_TAG}" "$file"
+            fi
+          done
+          # The index changes on every run (it lists every plugin); replacing it is the point.
+          gh release upload "${RELEASE_TAG}" dist-registry/index.json --clobber
+
+      # Prove the uploaded assets are live and match the index the CLI will read. The CDN can lag a few
+      # seconds after an upload, so retry before failing.
+      - name: Verify the published downloads
+        shell: bash
+        run: |
+          for attempt in 1 2 3 4; do
+            if node tools/registry/validate-registry.mjs --strict --verify-downloads dist-registry/index.json; then
+              exit 0
+            fi
+            echo "attempt ${attempt} failed; retrying in 15s"
+            sleep 15
+          done
+          exit 1
+
+      - name: Keep the commit-ready index
+        uses: actions/upload-artifact@v4
+        with:
+          name: registry-index
+          path: dist-registry/index.json
+
+      - name: Next step
+        shell: bash
+        run: |
+          {
+            echo "### Plugin assets published to \`${RELEASE_TAG}\`"
+            echo ""
+            echo "Commit the new index so clients see these versions:"
+            echo ""
+            echo '```sh'
+            echo "gh run download ${{ github.run_id }} -n registry-index -D registry"
+            echo "# registry/index.json is now dist-registry/index.json"
+            echo 'git add registry/index.json && git commit -m "chore(registry): plugin index"'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

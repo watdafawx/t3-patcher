@@ -42,19 +42,8 @@ jobs:
       - run: pnpm lint
       - run: pnpm build:exe
 
-      # Plugin registry: one zip per first-party plugin plus index.json pointing at this release's
-      # assets. registry/index.json is regenerated in the checkout (commit-ready) and uploaded as an
-      # artifact; nothing is pushed. See docs/release.md.
-      - name: Build the plugin registry
-        # The version defaults to packages/installer's, which the step above checked equals the tag.
-        run: node tools/registry/build-registry.mjs --write-index
-      - name: Validate the registry
-        run: node tools/registry/validate-registry.mjs --strict
-      - name: Keep the commit-ready registry/index.json
-        uses: actions/upload-artifact@v4
-        with:
-          name: registry-index
-          path: registry/index.json
+      # Plugin zips are published separately by the Plugin registry workflow (registry.yml) to the
+      # rolling `plugin-registry` release, so a plugin update does not need a patcher release.
 
       - name: Verify the checksum file
         shell: bash
@@ -88,5 +77,3 @@ jobs:
           files: |
             dist-exe/t3p.exe
             dist-exe/t3p.exe.sha256
-            dist-registry/*.zip
-            dist-registry/index.json

@@ -2,13 +2,13 @@
 
 For maintainers. Users: see the README "Installation" section.
 
-Two artifacts ship from one version number (`packages/installer/package.json`):
+Two artifacts ship from one version number (`packages/installer/package.json`); the plugin registry has its own release line and version numbers:
 
 | Route | Artifact | Built by |
 |---|---|---|
 | A (primary) | `t3p.exe` + `t3p.exe.sha256` on the GitHub release | `.github/workflows/release.yml` on a `v*` tag |
 | B | `t3-patcher` on npm | by hand with your npm login (never from CI) |
-| Registry | `t3p-plugin-<id>-<version>.zip` per first-party plugin + `index.json` on the same GitHub release | `release.yml`, see [Plugin registry](#plugin-registry) |
+| Registry | `t3p-plugin-<id>-<version>.zip` per first-party plugin + `index.json` on the rolling `plugin-registry` release | `.github/workflows/registry.yml` on `main`, see [Plugin registry](#plugin-registry) |
 
 ## Cut a release
 
@@ -20,7 +20,7 @@ Two artifacts ship from one version number (`packages/installer/package.json`):
    git push origin main v0.1.0
    ```
 4. The **Release** workflow (windows-latest, Node 22) installs, builds, tests, lints, runs `pnpm build:exe`, checks the checksum and a `t3p.exe selftest`, then creates the GitHub release with generated notes and uploads `t3p.exe` and `t3p.exe.sha256`. The notes start with the install steps and the SmartScreen note ("unsigned: More info > Run anyway").
-5. Commit the new plugin registry index (see [Plugin registry](#plugin-registry)).
+5. Plugin assets are not part of a patcher release: the **Plugin registry** workflow publishes them on `main` (see [Plugin registry](#plugin-registry)).
 6. Open the release page, check the notes, and download the exe once to smoke test it (`t3p.exe --version`, `t3p.exe status`) on a machine you do not mind.
 7. Publish to npm (needs your npm login; CI never publishes):
    ```sh
@@ -34,21 +34,31 @@ Two artifacts ship from one version number (`packages/installer/package.json`):
 
 ## Plugin registry
 
-The Browse tab and `t3p plugins install` read `registry/index.json` from `main` ([registry.md](registry.md)). The release workflow builds the first-party entries:
+The Browse tab and `t3p plugins install/update` read `registry/index.json` from `main` ([registry.md](registry.md)). **Patcher releases and plugin releases are separate.** Plugin zips and their index live on one rolling GitHub release, tag `plugin-registry`, which is created by `.github/workflows/registry.yml` and never versioned. A plugin update therefore needs no patcher version bump, no `v*` tag and no exe rebuild.
 
-1. `node tools/registry/build-registry.mjs --write-index` zips every `plugins/*` folder except samples (`_*`) into `dist-registry/t3p-plugin-<id>-<version>.zip` (deterministic: fixed timestamps, sorted entries), computes SHA-256 and size, and writes `dist-registry/index.json` plus a commit-ready `registry/index.json` whose download URLs point at `https://github.com/watdafawx/t3-patcher/releases/download/v<version>/`.
-2. `node tools/registry/validate-registry.mjs --strict` checks it.
-3. The zips and `index.json` are uploaded to the release; `registry/index.json` is also kept as the workflow artifact `registry-index`.
+The workflow runs on every push to `main` that touches `plugins/**`, `packages/api/**`, `packages/plugin-build/**`, `tools/registry/**` or `pnpm-lock.yaml` (or by hand). It:
 
-The workflow never pushes. After the release is published:
+1. runs `node tools/registry/build-registry.mjs --base-url https://github.com/watdafawx/t3-patcher/releases/download/plugin-registry`, which zips every `plugins/*` folder except samples (`_*`) into `dist-registry/t3p-plugin-<id>-<version>.zip` (deterministic: fixed timestamps, sorted entries), computes SHA-256 and size, and writes `dist-registry/index.json` whose download URLs point at the rolling release.
+2. `node tools/registry/validate-registry.mjs --strict dist-registry/index.json`
+3. creates the `plugin-registry` release if missing (`--latest=false`, so patcher releases keep "Latest"), then uploads every zip and `index.json` with `--clobber`.
+4. downloads them again (`--verify-downloads`) to prove the published hashes match, and keeps `dist-registry/index.json` as the `registry-index` artifact.
+
+The workflow never pushes. Commit the new index so clients read it:
 
 ```sh
-gh run download <run-id> -n registry-index -D registry   # or download index.json from the release page into registry/
-node tools/registry/validate-registry.mjs --strict --verify-downloads   # every zip downloads and matches its hash
-git add registry/index.json && git commit -m "chore(registry): index for v0.1.3"
+gh run download <run-id> -n registry-index -D registry
+# that writes registry/index.json
+node tools/registry/validate-registry.mjs --strict --verify-downloads
+git add registry/index.json && git commit -m "chore(registry): plugin index"
 ```
 
-Users see the new versions once this commit is on `main`. Do not rebuild the index locally for a release: the hashes must be those of the zips CI uploaded. Third-party entries in `registry/index.json` are carried over unchanged.
+Rules that keep this safe:
+
+- **Never replace an existing zip asset.** Filenames carry the plugin version and installed clients pin the SHA-256. The workflow uploads only new names (`index.json` is the only `--clobber`), then verifies the published downloads, so a changed build under an old version fails the job instead of breaking clients: bump the plugin version.
+- **Bump the plugin version** (`plugins/<id>/plugin.json` + `package.json`) with every change you want users to receive. `t3p plugins update` compares versions; an unchanged version is a no-op even if the zip changed.
+- Commit the index only after the workflow run published the matching assets. Old zips stay in place, so the previous index keeps working meanwhile.
+- The local `pnpm registry:build` writes the same commit-ready `registry/index.json` for review, but the workflow's artifact is authoritative (its hashes describe the assets actually uploaded).
+- Third-party entries in `registry/index.json` are carried over unchanged.
 
 ## How `t3p.exe` is built (`pnpm build:exe`)
 
