@@ -27,6 +27,18 @@ try {
   }
   $mgrType = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager]
   $mgr = Await ($mgrType::RequestAsync()) $mgrType
+  # A headless long-lived process never pumps WinRT events, so the session objects it gets at
+  # startup keep the snapshot from that moment (status, position and track never change).
+  # Asking the manager again per request returns fresh session objects with current state.
+  function Get-Manager {
+    try {
+      $script:mgr = Await ($mgrType::RequestAsync()) $mgrType
+    } catch {
+      # keep the previous manager: a transient failure must not kill a working session
+    }
+    if ($null -eq $script:mgr) { throw 'smtc manager unavailable' }
+    return $script:mgr
+  }
 } catch {
   Send @{ id = 0; ok = $false; unavailable = $true; error = "smtc unavailable: $($_.Exception.Message)" }
   exit 2
@@ -69,7 +81,7 @@ function Get-Thumb($props) {
 }
 
 function Get-State {
-  $s = $mgr.GetCurrentSession()
+  $s = (Get-Manager).GetCurrentSession()
   if ($null -eq $s) { return @{ ok = $true; session = $false } }
   $props = Await ($s.TryGetMediaPropertiesAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties])
   $info = $s.GetPlaybackInfo()
@@ -113,9 +125,9 @@ while ($true) {
   try {
     switch ($cmd) {
       'poll' { $r = Get-State; $r.id = $id; Send $r }
-      'toggle' { $s = $mgr.GetCurrentSession(); $ok = $false; if ($s) { $ok = Await ($s.TryTogglePlayPauseAsync()) ([bool]) }; Send @{ id = $id; ok = $true; done = [bool]$ok } }
-      'next' { $s = $mgr.GetCurrentSession(); $ok = $false; if ($s) { $ok = Await ($s.TrySkipNextAsync()) ([bool]) }; Send @{ id = $id; ok = $true; done = [bool]$ok } }
-      'prev' { $s = $mgr.GetCurrentSession(); $ok = $false; if ($s) { $ok = Await ($s.TrySkipPreviousAsync()) ([bool]) }; Send @{ id = $id; ok = $true; done = [bool]$ok } }
+      'toggle' { $s = (Get-Manager).GetCurrentSession(); $ok = $false; if ($s) { $ok = Await ($s.TryTogglePlayPauseAsync()) ([bool]) }; Send @{ id = $id; ok = $true; done = [bool]$ok } }
+      'next' { $s = (Get-Manager).GetCurrentSession(); $ok = $false; if ($s) { $ok = Await ($s.TrySkipNextAsync()) ([bool]) }; Send @{ id = $id; ok = $true; done = [bool]$ok } }
+      'prev' { $s = (Get-Manager).GetCurrentSession(); $ok = $false; if ($s) { $ok = Await ($s.TrySkipPreviousAsync()) ([bool]) }; Send @{ id = $id; ok = $true; done = [bool]$ok } }
       'quit' { Send @{ id = $id; ok = $true }; exit 0 }
       default { Send @{ id = $id; ok = $false; error = 'unknown command' } }
     }

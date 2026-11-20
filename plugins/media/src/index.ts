@@ -511,7 +511,8 @@ const plugin: PluginModule = {
               }
               chip.hidden = false;
               const playing = poll.media.status === "Playing";
-              label.textContent = `${playing ? "▶" : "❚❚"} ${poll.media.title}`;
+              // Same convention as the popover button: the glyph is the action the click takes.
+              label.textContent = `${playing ? "❚❚" : "▶"} ${poll.media.title}`;
               chip.title = `${poll.media.title}${poll.media.artist ? ` - ${poll.media.artist}` : ""} (click to ${playing ? "pause" : "play"})`;
             };
             chip.addEventListener("click", () => void command("toggle"));
