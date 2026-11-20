@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 
 import { readAsarPackageJson } from "./asar.js";
 import { T3pError } from "./errors.js";
@@ -54,28 +54,72 @@ export function inspectInstall(dir: string): InstallInfo | null {
   };
 }
 
-/** Parses `reg query ... /s` output and returns InstallLocation of T3 Code uninstall keys. */
+/** Parses `reg query ... /s` output and returns install dirs of T3 Code uninstall keys. */
 export function parseRegistryInstallLocations(stdout: string): string[] {
   const found: string[] = [];
   let displayName: string | null = null;
   let installLocation: string | null = null;
+  let uninstallString: string | null = null;
+  let displayIcon: string | null = null;
   const flush = (): void => {
-    if (displayName && /t3 code/i.test(displayName) && installLocation) found.push(installLocation);
+    if (displayName && /t3 code/i.test(displayName)) {
+      // electron-builder (T3 Code) often omits InstallLocation; the uninstaller and the icon sit
+      // in the install directory, so their path is the same answer.
+      const dir =
+        installLocation ??
+        installDirFromCommand(uninstallString) ??
+        installDirFromCommand(displayIcon);
+      if (dir) found.push(dir);
+    }
     displayName = null;
     installLocation = null;
+    uninstallString = null;
+    displayIcon = null;
   };
   for (const line of stdout.split(/\r?\n/)) {
     if (line.startsWith("HKEY_")) {
       flush();
       continue;
     }
-    const match = /^\s+(DisplayName|InstallLocation)\s+REG_[A-Z_]+\s+(.*)$/i.exec(line);
+    const match = /^\s+(DisplayName|InstallLocation|UninstallString|DisplayIcon)\s+REG_[A-Z_]+\s+(.*)$/i.exec(line);
     if (!match) continue;
-    if (match[1].toLowerCase() === "displayname") displayName = match[2].trim();
-    else installLocation = match[2].trim();
+    switch (match[1]!.toLowerCase()) {
+      case "displayname":
+        displayName = match[2]!.trim();
+        break;
+      case "installlocation":
+        installLocation = match[2]!.trim();
+        break;
+      case "uninstallstring":
+        uninstallString = match[2]!.trim();
+        break;
+      case "displayicon":
+        displayIcon = match[2]!.trim();
+        break;
+    }
   }
   flush();
   return found;
+}
+
+/**
+ * The directory of the exe in an UninstallString ("C:\x\Uninstall T3 Code.exe" /currentuser) or a
+ * DisplayIcon ("C:\x\T3 Code.exe,0"). Null when the value does not name a Windows executable.
+ */
+export function installDirFromCommand(value: string | null): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const quoted = /^"([^"]+)"/.exec(trimmed);
+  let exe = quoted ? quoted[1]! : trimmed;
+  if (!quoted) {
+    const switchAt = exe.search(/\s+\/|\s+--/);
+    if (switchAt > 0) exe = exe.slice(0, switchAt);
+  }
+  exe = exe.replace(/,\d+$/, "").trim();
+  if (!/\.exe$/i.test(exe)) return null;
+  const dir = dirname(exe);
+  return dir && dir !== exe ? dir : null;
 }
 
 function defaultRegistryQuery(): string | null {
@@ -86,7 +130,7 @@ function defaultRegistryQuery(): string | null {
 
 /**
  * Finds T3 Code installs: %LOCALAPPDATA%\\Programs\\<dir with "T3 Code" in its
- * name>, then the HKCU Uninstall keys' InstallLocation on Windows.
+ * name>, then the HKCU Uninstall keys' InstallLocation (or uninstaller path) on Windows.
  */
 export async function findInstalls(opts: FindInstallsOpts = {}): Promise<InstallInfo[]> {
   const platform = opts.platform ?? process.platform;
@@ -98,7 +142,9 @@ export async function findInstalls(opts: FindInstallsOpts = {}): Promise<Install
   const programs = join(localAppData, "Programs");
   try {
     for (const entry of readdirSync(programs, { withFileTypes: true })) {
-      if (entry.isDirectory() && /t3 code/i.test(entry.name)) candidates.push(join(programs, entry.name));
+      // NSIS installs use "T3 Code (Beta)"; some builds use "t3code". inspectInstall still has to
+      // find the exe and the asar, so a loose name match cannot produce a false positive.
+      if (entry.isDirectory() && /^t3[\s._-]?code/i.test(entry.name)) candidates.push(join(programs, entry.name));
     }
   } catch {
     // No Programs folder: not an install location, not an error.

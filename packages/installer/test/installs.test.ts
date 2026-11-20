@@ -7,6 +7,7 @@ import {
   channelFromExeName,
   findInstalls,
   inspectInstall,
+  installDirFromCommand,
   parseRegistryInstallLocations,
 } from "../src/installs.js";
 import { createFakeInstall, type FakeInstall } from "./fake-install.js";
@@ -73,6 +74,48 @@ describe("parseRegistryInstallLocations", () => {
       "C:\\Users\\me\\AppData\\Local\\Programs\\T3 Code (Beta)",
     ]);
   });
+
+  it("falls back to the uninstaller or the icon when InstallLocation is missing", () => {
+    // electron-builder's T3 Code entry has no InstallLocation: unlike most installers it only
+    // writes UninstallString, QuietUninstallString and DisplayIcon.
+    const stdout = [
+      "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{guid-1}",
+      "    DisplayName    REG_SZ    T3 Code (Beta) 0.1.10",
+      '    UninstallString    REG_SZ    "C:\\Users\\me\\AppData\\Local\\Programs\\t3code\\Uninstall T3 Code (Beta).exe" /currentuser',
+      "    QuietUninstallString    REG_SZ    \"C:\\Users\\me\\AppData\\Local\\Programs\\t3code\\Uninstall T3 Code (Beta).exe\" /currentuser /S",
+      "    DisplayIcon    REG_SZ    C:\\Users\\me\\AppData\\Local\\Programs\\t3code\\T3 Code (Beta).exe,0",
+      "",
+      "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{guid-2}",
+      "    DisplayName    REG_SZ    T3 Code (Nightly) 0.1.11",
+      "    DisplayIcon    REG_SZ    C:\\Elsewhere\\T3 Code (Nightly).exe,0",
+      "",
+      "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{guid-3}",
+      "    DisplayName    REG_SZ    Not Our App",
+      '    UninstallString    REG_SZ    "C:\\Other\\Uninstall.exe"',
+      "",
+    ].join("\r\n");
+
+    expect(parseRegistryInstallLocations(stdout)).toEqual([
+      "C:\\Users\\me\\AppData\\Local\\Programs\\t3code",
+      "C:\\Elsewhere",
+    ]);
+  });
+});
+
+describe("installDirFromCommand", () => {
+  it("reads the exe directory from uninstall strings and icons", () => {
+    expect(installDirFromCommand('"C:\\Apps\\t3code\\Uninstall T3 Code (Beta).exe" /currentuser')).toBe("C:\\Apps\\t3code");
+    expect(installDirFromCommand('"C:\\Apps\\t3code\\Uninstall T3 Code (Beta).exe" /currentuser /S')).toBe("C:\\Apps\\t3code");
+    expect(installDirFromCommand("C:\\Apps\\t3code\\T3 Code (Beta).exe,0")).toBe("C:\\Apps\\t3code");
+    expect(installDirFromCommand("C:\\Apps\\t3code\\T3 Code.exe --uninstall")).toBe("C:\\Apps\\t3code");
+  });
+
+  it("ignores values that are not a Windows executable path", () => {
+    expect(installDirFromCommand(null)).toBeNull();
+    expect(installDirFromCommand("")).toBeNull();
+    expect(installDirFromCommand("t3 code")).toBeNull();
+    expect(installDirFromCommand("C:\\Apps\\t3code\\readme.txt")).toBeNull();
+  });
 });
 
 describe("findInstalls", () => {
@@ -107,6 +150,22 @@ describe("findInstalls", () => {
     expect(found.map((install) => install.installDir).sort()).toEqual([beta.installDir, nightly.installDir].sort());
     expect(found.find((install) => install.installDir === nightly.installDir)?.channel).toBe("nightly");
     expect(found.find((install) => install.installDir === nightly.installDir)?.version).toBe("0.1.11");
+  });
+
+  it("finds an install whose folder is named t3code (no space)", async () => {
+    const root = await newRoot();
+    const install = await createFakeInstall({ root, dirName: "t3code" });
+    trees.push(install);
+
+    const found = await findInstalls({
+      localAppDataDir: root,
+      platform: "win32",
+      registryQuery: () => null,
+    });
+
+    expect(found).toHaveLength(1);
+    expect(found[0].installDir).toBe(install.installDir);
+    expect(found[0].channel).toBe("beta");
   });
 
   it("finds an install that only the registry knows about", async () => {
