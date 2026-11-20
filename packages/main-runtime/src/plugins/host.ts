@@ -207,6 +207,10 @@ export class PluginHost {
     const manifest = result.manifest;
     rec.manifest = manifest;
     const ps = pluginState(state, name);
+    // Declared ∩ granted, for disabled plugins too: the Plugins page derives its "granted" rows and
+    // "needs N" badge from `list()`, and a disabled plugin with grants must not look ungranted.
+    // Loaded plugins are the only ones served this set at runtime (permissionsFor/anyHolds check status).
+    rec.effective = effectivePermissions(manifest.permissions, ps.granted, { caseInsensitive: this.deps.platform === "win32" });
     if (!ps.enabled) {
       rec.status = "disabled";
       rec.disabledReason = ps.disabledReason ?? null;
@@ -224,7 +228,6 @@ export class PluginHost {
       log.warn(`plugin ${name}: ${rec.errors.at(-1)}`);
       return;
     }
-    rec.effective = effectivePermissions(manifest.permissions, ps.granted, { caseInsensitive: this.deps.platform === "win32" });
 
     if (manifest.main) {
       if (!rec.effective.main) {

@@ -205,6 +205,21 @@ describe("storage IPC channels", () => {
     expect(list.plugins[0]).toMatchObject({ id: "p1", tier: 2, declared: ["rpc"], effective: { rpc: true } });
     expect(list.plugins[0]!.rendererUrl).toBe("t3code://app/__t3p/plugins/p1/r.js");
   });
+
+  it("plugins:list reports the grants of a disabled plugin, but does not hand them out at runtime", async () => {
+    writePlugin("p1", { permissions: ["rpc"] });
+    writePlugin("m1", { main: "main.cjs", permissions: ["main"] }, { "main.cjs": "exports.activate=()=>{}" });
+    writeState({ plugins: { p1: { enabled: false, granted: ["rpc"] }, m1: { enabled: false, granted: ["main"] } } });
+    const h = harness();
+    await h.host.loadAll({ safe: false });
+    const list = (await h.call("t3p:plugins:list")) as { plugins: Array<{ id: string; status: string; effective: object }> };
+    expect(list.plugins.find((p) => p.id === "p1")).toMatchObject({ status: "disabled", effective: { rpc: true } });
+    expect(list.plugins.find((p) => p.id === "m1")).toMatchObject({ status: "disabled", effective: { main: true } });
+    // The Plugins page shows these as granted; nothing is loaded, so nothing can use them.
+    expect(h.host.permissionsFor("p1")).toBeNull();
+    expect(h.host.permissionsFor("m1")).toBeNull();
+    expect(h.host.rendererDir("p1")).toBeNull();
+  });
 });
 
 describe("plugin manager: enable, disable, load order", () => {

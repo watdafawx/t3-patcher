@@ -142,6 +142,11 @@ describe("registry dialogs", () => {
     expect(o.detail).toMatch(/none are granted by installing/);
     expect(o.detail).toMatch(/High risk: main/);
     expect(o.detail).toMatch(/• main/);
+    // main/patches/spawn cannot be switched on the Plugins page: point at the CLI.
+    expect(o.detail).toContain("t3p enable demo");
+    const plain = installDialogOptions(world("1.0.0", { permissions: ["rpc"] }).entry, REGISTRY_URL, null);
+    expect(plain.detail).toContain("Settings > Plugins");
+    expect(plain.detail).not.toContain("cannot switch");
     const u = installDialogOptions(entry, REGISTRY_URL, "0.9.0");
     expect(u.buttons[1]).toBe("Update");
     expect(u.detail).toMatch(/settings and stored data are kept/);

@@ -23,7 +23,7 @@ t3p plugins uninstall <id>
 t3p plugins list --installed              # same as plain `t3p plugins`
 ```
 
-Every install is **disabled with no permissions granted**. Enable it and grant permissions on the Installed tab or with `t3p enable <id>` and `t3p grant <id> <permission>`. Updates keep the plugin's enabled flag, grants, settings and stored data. Uninstall removes the plugin folder and its `state.json` entry; settings and stored data (`~/.t3-patcher/storage/<id>.json`) are kept. A plugin linked with `t3p dev` is never touched by install, update or uninstall.
+Every install is **disabled with no permissions granted**. Grant permissions on the Installed tab (each grant is confirmed in a native dialog) or with `t3p grant <id> <permission>`, then enable the plugin. Plugins without `main`, `patches` or `spawn` can be switched on the Installed tab; trusted plugins (any of those three) cannot, so start them with `t3p enable <id>`. Updates keep the plugin's enabled flag, grants, settings and stored data. Uninstall removes the plugin folder and its `state.json` entry; settings and stored data (`~/.t3-patcher/storage/<id>.json`) are kept. A plugin linked with `t3p dev` is never touched by install, update or uninstall.
 
 ## Entry fields
 

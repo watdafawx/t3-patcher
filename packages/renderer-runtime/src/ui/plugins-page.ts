@@ -336,7 +336,7 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
   // ---- detail ----------------------------------------------------------------------------------------
   const toggleFor = (plugin: ManagedPlugin): HTMLInputElement => {
     const trusted = isTrusted(plugin);
-    const on = plugin.status === "started" || plugin.status === "pending";
+    const on = plugin.status === "started" || plugin.status === "pending" || plugin.hostStatus === "active" || plugin.hostStatus === "loaded";
     return h("input", {
       class: "t3p-switch",
       type: "checkbox",
@@ -574,6 +574,8 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
     const trusted = isTrusted(plugin);
     const names = declaredNames(plugin);
     const missing = new Set(missingPermissions(plugin));
+    // Main plugins have no renderer, so `status` alone would call an active one "off".
+    const running = plugin.status === "started" || plugin.status === "pending" || plugin.hostStatus === "active" || plugin.hostStatus === "loaded";
     const all = plugin.status === "started" ? safeSchemas(manager, plugin.id) : [];
     // A plugin whose own name matched shows every setting; otherwise only the ones that matched.
     const shown = pluginNameMatches(plugin, query) ? all : matchingSchemas(all, query);
@@ -603,6 +605,17 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
               ...names.map((n) => h("span", { class: "t3p-pill", "data-tone": missing.has(n) ? "warn" : "ok", title: missing.has(n) ? "Not granted: see Permissions below" : "Granted" }, n)),
             )
           : h("div", { class: "t3p-pg-perms", "data-t3p-perms": "" }, h("span", { class: "t3p-meta" }, "No permissions requested")),
+        // The switch above is disabled for trusted plugins (main, patches, spawn): say so plainly,
+        // with the command that does work, instead of leaving only a hover title.
+        trusted
+          ? h(
+              "div",
+              { class: "t3p-muted", "data-t3p-cli-hint": "" },
+              `This plugin runs main-process code, so the switch is off limits: ${running ? "stop" : "start"} it with `,
+              h("code", null, `t3p ${running ? "disable" : "enable"} ${plugin.id}`),
+              ".",
+            )
+          : null,
         plugin.error ? h("div", { class: "t3p-error", "data-t3p-error": "" }, plugin.error) : null,
         plugin.disabledReason === "crash-loop"
           ? h("div", { class: "t3p-error", "data-t3p-disabled-reason": "" }, `Disabled by the crash-loop guard after repeated failed starts. Re-enable with: t3p enable ${plugin.id}`)

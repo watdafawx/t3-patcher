@@ -89,6 +89,19 @@ function permissionLines(entry: RegistryEntry): { lines: string[]; high: string[
   return { lines: names.length ? names.map((n) => `• ${describePermission(n, set)}`) : ["• none"], high: names.filter((n) => isHighRisk(n)) };
 }
 
+/** True for a plugin the Plugins page cannot switch: main-process code, patches or spawn (WP-3A). */
+function isTrustedEntry(entry: RegistryEntry): boolean {
+  const set = parsePermissions(entry.permissions).set;
+  return set.main !== undefined || set.patches === true || set.spawn !== undefined;
+}
+
+/** How to turn the plugin on after installing it; the Plugins page switch does not exist for trusted plugins. */
+function afterInstallHint(entry: RegistryEntry): string {
+  return isTrustedEntry(entry)
+    ? `It is installed disabled. Start it with \`t3p enable ${entry.id}\` (the Plugins page cannot switch main-process plugins), then grant its permissions there or with \`t3p grant ${entry.id} <permission>\`.`
+    : `It is installed disabled. Enable it and grant permissions in Settings > Plugins, or with \`t3p enable ${entry.id}\` and \`t3p grant ${entry.id} <permission>\`.`;
+}
+
 /** The install or update dialog. Exported for tests and docs. */
 export function installDialogOptions(entry: RegistryEntry, registryUrl: string, installed: string | null): MessageBoxOptions {
   const update = installed !== null;
@@ -112,7 +125,7 @@ export function installDialogOptions(entry: RegistryEntry, registryUrl: string, 
       "",
       "This runs code on your PC with your user rights once you enable it. Install only plugins you trust as much as an installed program.",
       ...(high.length ? [`High risk: ${high.join(", ")}.`] : []),
-      update ? "Its settings and stored data are kept." : "It is installed disabled. Enable it and grant permissions in Settings > Plugins.",
+      update ? "Its settings and stored data are kept." : afterInstallHint(entry),
       SOURCE_NOTE,
     ].join("\n"),
     buttons: ["Cancel", update ? "Update" : "Install", ...(hasPermissions ? [update ? "Update and review permissions" : "Install and review permissions"] : [])],

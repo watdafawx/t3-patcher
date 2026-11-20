@@ -549,6 +549,32 @@ describe("permissions section", () => {
     expect(q("[data-t3p-perm-section]")).toBeNull();
   });
 
+  it("shows the grants of a disabled trusted plugin and points at the CLI instead of the switch", () => {
+    mount(
+      fakeManager([
+        plugin("media", "Media", {
+          status: "inactive",
+          hostStatus: "disabled",
+          declared: ["main", "embed.youtube", { spawn: { allow: ["C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"] } }],
+          effective: { main: true, "embed.youtube": true, spawn: { allow: ["C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"] } },
+        }),
+      ]),
+    );
+    const toggle = q<HTMLInputElement>("[data-t3p-toggle=media]");
+    expect(toggle.disabled).toBe(true);
+    expect(toggle.checked).toBe(false);
+    expect(q("[data-t3p-perm-count]").textContent).toBe("3 of 3 granted");
+    expect(q("[data-t3p-item='media'] [data-t3p-badge=perm]")).toBeNull();
+    expect(all("[data-t3p-perm-section='media'] [data-t3p-grant-request]")).toEqual([]);
+    expect(q("[data-t3p-cli-hint]").textContent).toContain("t3p enable media");
+  });
+
+  it("asks the CLI to stop a trusted plugin that is already running", () => {
+    mount(fakeManager([plugin("media", "Media", { hostStatus: "active", declared: ["main"], effective: { main: true } })]));
+    expect(q<HTMLInputElement>("[data-t3p-toggle=media]").checked).toBe(true);
+    expect(q("[data-t3p-cli-hint]").textContent).toContain("t3p disable media");
+  });
+
   it("palette 'Plugins: review permissions' opens the first plugin that needs one", async () => {
     const f = fakeManager([plugin("keep-warm", "Keep warm", { declared: ["rpc"], effective: { rpc: true } }), ...PERMS().slice(0, 1)]);
     const shell = new Shell({ native: null, systemBus: createEventBus(() => undefined), log: () => undefined, consoleError: () => undefined });
