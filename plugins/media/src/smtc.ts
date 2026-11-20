@@ -11,6 +11,8 @@ export interface MediaState {
   canPrev: boolean;
   canNext: boolean;
   canToggle: boolean;
+  /** The player accepts a position change (SMTC IsPlaybackPositionEnabled). */
+  canSeek: boolean;
   /** Small `data:image/jpeg` URL, or `null`. */
   thumb: string | null;
   key: string;
@@ -51,6 +53,7 @@ export function parseMediaPoll(raw: unknown): MediaPoll {
       canPrev: m.canPrev === true,
       canNext: m.canNext === true,
       canToggle: m.canToggle !== false,
+      canSeek: m.canSeek === true,
       thumb,
       key: text(m.key),
     },

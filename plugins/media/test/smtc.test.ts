@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { currentPosition, formatTime, parseMediaPoll, pollInterval, progressFraction } from "../src/smtc.js";
 
-const media = { title: "Song", artist: "Artist", album: "Album", status: "Playing", posSec: 10, durSec: 100, updated: 1_000_000, canPrev: true, canNext: false, canToggle: true, thumb: "data:image/jpeg;base64,/9j/4AAQ", key: "k" };
+const media = { title: "Song", artist: "Artist", album: "Album", status: "Playing", posSec: 10, durSec: 100, updated: 1_000_000, canPrev: true, canNext: false, canToggle: true, canSeek: true, thumb: "data:image/jpeg;base64,/9j/4AAQ", key: "k" };
 
 describe("parseMediaPoll", () => {
   it("accepts a valid state", () => {
@@ -23,6 +23,12 @@ describe("parseMediaPoll", () => {
   it("maps odd status and bad numbers safely", () => {
     const r = parseMediaPoll({ state: "ok", media: { ...media, status: "Changing", posSec: -3, durSec: "x", updated: NaN } });
     expect(r.state === "ok" && r.media).toMatchObject({ status: "Other", posSec: 0, durSec: 0, updated: 0 });
+  });
+  it("only reports seeking when the session says it can", () => {
+    const yes = parseMediaPoll({ state: "ok", media });
+    expect(yes.state === "ok" && yes.media.canSeek).toBe(true);
+    const no = parseMediaPoll({ state: "ok", media: { ...media, canSeek: undefined } });
+    expect(no.state === "ok" && no.media.canSeek).toBe(false);
   });
   it("is idle without a title and artist", () => {
     expect(parseMediaPoll({ state: "ok", media: { ...media, title: "", artist: "" } })).toEqual({ state: "idle" });

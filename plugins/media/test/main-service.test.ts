@@ -9,7 +9,7 @@ interface Result {
 }
 const require = createRequire(import.meta.url);
 const { createSmtcService, IDLE_MS, BACKOFF_START_MS } = require("../main-service.cjs") as {
-  createSmtcService(deps: Record<string, unknown>): { poll(): Promise<Result>; command(n: string): Promise<Result>; stop(): void; _state(): { running: boolean; backoffMs: number; pending: number } };
+  createSmtcService(deps: Record<string, unknown>): { poll(): Promise<Result>; command(n: string, arg?: number): Promise<Result>; stop(): void; _state(): { running: boolean; backoffMs: number; pending: number } };
   IDLE_MS: number;
   BACKOFF_START_MS: number;
 };
@@ -150,6 +150,20 @@ describe("smtc service", () => {
     expect((await c).media!.status).toBe("Paused");
     expect(h.spawns[0]!.written[0]).toMatch(/^1 toggle\n$/);
     await expect(h.service.command("rm -rf")).rejects.toThrow();
+  });
+
+  it("seeks with an invariant position and refuses a bad one", async () => {
+    const h = harness();
+    const c = h.service.command("seek", 82.5);
+    h.answer(0, { done: true });
+    await Promise.resolve();
+    await Promise.resolve();
+    h.answer(1, { ...track, posSec: 82.5 });
+    const r = await c;
+    expect(r.media!.status).toBe("Playing");
+    expect(h.spawns[0]!.written[0]).toBe("1 seek 82.50\n");
+    await expect(h.service.command("seek", -1)).rejects.toThrow(/position/);
+    await expect(h.service.command("seek", Number.NaN)).rejects.toThrow(/position/);
   });
 
   it("stop() kills the helper and fails pending requests", async () => {

@@ -1,5 +1,5 @@
 # Media plugin helper: reads the Windows system media session (SMTC) and answers one JSON line per command.
-# Protocol (stdin, one command per line):  "<id> poll" | "<id> toggle" | "<id> next" | "<id> prev" | "<id> quit"
+# Protocol (stdin, one command per line):  "<id> poll" | "<id> toggle" | "<id> next" | "<id> prev" | "<id> seek <seconds>" | "<id> quit"
 # Reply (stdout, one JSON object per line): {"id":<id>,"ok":true,...} or {"id":<id>,"ok":false,"error":"..."}
 # Exits when stdin closes. Read-only apart from the three transport commands. No network, no files written.
 $ErrorActionPreference = 'Stop'
@@ -102,6 +102,7 @@ function Get-State {
     canPrev  = [bool]$info.Controls.IsPreviousEnabled
     canNext  = [bool]$info.Controls.IsNextEnabled
     canToggle = [bool]($info.Controls.IsPlayPauseToggleEnabled -or $info.Controls.IsPlayEnabled -or $info.Controls.IsPauseEnabled)
+    canSeek  = [bool]$info.Controls.IsPlaybackPositionEnabled
   }
   if ($key -ne $script:lastKey) {
     $script:lastKey = $key
@@ -118,16 +119,29 @@ function Get-State {
 while ($true) {
   $line = [Console]::In.ReadLine()
   if ($null -eq $line) { break }
-  $parts = $line.Trim().Split(' ', 2)
+  $parts = $line.Trim().Split(' ', 3)
   $id = 0
   if (-not [int]::TryParse($parts[0], [ref]$id)) { continue }
   $cmd = if ($parts.Count -gt 1) { $parts[1] } else { '' }
+  $arg = if ($parts.Count -gt 2) { $parts[2] } else { '' }
   try {
     switch ($cmd) {
       'poll' { $r = Get-State; $r.id = $id; Send $r }
       'toggle' { $s = (Get-Manager).GetCurrentSession(); $ok = $false; if ($s) { $ok = Await ($s.TryTogglePlayPauseAsync()) ([bool]) }; Send @{ id = $id; ok = $true; done = [bool]$ok } }
       'next' { $s = (Get-Manager).GetCurrentSession(); $ok = $false; if ($s) { $ok = Await ($s.TrySkipNextAsync()) ([bool]) }; Send @{ id = $id; ok = $true; done = [bool]$ok } }
       'prev' { $s = (Get-Manager).GetCurrentSession(); $ok = $false; if ($s) { $ok = Await ($s.TrySkipPreviousAsync()) ([bool]) }; Send @{ id = $id; ok = $true; done = [bool]$ok } }
+      'seek' {
+        # Position in seconds (invariant culture), converted to the 100 ns ticks the API wants.
+        $sec = 0.0
+        $parsed = [double]::TryParse($arg, [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$sec)
+        if (-not $parsed -or $sec -lt 0) { Send @{ id = $id; ok = $false; error = 'seek needs a non-negative position in seconds' } }
+        else {
+          $s = (Get-Manager).GetCurrentSession()
+          $ok = $false
+          if ($s) { $ok = Await ($s.TryChangePlaybackPositionAsync([long][math]::Round($sec * 10000000.0))) ([bool]) }
+          Send @{ id = $id; ok = $true; done = [bool]$ok }
+        }
+      }
       'quit' { Send @{ id = $id; ok = $true }; exit 0 }
       default { Send @{ id = $id; ok = $false; error = 'unknown command' } }
     }

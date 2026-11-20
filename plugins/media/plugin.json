@@ -2,14 +2,23 @@
   "id": "media",
   "name": "Media",
   "description": "Now playing (Windows media session) and a YouTube player in the thread details popover, with an optional status bar chip.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "tier": 1,
   "permissions": [
     "main",
     "embed.youtube",
-    { "spawn": { "allow": ["C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe", "~/.t3-patcher/plugins/media/smtc.ps1"] } }
+    {
+      "spawn": {
+        "allow": [
+          "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
+          "~/.t3-patcher/plugins/media/smtc.ps1"
+        ]
+      }
+    }
   ],
-  "t3Versions": ["*"],
+  "t3Versions": [
+    "*"
+  ],
   "main": "main.cjs",
   "renderer": "dist/renderer.js"
 }

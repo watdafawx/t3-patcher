@@ -24,6 +24,10 @@ const STYLE = `
 [data-t3p-plugin="media"] .md-ico svg{width:1rem;height:1rem;fill:currentColor}
 [data-t3p-plugin="media"] .md-prog{display:flex;align-items:center;gap:.5rem;padding:0 .625rem}
 [data-t3p-plugin="media"] .md-prog .t3p-bar{flex:1}
+[data-t3p-plugin="media"] .t3p-bar.md-seek{position:relative;cursor:pointer;touch-action:none}
+[data-t3p-plugin="media"] .t3p-bar.md-seek::before{content:"";position:absolute;inset:-6px 0}
+[data-t3p-plugin="media"] .t3p-bar.md-seek:hover{filter:brightness(1.15)}
+[data-t3p-plugin="media"] .t3p-bar.md-seek:focus-visible{outline:2px solid var(--ring,currentColor);outline-offset:3px}
 [data-t3p-plugin="media"] .md-yt{gap:.5rem;padding:0 .25rem 0 0}
 [data-t3p-plugin="media"] .md-yt .t3p-input{flex:1;min-width:0;height:2rem}
 [data-t3p-plugin="media"] .md-frame{position:relative;width:100%;aspect-ratio:16/9;border-radius:var(--t3p-radius);overflow:hidden;background:var(--muted,color-mix(in srgb,currentColor 10%,transparent))}
@@ -242,9 +246,11 @@ const plugin: PluginModule = {
         if (e.origin !== EMBED_ORIGIN || e.source !== iframe.contentWindow) return;
         const update = parsePlayerMessage(e.data);
         if (!update || player !== p) return;
+        // Playback state lives in the iframe; the embed owns its UI. Keep our copy for pop-out and
+        // for restoring the position later, but do not redraw: a redraw rebuilds the iframe, which
+        // restarts the video (that used to play/pause-loop every time YouTube reported a change).
         if (update.playing !== undefined) p.playing = update.playing;
         if (update.currentTime !== undefined) p.currentTime = update.currentTime;
-        notify();
       };
       window.addEventListener("message", onMessage);
       return {
@@ -331,6 +337,8 @@ const plugin: PluginModule = {
         let embedFor: Player | null = null;
         const progressBar = el("span");
         const timeText = el("span", "t3p-meta");
+        /** The clickable progress bar of the latest draw, when the player accepts a position. */
+        let seekBar: HTMLElement | null = null;
         let tick: ReturnType<typeof setInterval> | null = null;
 
         const buildNow = (m: MediaState): HTMLElement => {
@@ -360,6 +368,87 @@ const plugin: PluginModule = {
           const f = progressFraction(poll.media, Date.now());
           progressBar.style.width = f === null ? "0%" : `${(f * 100).toFixed(1)}%`;
           timeText.textContent = poll.media.durSec > 0 ? `${formatTime(currentPosition(poll.media, Date.now()))} / ${formatTime(poll.media.durSec)}` : "";
+          if (seekBar) seekBar.setAttribute("aria-valuenow", String(Math.round(currentPosition(poll.media, Date.now()))));
+        };
+
+        /** Asks the system media session to move to `fraction` (0..1) of the track. */
+        const seekTo = (fraction: number): void => {
+          if (poll.state !== "ok" || !poll.media.canSeek || !(poll.media.durSec > 0)) return;
+          const m = poll.media;
+          const sec = Math.min(m.durSec, Math.max(0, fraction * m.durSec));
+          // Show the new position at once; the session answers with the authoritative state.
+          poll = { state: "ok", media: { ...m, posSec: sec, updated: Date.now() } };
+          updateProgress();
+          void t3.native
+            .invoke("seek", { sec })
+            .then((raw) => {
+              poll = parseMediaPoll(raw);
+              notify();
+            })
+            .catch((error: unknown) => t3.log("warn", `seek failed: ${String(error)}`));
+        };
+
+        /** Turns the progress track into a slider: click, drag, arrow keys, Home/End. */
+        const bindSeek = (bar: HTMLElement): void => {
+          if (poll.state !== "ok" || !poll.media.canSeek || !(poll.media.durSec > 0)) return;
+          seekBar = bar;
+          bar.classList.add("md-seek");
+          bar.tabIndex = 0;
+          bar.setAttribute("role", "slider");
+          bar.setAttribute("aria-label", "Seek");
+          bar.setAttribute("aria-valuemin", "0");
+          bar.setAttribute("aria-valuemax", String(Math.round(poll.media.durSec)));
+          const fractionAt = (clientX: number): number => {
+            const rect = bar.getBoundingClientRect();
+            return rect.width > 0 ? Math.min(1, Math.max(0, (clientX - rect.left) / rect.width)) : 0;
+          };
+          const preview = (f: number): void => {
+            if (poll.state !== "ok") return;
+            progressBar.style.width = `${(f * 100).toFixed(1)}%`;
+            timeText.textContent = `${formatTime(f * poll.media.durSec)} / ${formatTime(poll.media.durSec)}`;
+          };
+          let dragging = false;
+          bar.addEventListener("pointerdown", (e) => {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            e.stopPropagation();
+            dragging = true;
+            bar.setPointerCapture(e.pointerId);
+            preview(fractionAt(e.clientX));
+          });
+          bar.addEventListener("pointermove", (e) => {
+            if (dragging) preview(fractionAt(e.clientX));
+          });
+          const finish = (e: PointerEvent): void => {
+            if (!dragging) return;
+            dragging = false;
+            try {
+              bar.releasePointerCapture(e.pointerId);
+            } catch {
+              // pointer already released
+            }
+            seekTo(fractionAt(e.clientX));
+          };
+          bar.addEventListener("pointerup", finish);
+          bar.addEventListener("pointercancel", () => {
+            dragging = false;
+            updateProgress();
+          });
+          bar.addEventListener("click", (e) => e.stopPropagation());
+          bar.addEventListener("keydown", (e) => {
+            if (poll.state !== "ok") return;
+            const m = poll.media;
+            const step = e.shiftKey ? 30 : 5;
+            const at = currentPosition(m, Date.now());
+            const key = e.key;
+            if (key === "ArrowLeft") seekTo((at - step) / m.durSec);
+            else if (key === "ArrowRight") seekTo((at + step) / m.durSec);
+            else if (key === "Home") seekTo(0);
+            else if (key === "End") seekTo(1);
+            else return;
+            e.preventDefault();
+            e.stopPropagation();
+          });
         };
 
         const buildYouTube = (): { wrap: HTMLElement; input: HTMLInputElement } => {
@@ -418,6 +507,7 @@ const plugin: PluginModule = {
           embed?.dispose();
           embed = null;
           embedFor = null;
+          seekBar = null;
           root.textContent = "";
           if (poll.state === "ok") {
             root.append(buildNow(poll.media));
@@ -428,6 +518,7 @@ const plugin: PluginModule = {
               bar.append(progressBar);
               prog.append(bar, timeText);
               root.append(prog);
+              bindSeek(bar);
               updateProgress();
             }
           } else {
@@ -481,30 +572,35 @@ const plugin: PluginModule = {
             updateProgress();
             return;
           }
-          if (!needsEmbedChange && lastPollKey === pollKey() && lastErr === lastError && lastRecent === recent.length && lastPlaying === Boolean(player?.playing)) {
+          if (!needsEmbedChange && lastPollKey === pollKey() && lastErr === lastError && lastRecent === recent.length) {
             updateProgress();
             return;
           }
           lastPollKey = pollKey();
           lastErr = lastError;
           lastRecent = recent.length;
-          lastPlaying = Boolean(player?.playing);
           draw();
         };
         let lastPollKey = "";
         let lastErr = "";
         let lastRecent = -1;
-        let lastPlaying = false;
-        const pollKey = (): string => (poll.state === "ok" ? `${poll.media.key}|${poll.media.status}|${poll.media.canPrev}|${poll.media.canNext}|${poll.media.thumb ? 1 : 0}` : poll.state);
+        const pollKey = (): string =>
+          poll.state === "ok"
+            ? `${poll.media.key}|${poll.media.status}|${poll.media.canPrev}|${poll.media.canNext}|${poll.media.canSeek}|${poll.media.thumb ? 1 : 0}`
+            : poll.state;
         listeners.add(redraw);
         redraw();
         tick = setInterval(updateProgress, 500);
         return () => {
           if (tick) clearInterval(tick);
           listeners.delete(redraw);
-          // Closing the card ends an inline player; remember where it was for next time.
+          // The details card is short-lived (thread switch closes it). A playing inline video moves
+          // to the floating mini player so playback continues; a paused one remembers its position.
           if (player && player.where === "inline") {
-            player = { ...player, startAt: player.currentTime, autoplay: false, playing: false };
+            player = player.playing
+              ? { ...player, where: "floating", startAt: player.currentTime }
+              : { ...player, startAt: player.currentTime, autoplay: false, playing: false };
+            notify();
           }
           embed?.dispose();
           need("view", false);

@@ -8,7 +8,7 @@ const REQUEST_TIMEOUT_MS = 8_000;
 const MIN_POLL_GAP_MS = 700;
 const BACKOFF_START_MS = 5_000;
 const BACKOFF_MAX_MS = 300_000;
-const COMMANDS = new Set(["toggle", "next", "prev"]);
+const COMMANDS = new Set(["toggle", "next", "prev", "seek"]);
 
 /**
  * @param {{
@@ -185,10 +185,15 @@ function createSmtcService(deps) {
     return inflightPoll;
   }
 
-  async function command(name) {
+  async function command(name, arg) {
     if (!COMMANDS.has(name)) throw new Error("unknown media command");
+    let line = name;
+    if (name === "seek") {
+      if (typeof arg !== "number" || !Number.isFinite(arg) || arg < 0) throw new Error("seek needs a position in seconds");
+      line = `${name} ${arg.toFixed(2)}`;
+    }
     try {
-      await request(name);
+      await request(line);
     } catch {
       return unavailable();
     }

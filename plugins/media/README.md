@@ -6,9 +6,9 @@ Now playing and a YouTube player, inside T3 Code's thread details popover (the c
 
 ## What it does
 
-- **Now playing.** Cover, title, artist, previous / play-pause / next, progress bar and time. It reads the Windows system media session (SMTC), so it shows whatever you play in Spotify, a browser, etc. Empty state: "Nothing playing".
+- **Now playing.** Cover, title, artist, previous / play-pause / next, progress bar and time. It reads the Windows system media session (SMTC), so it shows whatever you play in Spotify, a browser, etc. Empty state: "Nothing playing". Click, drag or use the arrow keys on the progress bar to seek (5 s, Shift for 30 s; Home/End go to the start/end) when the player exposes a timeline and allows position changes.
 - **Paste YouTube link.** Accepts `youtu.be/<id>`, `youtube.com/watch?v=`, `/shorts/`, `/embed/`, `/live/` and `/playlist?list=` (also `music.youtube.com`). Anything else is refused by a strict parser (host allow list, 11-character id pattern, no credentials or ports). The video plays in a 16:9 `youtube-nocookie.com` embed with a close button and a thumbnail (`i.ytimg.com`, loaded only after you paste a link).
-- **Pop out.** The embed can float as a draggable mini player above the status bar and keeps playing after the popover closes. Closing the popover while the embed is inline stops it (it resumes where it was when you reopen).
+- **Pop out.** The embed can float as a draggable mini player above the status bar and keeps playing after the popover closes. Closing the popover while the embed is inline and playing moves it to the mini player, so switching threads or closing the card does not stop the video; a paused inline video keeps its position and resumes when you reopen the card.
 - **Command palette:** "Media: play YouTube link" opens a mini player directly.
 - **Status bar chip** (setting `statusChip`, off by default): the current title with ellipsis, click to play/pause.
 - **Recent links** (setting `rememberLinks`, off by default): keeps the last 5 links and asks YouTube's oEmbed for their titles. With it off the plugin makes no network request except the embed and its thumbnail.
