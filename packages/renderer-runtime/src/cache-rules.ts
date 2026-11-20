@@ -48,6 +48,9 @@ export const SKEW_TOLERANCE_MS = 60_000;
  *   fetched 2026-11-19); a secondary report says full-input caches last at least 72 h, with a short in-memory tier
  *   of minutes that only affects speed. The low end (3 h) is used so the countdown errs early. Models behind OpenCode
  *   with a 5 min cache (Anthropic, OpenAI) need the cache-watch OpenCode setting set to 5.
+ * - `antigravity` 300000 (5 min): Gemini 4 Neon uses implicit caching only (explicit caching / custom TTL not
+ *   supported; min 4,096-token prefix, 2,050-token delta rule, 95% read discount). Eviction is dynamic server-side,
+ *   typically ~5 to 6 minutes of inactivity; the low end (5 min) is used so the countdown errs early.
  *
  * Other drivers have no entry: their state has `expiresAt: null`.
  */
@@ -55,6 +58,7 @@ export const DEFAULT_ASSUMED_TTL_MS: Readonly<Record<string, number>> = Object.f
   claudeAgent: 300_000,
   codex: 300_000,
   opencode: 10_800_000,
+  antigravity: 300_000,
 });
 
 interface UsageWire {

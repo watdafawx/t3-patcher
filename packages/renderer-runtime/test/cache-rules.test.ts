@@ -16,6 +16,7 @@ const turn = (providerThreadId: string, at: number, usage: Record<string, unknow
 const threads = [
   { id: "pt-claude", driver: "claudeAgent", providerInstanceId: "claudeAgent" },
   { id: "pt-codex", driver: "codex", providerInstanceId: "codex" },
+  { id: "pt-agy", driver: "antigravity", providerInstanceId: "antigravity" },
 ];
 const proj = (turns: unknown[], provider = "claudeAgent"): CacheProjectionWire => ({
   thread: { providerInstanceId: provider },
@@ -86,6 +87,11 @@ describe("computeCacheState", () => {
     const p = proj([turn("pt-codex", T0, { inputTokens: 3, cachedInputTokens: 2 })], "codex");
     expect(computeCacheState(p, T0)).toEqual({ expiresAt: T0 + 300_000, ttlMs: 300_000, source: "assumed", lastRequestAt: T0 });
     expect(computeCacheState(p, T0, { codex: 600_000 })).toMatchObject({ ttlMs: 600_000, expiresAt: T0 + 600_000 });
+  });
+
+  it("assumed: antigravity turn without ttl uses the 5-minute default", () => {
+    const p = proj([turn("pt-agy", T0, { inputTokens: 5000, cachedInputTokens: 4096 })], "antigravity");
+    expect(computeCacheState(p, T0)).toEqual({ expiresAt: T0 + 300_000, ttlMs: 300_000, source: "assumed", lastRequestAt: T0 });
   });
 
   it("unknown provider: assumed with null expiry", () => {

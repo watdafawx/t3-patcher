@@ -47,6 +47,15 @@ const settings: SettingSchema[] = [
     description: "OpenCode reports no expiry, so this is an estimate. 0 = built-in default (3 h, DeepSeek's disk cache: cleared after a few hours to days). If you run Anthropic or OpenAI models through OpenCode, set 5.",
   },
   {
+    key: "ttlMinutesAntigravity",
+    type: "number",
+    default: 0,
+    min: 0,
+    max: 1440,
+    label: "Antigravity (Gemini): assumed cache minutes",
+    description: "Gemini implicit cache reports no expiry, so this is an estimate. 0 = built-in default (5 min; dynamic server-side eviction).",
+  },
+  {
     key: "cacheReadPerM",
     type: "number",
     default: 0,
@@ -66,7 +75,12 @@ const settings: SettingSchema[] = [
   },
 ];
 
-const PROVIDER_KEYS: Record<string, string> = { claudeAgent: "ttlMinutesClaudeAgent", codex: "ttlMinutesCodex", opencode: "ttlMinutesOpencode" };
+const PROVIDER_KEYS: Record<string, string> = {
+  claudeAgent: "ttlMinutesClaudeAgent",
+  codex: "ttlMinutesCodex",
+  opencode: "ttlMinutesOpencode",
+  antigravity: "ttlMinutesAntigravity",
+};
 
 const plugin: PluginModule = {
   start(t3: T3Api) {

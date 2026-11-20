@@ -69,14 +69,15 @@ export interface PriceOverrides {
 
 /**
  * Built-in input prices ($/M tokens, approximate public list prices) by model family. Cache read is
- * 0.1x input; cache write (5 min) is 1.25x input for Claude, and plain input for GPT/Codex (OpenAI
- * has no write surcharge). Estimates only: edit via the plugin settings.
+ * 0.1x input (0.05x for Gemini 4 Neon); cache write (5 min) is 1.25x input for Claude, and plain input
+ * for GPT/Codex and Gemini (no write surcharge). Estimates only: edit via the plugin settings.
  */
-const FAMILIES: ReadonlyArray<{ match: RegExp; input: number; write: number }> = [
+const FAMILIES: ReadonlyArray<{ match: RegExp; input: number; write: number; read?: number }> = [
   { match: /opus/i, input: 5, write: 1.25 },
   { match: /sonnet/i, input: 3, write: 1.25 },
   { match: /haiku/i, input: 1, write: 1.25 },
   { match: /gpt|codex/i, input: 1.25, write: 1 },
+  { match: /gemini-4-neon|neon/i, input: 3, write: 1, read: 0.05 },
 ];
 
 const positive = (n: number | undefined): n is number => typeof n === "number" && Number.isFinite(n) && n > 0;
@@ -84,7 +85,7 @@ const positive = (n: number | undefined): n is number => typeof n === "number" &
 /** Prices for a model, or `null` when the family is unknown and no override covers both sides. */
 export function pricesFor(model: string | null, overrides: PriceOverrides = {}): CachePrices | null {
   const family = model ? FAMILIES.find((f) => f.match.test(model)) : undefined;
-  const readPerM = positive(overrides.cacheReadPerM) ? overrides.cacheReadPerM : family ? family.input * 0.1 : undefined;
+  const readPerM = positive(overrides.cacheReadPerM) ? overrides.cacheReadPerM : family ? family.input * (family.read ?? 0.1) : undefined;
   const writePerM = positive(overrides.cacheWritePerM) ? overrides.cacheWritePerM : family ? family.input * family.write : undefined;
   return readPerM === undefined || writePerM === undefined ? null : { readPerM, writePerM };
 }
