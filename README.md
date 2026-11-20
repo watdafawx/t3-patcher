@@ -66,7 +66,7 @@ Close T3 Code, run `t3p.exe` (or `t3p`) and choose **Uninstall**, or from a term
 ### Update
 
 - **T3 Code updates:** nothing to do. The patcher puts itself back after an app update (a background worker, plus a repair task at logon). If it did not, run `t3p repair` or choose **Repair** in the menu. See [Updating and survival](docs/updating.md).
-- **T3 Patcher updates:** download the newer `t3p.exe` (or `npm i -g t3-patcher@latest`), close T3 Code, then run `t3p install` again or choose **Update** in the menu (no Uninstall needed). It refreshes the runtime and says `Updated runtime X -> Y` or `Already up to date`. Your plugins and settings are kept.
+- **T3 Patcher updates:** run `t3p update` (single-file exe): it asks GitHub for the latest release, verifies the published SHA-256 and replaces the exe in place, then refreshes the runtime. `t3p update --check` only reports. Or download the newer `t3p.exe`, close T3 Code and run `t3p install` again. With npm use `npm i -g t3-patcher@latest` (or `npx t3-patcher@latest`); `t3p update` says so instead of touching npm files. Your plugins and settings are kept.
 - A T3 Code version newer than 0.1.10 is refused until the patcher is updated for it. `--force` overrides that at your own risk.
 
 ### Safe mode / if something breaks
@@ -94,6 +94,7 @@ Usage:
   t3p dev       <plugin-folder> [--json]
   t3p dev       --unlink <id> [--json]
   t3p safe      [--off]
+  t3p update    [--check] [--json]
 ```
 
 ### Commands
@@ -162,6 +163,16 @@ Controls safe mode for emergency troubleshooting.
 - `t3p safe`: Writes `<T3P_HOME>/.t3-patcher/safe-mode`. The next launch starts the stock app directly without loading any plugins, patches, or preloads, consuming the marker.
 - `t3p safe --off`: Removes a pending safe-mode marker.
 - Safe mode can also be triggered via environment variable `T3P_SAFE=1` or command-line switch `--t3p-safe`.
+
+#### `t3p update`
+
+Updates the single-file `t3p.exe` to the latest release of this repository.
+
+- Asks `api.github.com` for `releases/latest`, compares it with the running version, then downloads `t3p.exe` and `t3p.exe.sha256` from that release. It writes nothing unless the SHA-256 matches.
+- Replaces the running file in place (Windows allows renaming a running exe) and then starts `t3p repair --if-stale` so an existing patched install picks up the new runtime. Restart T3 Code to load it.
+- Never runs on its own: no background check, no silent update.
+- Refuses to act when the copy came from npm or source; use `npm i -g t3-patcher@latest` (or `npx t3-patcher@latest`) there.
+- `--check` only reports whether a newer version exists; `--json` prints the result object.
 
 ## Plugin Installation and Management
 

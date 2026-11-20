@@ -30,6 +30,8 @@ export { uninstall } from "./uninstall.js";
 export { repair, repairRecorded } from "./repair.js";
 export { ensureLogonTask, removeLogonTask, buildWrapper, buildTaskXml, validateTaskXml, DEFAULT_TASK_NAME } from "./logon-task.js";
 export { status } from "./status.js";
+export { selfUpdate, compareVersions, cleanupPreviousExe, formatUpdate, UPDATE_REPO } from "./self-update.js";
+export type { UpdateOptions, UpdateResult } from "./self-update.js";
 export { doctor } from "./doctor.js";
 export { readFusesFromExe, fusesAreSafe, describeFuses } from "./fuses.js";
 export { manifestPath, readManifest, sha256File } from "./manifest.js";

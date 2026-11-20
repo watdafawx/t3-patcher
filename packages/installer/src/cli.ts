@@ -15,6 +15,7 @@ import { readManifest } from "./manifest.js";
 import { repair, repairRecorded } from "./repair.js";
 import { runRealMenu, wantsMenu } from "./menu-cli.js";
 import { isSingleFileExe } from "./runtime-pack.js";
+import { cleanupPreviousExe, formatUpdate, selfUpdate } from "./self-update.js";
 import { status } from "./status.js";
 import type { DoctorCheck, InstallResult, StatusReport } from "./types.js";
 import { uninstall } from "./uninstall.js";
@@ -44,6 +45,7 @@ Usage:
   t3p dev       <plugin-folder> [--json]
   t3p dev       --unlink <id> [--json]
   t3p safe      [--off]
+  t3p update    [--check] [--json]
   t3p --version
   t3p selftest
 
@@ -63,6 +65,7 @@ Options:
                 without --root/--allow the plugin's declared scope is granted
   --allow EXE   grant spawn of this absolute .exe path
   --off         safe: cancel a pending safe-mode start
+  --check       update: only report the latest version, download nothing
   --yes, -y     plugins install/update/uninstall: do not ask
   --installed   plugins list: installed plugins instead of the registry
   --all         plugins update: every installed registry plugin with an update
@@ -150,6 +153,7 @@ function registerLogonTask(skip: boolean, homeDir: string | undefined, installDi
 }
 
 async function main(argv: string[]): Promise<number> {
+  cleanupPreviousExe();
   const command = argv[0];
   if (command === "--version" || command === "-v" || command === "version") {
     console.log(VERSION);
@@ -195,6 +199,7 @@ async function main(argv: string[]): Promise<number> {
         root: { type: "string", multiple: true },
         allow: { type: "string", multiple: true },
         off: { type: "boolean", default: false },
+        check: { type: "boolean", default: false },
         unlink: { type: "boolean", default: false },
         yes: { type: "boolean", short: "y", default: false },
         installed: { type: "boolean", default: false },
@@ -221,6 +226,7 @@ async function main(argv: string[]): Promise<number> {
     root?: string[];
     allow?: string[];
     off: boolean;
+    check: boolean;
     unlink: boolean;
     yes: boolean;
     installed: boolean;
@@ -342,6 +348,12 @@ async function main(argv: string[]): Promise<number> {
       if (values.json) printJson(result);
       else console.log(result.pending ? `next T3 Code start runs in safe mode (no plugins, no patches): ${result.marker}` : "safe-mode request removed");
       return 0;
+    }
+    case "update": {
+      const result = await selfUpdate({ currentVersion: VERSION, check: values.check, homeDir });
+      if (values.json) printJson(result);
+      else console.log(formatUpdate(result));
+      return result.status === "error" ? 1 : 0;
     }
     case "dev": {
       const [arg, ...rest] = positionals;

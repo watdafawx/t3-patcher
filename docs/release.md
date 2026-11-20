@@ -19,7 +19,7 @@ Two artifacts ship from one version number (`packages/installer/package.json`); 
    git tag v0.1.0
    git push origin main v0.1.0
    ```
-4. The **Release** workflow (windows-latest, Node 22) installs, builds, tests, lints, runs `pnpm build:exe`, checks the checksum and a `t3p.exe selftest`, then creates the GitHub release with generated notes and uploads `t3p.exe` and `t3p.exe.sha256`. The notes start with the install steps and the SmartScreen note ("unsigned: More info > Run anyway").
+4. The **Release** workflow (windows-latest, Node 22) installs, builds, tests, lints, runs `pnpm build:exe`, checks the checksum and a `t3p.exe selftest`, then creates the GitHub release with generated notes and uploads `t3p.exe` and `t3p.exe.sha256`. The notes start with the install steps and the SmartScreen note ("unsigned: More info > Run anyway"). Users on a single-file exe can then run `t3p update` (it reads `releases/latest` and the two assets above).
 5. Plugin assets are not part of a patcher release: the **Plugin registry** workflow publishes them on `main` (see [Plugin registry](#plugin-registry)).
 6. Open the release page, check the notes, and download the exe once to smoke test it (`t3p.exe --version`, `t3p.exe status`) on a machine you do not mind.
 7. Publish to npm (needs your npm login; CI never publishes):

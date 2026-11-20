@@ -344,6 +344,15 @@ Goal: a plugin that fails on every launch must not keep failing forever.
   - The worker only re-applies the layout. It does not download anything.
   - Rig evidence (11) ran this flow with the real worker under the Electron copy against a running app.
 
+## 9.1 Patcher self-update (`t3p update`)
+
+- Opt-in only: one command, no background check, no silent update, no update from a plugin or the renderer.
+- Source is fixed: `api.github.com/repos/watdafawx/t3-patcher/releases/latest` and that release's `t3p.exe` + `t3p.exe.sha256`. No user-supplied URL; https only; redirects are followed by hand and must stay on GitHub's download hosts (section 4.7 rules, same client).
+- Size capped (200 MiB) and timed out (20 s per request). The download is staged next to the target, verified against the SHA-256 from the **same release**, and only then renamed over the running exe. A mismatch writes nothing.
+- Not defended: a release published under the maintainer's account can carry any binary and its matching checksum. The checksum protects against a corrupted transfer, not a malicious release. Review notes before updating, as with any executable from the internet. The new binary replaces the code that the next `t3p` command runs, so an update is equivalent to installing that release deliberately.
+- After the swap it starts `t3p repair --if-stale` (detached) so an existing patched install picks up the embedded runtime. That is the same layout write `t3p repair` does (section 9); no new privilege.
+- Running from npm/source refuses to self-update: there is no exe to swap, and npm's own versioning is the right channel there.
+
 ## 10. Not defended (explicit)
 
 - Anything running as the user: it can edit `~/.t3-patcher/`, `state.json`, the runtime, or the install dir.
