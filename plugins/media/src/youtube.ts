@@ -99,14 +99,17 @@ export function watchUrl(t: YouTubeTarget): string {
 }
 
 /** Command message for the embed's postMessage channel (the iframe API script is blocked by T3's script-src). */
-export function playerCommand(func: "playVideo" | "pauseVideo" | "stopVideo", id?: string): string {
-  return JSON.stringify({ event: "command", func, args: "", ...(id ? { id } : {}) });
+export function playerCommand(func: "playVideo" | "pauseVideo" | "stopVideo" | "setVolume" | "mute" | "unMute", args: unknown = ""): string {
+  return JSON.stringify({ event: "command", func, args: func === "setVolume" ? [args] : args });
 }
 
 /** Messages from the embed: `{event:"onStateChange",info:1}` (1 playing, 2 paused) and `infoDelivery` with `currentTime`. */
 export interface PlayerUpdate {
   playing?: boolean;
   currentTime?: number;
+  /** 0..100, as reported by the embed. */
+  volume?: number;
+  muted?: boolean;
 }
 
 export function parsePlayerMessage(data: unknown): PlayerUpdate | null {
@@ -124,9 +127,11 @@ export function parsePlayerMessage(data: unknown): PlayerUpdate | null {
   const out: PlayerUpdate = {};
   if (m.event === "onStateChange" && typeof m.info === "number") out.playing = m.info === 1;
   if (m.event === "infoDelivery" && m.info && typeof m.info === "object") {
-    const info = m.info as { playerState?: unknown; currentTime?: unknown };
+    const info = m.info as { playerState?: unknown; currentTime?: unknown; volume?: unknown; muted?: unknown };
     if (typeof info.playerState === "number") out.playing = info.playerState === 1;
     if (typeof info.currentTime === "number" && Number.isFinite(info.currentTime) && info.currentTime >= 0) out.currentTime = info.currentTime;
+    if (typeof info.volume === "number" && Number.isFinite(info.volume) && info.volume >= 0 && info.volume <= 100) out.volume = Math.round(info.volume);
+    if (typeof info.muted === "boolean") out.muted = info.muted;
   }
-  return "playing" in out || "currentTime" in out ? out : null;
+  return "playing" in out || "currentTime" in out || "volume" in out || "muted" in out ? out : null;
 }

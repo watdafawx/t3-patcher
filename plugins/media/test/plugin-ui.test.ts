@@ -20,9 +20,10 @@ interface Registered {
 }
 
 /** Enough of T3Api for `start()`: one settings value, one poll answer, and the two slots we look at. */
-function fakeT3(answer: (cmd: string, payload?: unknown) => object, chip: boolean) {
+function fakeT3(answer: (cmd: string, payload?: unknown) => object, chip: boolean, initial: Record<string, unknown> = {}) {
   const slots = new Map<string, Registered>();
   const calls: Array<[string, unknown]> = [];
+  const store = new Map<string, unknown>(Object.entries(initial));
   const t3 = {
     settings: {
       define: () => ({ dispose: () => undefined }),
@@ -44,10 +45,15 @@ function fakeT3(answer: (cmd: string, payload?: unknown) => object, chip: boolea
       toast: () => undefined,
     },
     commands: { register: () => ({ dispose: () => undefined }) },
-    storage: { get: async () => null, set: async () => undefined },
+    storage: {
+      get: async (key: string) => (store.has(key) ? store.get(key) : null),
+      set: async (key: string, value: unknown) => {
+        store.set(key, value);
+      },
+    },
     log: () => undefined,
   };
-  return { t3, slots, calls };
+  return { t3, slots, calls, store };
 }
 
 let stop: (() => void) | null = null;
@@ -195,6 +201,23 @@ it("leaves the progress bar inert when the session cannot seek", async () => {
   dispose();
 });
 
+it("opens a pasted link in the floating mini player by default", async () => {
+  const { t3, slots } = fakeT3(() => poll("Paused"), false);
+  stop = (plugin as unknown as { start(t3: unknown): () => void }).start(t3);
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const dispose = slots.get("threadDetails")!.render(host);
+
+  const input = host.querySelector("input")!;
+  input.value = "https://youtu.be/dQw4w9WgXcQ";
+  input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+  expect(document.querySelector(".md-mini iframe")).not.toBeNull();
+  expect(host.querySelector("iframe")).toBeNull();
+  expect(host.textContent).toContain("Playing in the mini player");
+  dispose();
+});
+
 it("keeps the YouTube iframe alive when playback state messages arrive", async () => {
   vi.useFakeTimers();
   let state = poll("Paused");
@@ -208,6 +231,8 @@ it("keeps the YouTube iframe alive when playback state messages arrive", async (
   const input = host.querySelector("input")!;
   input.value = "https://youtu.be/dQw4w9WgXcQ";
   input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  // Dock it (the default is the mini player) so the inline iframe is the one under test.
+  host.querySelector<HTMLButtonElement>('button[title="Show here"]')!.click();
   const frame = host.querySelector("iframe")!;
   expect(frame).not.toBeNull();
 
@@ -227,7 +252,7 @@ it("keeps the YouTube iframe alive when playback state messages arrive", async (
   dispose();
 });
 
-it("moves a playing inline video to the mini player when the card closes (thread switch)", async () => {
+it("moves a docked, playing video to the mini player when the card closes (thread switch)", async () => {
   const { t3, slots } = fakeT3(() => poll("Paused"), false);
   stop = (plugin as unknown as { start(t3: unknown): () => void }).start(t3);
   const host = document.createElement("div");
@@ -237,8 +262,37 @@ it("moves a playing inline video to the mini player when the card closes (thread
   const input = host.querySelector("input")!;
   input.value = "https://youtu.be/dQw4w9WgXcQ";
   input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  host.querySelector<HTMLButtonElement>('button[title="Show here"]')!.click();
   expect(host.querySelector("iframe")).not.toBeNull();
 
   dispose();
   expect(document.querySelector(".md-mini iframe")).not.toBeNull();
+});
+
+it("remembers the YouTube volume and applies it to the next player", async () => {
+  vi.useFakeTimers();
+  const first = fakeT3(() => poll("Paused"), false, { ytAudio: { volume: 40, muted: false } });
+  stop = (plugin as unknown as { start(t3: unknown): () => void }).start(first.t3);
+  await Promise.resolve(); // storage load
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  first.slots.get("threadDetails")!.render(host);
+  const input = host.querySelector("input")!;
+  input.value = "https://youtu.be/dQw4w9WgXcQ";
+  input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+  const frame = document.querySelector<HTMLIFrameElement>(".md-mini iframe")!;
+  const post = vi.spyOn(frame.contentWindow!, "postMessage");
+  // The embed reports its state; the plugin applies the remembered level and keeps following it.
+  window.dispatchEvent(new MessageEvent("message", { origin: "https://www.youtube-nocookie.com", source: frame.contentWindow, data: JSON.stringify({ event: "infoDelivery", info: { volume: 40, muted: false } }) }));
+  const sent = post.mock.calls.map((c) => String(c[0]));
+  expect(sent.some((m) => m.includes('"setVolume"') && m.includes("40"))).toBe(true);
+
+  // User turns it down inside the player; the new level is persisted.
+  window.dispatchEvent(new MessageEvent("message", { origin: "https://www.youtube-nocookie.com", source: frame.contentWindow, data: JSON.stringify({ event: "infoDelivery", info: { volume: 15 } }) }));
+  await vi.advanceTimersByTimeAsync(500);
+  expect(first.store.get("ytAudio")).toEqual({ volume: 15, muted: false });
+  stop?.();
+  stop = null;
+  document.body.innerHTML = "";
 });

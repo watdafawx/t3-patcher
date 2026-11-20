@@ -34,7 +34,7 @@ const STYLE = `
 [data-t3p-plugin="media"] .md-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 [data-t3p-plugin="media"] .md-recent{padding:0 .625rem;font-size:11px}
 [data-t3p-plugin="media"] .md-err{padding:0 .625rem;font-size:11px;color:var(--destructive-foreground,var(--destructive,inherit))}
-.md-mini{position:fixed;right:12px;bottom:30px;width:320px;max-width:calc(100vw - 16px);padding:4px;display:flex;flex-direction:column;gap:4px}
+.md-mini{position:fixed;right:12px;bottom:30px;width:320px;min-width:240px;max-width:calc(100vw - 16px);padding:4px;display:flex;flex-direction:column;gap:4px;resize:horizontal;overflow:hidden}
 .md-mini-head{display:flex;align-items:center;gap:4px;cursor:grab;user-select:none;padding:0 2px 0 6px;font-size:11px;color:var(--muted-foreground,inherit)}
 .md-mini-head .md-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .md-mini .md-frame{position:relative;width:100%;aspect-ratio:16/9;border-radius:var(--t3p-radius);overflow:hidden;background:var(--muted,color-mix(in srgb,currentColor 10%,transparent))}
@@ -164,6 +164,22 @@ const plugin: PluginModule = {
     let player: Player | null = null;
     let recent: Recent[] = [];
     let lastError = "";
+    /** YouTube embed audio, remembered across players and app restarts. */
+    let ytVolume = 100;
+    let ytMuted = false;
+    let audioSaveTimer: ReturnType<typeof setTimeout> | null = null;
+    const saveAudio = (): void => {
+      if (audioSaveTimer) clearTimeout(audioSaveTimer);
+      audioSaveTimer = setTimeout(() => {
+        audioSaveTimer = null;
+        void t3.storage.set("ytAudio", { volume: ytVolume, muted: ytMuted } as unknown as JsonValue).catch(() => undefined);
+      }, 400);
+    };
+    void t3.storage.get<JsonValue>("ytAudio").then((v) => {
+      const a = v as { volume?: unknown; muted?: unknown } | null;
+      if (a && typeof a.volume === "number" && Number.isFinite(a.volume) && a.volume >= 0 && a.volume <= 100) ytVolume = Math.round(a.volume);
+      if (a && typeof a.muted === "boolean") ytMuted = a.muted;
+    });
     /** What is in the link field. Survives the section being re-rendered (the DOM does not). */
     let draft = "";
     let draftFocused = false;
@@ -241,12 +257,33 @@ const plugin: PluginModule = {
       frame.append(iframe);
       host.append(frame);
       const send = (msg: string): void => iframe.contentWindow?.postMessage(msg, EMBED_ORIGIN);
-      const onLoad = (): void => send(JSON.stringify({ event: "listening", id: "t3p", channel: "widget" }));
+      const onLoad = (): void => {
+        send(JSON.stringify({ event: "listening", id: "t3p", channel: "widget" }));
+        applyAudio();
+      };
+      // The player ignores commands until it is ready; re-apply on the first message it sends.
+      let audioApplied = false;
+      const applyAudio = (): void => {
+        send(playerCommand("setVolume", ytVolume));
+        send(playerCommand(ytMuted ? "mute" : "unMute"));
+      };
       iframe.addEventListener("load", onLoad);
       const onMessage = (e: MessageEvent): void => {
         if (e.origin !== EMBED_ORIGIN || e.source !== iframe.contentWindow) return;
         const update = parsePlayerMessage(e.data);
         if (!update || player !== p) return;
+        const first = !audioApplied;
+        audioApplied = true;
+        if (first) applyAudio();
+        // Volume shown/changed inside the embed becomes the remembered level.
+        if (update.volume !== undefined && update.volume !== ytVolume) {
+          ytVolume = update.volume;
+          saveAudio();
+        }
+        if (update.muted !== undefined && update.muted !== ytMuted) {
+          ytMuted = update.muted;
+          saveAudio();
+        }
         // Playback state lives in the iframe; the embed owns its UI. Keep our copy for pop-out and
         // for restoring the position later, but do not redraw: a redraw rebuilds the iframe, which
         // restarts the video (that used to play/pause-loop every time YouTube reported a change).
@@ -464,7 +501,7 @@ const plugin: PluginModule = {
           input.autocomplete = "off";
           input.spellcheck = false;
           const go = (): void => {
-            if (play(input.value, "inline")) {
+            if (play(input.value, "floating")) {
               draft = "";
               input.value = "";
             }
@@ -498,7 +535,7 @@ const plugin: PluginModule = {
               b.type = "button";
               b.style.minHeight = "1.5rem";
               b.style.fontSize = "12px";
-              b.addEventListener("click", () => play(r.url, "inline"));
+              b.addEventListener("click", () => play(r.url, "floating"));
               list.append(b);
             }
             wrap.append(list);
@@ -697,6 +734,9 @@ const plugin: PluginModule = {
       },
     });
     disposers.push(() => cmd.dispose());
+    disposers.push(() => {
+      if (audioSaveTimer) clearTimeout(audioSaveTimer);
+    });
 
     return () => {
       stopped = true;

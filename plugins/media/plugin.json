@@ -2,7 +2,7 @@
   "id": "media",
   "name": "Media",
   "description": "Now playing (Windows media session) and a YouTube player in the thread details popover, with an optional status bar chip.",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "tier": 1,
   "permissions": [
     "main",

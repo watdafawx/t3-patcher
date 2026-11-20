@@ -113,6 +113,8 @@ describe("player messages", () => {
     expect(parsePlayerMessage('{"event":"onStateChange","info":1}')).toEqual({ playing: true });
     expect(parsePlayerMessage({ event: "onStateChange", info: 2 })).toEqual({ playing: false });
     expect(parsePlayerMessage({ event: "infoDelivery", info: { currentTime: 12.5, playerState: 1 } })).toEqual({ playing: true, currentTime: 12.5 });
+    expect(parsePlayerMessage({ event: "infoDelivery", info: { volume: 42, muted: true } })).toEqual({ volume: 42, muted: true });
+    expect(parsePlayerMessage({ event: "infoDelivery", info: { volume: 120, muted: "x" } })).toBeNull();
     expect(parsePlayerMessage({ event: "infoDelivery", info: { currentTime: -1 } })).toBeNull();
     expect(parsePlayerMessage("not json")).toBeNull();
     expect(parsePlayerMessage(null)).toBeNull();
