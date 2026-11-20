@@ -49,10 +49,6 @@ export class GradientDrift extends CanvasBg {
   #opacity = 0.54;
   #size = 45;
 
-  protected css(): string {
-    return "";
-  }
-
   protected override configure(): void {
     this.#bake();
     super.configure();

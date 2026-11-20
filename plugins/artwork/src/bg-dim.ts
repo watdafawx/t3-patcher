@@ -1,4 +1,5 @@
-import { OCEAN_CANVAS_ID } from "./ocean.js";
+import { bgIds } from "./bg-base.js";
+import { BG_KINDS } from "./bg-model.js";
 
 /**
  * The dim overlay: ONE fixed, click-through element between the full-app background and the app UI.
@@ -10,10 +11,10 @@ import { OCEAN_CANVAS_ID } from "./ocean.js";
 
 export const DIM_ID = "t3p-bg-dim";
 /** Roots of the four presets: the dim sits right after whichever one runs. */
-const ROOT_SELECTOR = `#t3p-bg-antigravity,#t3p-bg-drift,#t3p-bg-starfield,#${OCEAN_CANVAS_ID}`;
+const ROOT_SELECTOR = BG_KINDS.map((k) => `#${bgIds(k).root}`).join(",");
 
 export interface BgDimHost {
-  /** True while a background preset is running (the master switch is on and Custom background is not active). */
+  /** True while a background preset is running (its canvas is mounted). */
   active(): boolean;
   /** Overlay opacity 0 to 0.8. */
   opacity(): number;

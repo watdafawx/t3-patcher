@@ -1,6 +1,6 @@
 import { MAX_CSS, scopeCss } from "./custom-css.js";
 import { MAX_HTML, sanitizeHtml } from "./custom-html.js";
-import { markSurfaces } from "./ocean.js";
+import { markSurfaces } from "./bg-surfaces.js";
 
 /**
  * Custom HTML/CSS mode. Two targets, each one plugin-owned root element:

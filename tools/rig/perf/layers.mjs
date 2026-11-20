@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Dumps the composited layers (size in CSS px, drawsContent, compositing reasons) of the slot's page, optionally after
 // applying artwork settings. Shows which app layers a background forces into their own (big, transparent) layers.
-//   node tools/rig/perf/layers.mjs --slot 3 [--set '{"oceanOn":true,"bgKind":"antigravity"}'] [--min 0.2]
+//   node tools/rig/perf/layers.mjs --slot 3 [--set '{"oceanOn":true,"bgKind":"starfield"}'] [--min 0.2]
 // --min: only list layers covering at least this share of the viewport (default 0.2).
 import { attach, evaluate, sleep } from "./cdp.mjs";
 

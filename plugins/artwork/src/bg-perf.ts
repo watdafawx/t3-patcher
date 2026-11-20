@@ -1,7 +1,7 @@
 import type { BgKind } from "./bg-model.js";
 
 /**
- * Pure performance model of the full-app backgrounds (Ocean, Antigravity, Gradient drift, Starfield).
+ * Pure performance model of the full-app backgrounds (Ocean, Gradient drift, Starfield).
  *
  * What costs the app is not our draw() (< 1 ms) but every frame we produce: the GPU process replays the canvas
  * commands (strokes, fills) and re-composites the whole 4K window, competing with the app's own frames (typing,
@@ -41,13 +41,11 @@ export interface QualityProfile {
 /** Soft presets (blobs, sparse dots) look the same at a fraction of the resolution; letters and dashes need more. */
 const SCALE: Record<BgKind, Record<BgTier, number>> = {
   ocean: { high: 1.25, balanced: 1, low: 0.75, static: 1 },
-  antigravity: { high: 1, balanced: 0.75, low: 0.5, static: 0.75 },
   starfield: { high: 1, balanced: 0.75, low: 0.6, static: 0.75 },
   drift: { high: 0.25, balanced: 0.2, low: 0.15, static: 0.2 },
 };
 const FPS: Record<BgKind, Record<BgTier, number>> = {
   ocean: { high: 30, balanced: 20, low: 12, static: 0 },
-  antigravity: { high: 60, balanced: 30, low: 15, static: 0 },
   starfield: { high: 30, balanced: 20, low: 12, static: 0 },
   drift: { high: 30, balanced: 20, low: 10, static: 0 },
 };
@@ -133,16 +131,21 @@ export interface GovernorLimits {
   windowMs: number;
   /** Average draw cost above this is "slow". */
   drawMs: number;
-  /** Share of drawn frames whose rAF gap showed the main thread blocked (gap > `stallMs`). */
+  /** Share of drawn frames that came more than `stallMs` after they were due (the main thread was blocked). */
   lateRatio: number;
   stallMs: number;
+  /**
+   * Lateness above this is not a main-thread stall but the window being minimized or occluded (Chromium throttles
+   * frames to ~2/s there): ignored, or one minimize would cost a tier (seen on rig: Ocean fell to Low).
+   */
+  throttledMs: number;
   /** Long animation frame blocking time per window above this is "janky". */
   blockingMs: number;
   /** Clean windows in a row before stepping back up. */
   recoverWindows: number;
 }
 
-export const GOVERNOR_LIMITS: GovernorLimits = { windowMs: 3000, drawMs: 4, lateRatio: 0.25, stallMs: 50, blockingMs: 150, recoverWindows: 5 };
+export const GOVERNOR_LIMITS: GovernorLimits = { windowMs: 3000, drawMs: 4, lateRatio: 0.25, stallMs: 50, throttledMs: 250, blockingMs: 150, recoverWindows: 5 };
 
 export type QualityVerdict = "keep" | "down" | "up";
 
@@ -172,11 +175,12 @@ export class QualityGovernor {
     return TIERS[this.level]!;
   }
 
-  /** One drawn frame: its draw cost and the rAF gap before it. */
-  frame(drawMs: number, gapMs: number): void {
+  /** One drawn frame: its draw cost and how late it came (ms after it was due). */
+  frame(drawMs: number, lateMs: number): void {
+    if (lateMs > this.limits.throttledMs) return;
     this.#drawSum += drawMs;
     this.#draws++;
-    if (gapMs > this.limits.stallMs) this.#late++;
+    if (lateMs > this.limits.stallMs) this.#late++;
   }
 
   /** Long-animation-frame blocking time observed on the page (any source). */

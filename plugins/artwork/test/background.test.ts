@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Antigravity } from "../src/antigravity.js";
-import { BLUR_PAUSE_MS, bgIds, type BgHost } from "../src/bg-base.js";
+import { BLUR_PAUSE_MS, bgIds, CanvasBg, type BgHost } from "../src/bg-base.js";
 import { activity } from "../src/bg-activity.js";
 import { BG_KINDS, BLUR_MAX, BlurShed, DIM_MAX, bgColors, bgParams, blurPx, blurBlit, blurRenderFactor, dimOpacity, FIXED_PALETTE, FrameGovernor, gradientBands, hslToRgb, isBgKind, rgbToHsl, rng, type BgConfig, type BgPresetKind } from "../src/bg-model.js";
 import { qualityProfile, tierScale } from "../src/bg-perf.js";
@@ -12,26 +11,26 @@ import { Starfield } from "../src/starfield.js";
 describe("background model", () => {
   it("maps intensity, speed, density and low power to params", () => {
     const base = { intensity: 60, speed: 50, density: 50, lowPower: false };
-    expect(bgParams("antigravity", base)).toMatchObject({ alpha: 1, speed: 1, animated: true, count: 1700, maxFps: 60 });
-    expect(bgParams("antigravity", { ...base, lowPower: true }).maxFps).toBe(30);
-    expect(bgParams("starfield", base)).toMatchObject({ count: 200, maxFps: 30 });
-    expect(bgParams("antigravity", { ...base, speed: 0 }).animated).toBe(false);
-    expect(bgParams("antigravity", { ...base, density: 999 }).count).toBe(2900);
+    expect(bgParams("starfield", base)).toMatchObject({ alpha: 1, speed: 1, animated: true, count: 200, maxFps: 30 });
+    expect(bgParams("starfield", { ...base, lowPower: true }).maxFps).toBe(20);
+    expect(bgParams("starfield", { ...base, speed: 0 }).animated).toBe(false);
+    expect(bgParams("starfield", { ...base, density: 999 }).count).toBe(320);
+    expect(bgParams("ocean", base).count).toBe(0);
     expect(bgParams("starfield", { ...base, density: -5 }).count).toBe(80);
     // quality tiers set the frame rate; static never animates; low power still caps at 30
-    expect(bgParams("antigravity", base, "balanced").maxFps).toBe(30);
-    expect(bgParams("antigravity", base, "low").maxFps).toBe(15);
-    expect(bgParams("antigravity", base, "static")).toMatchObject({ animated: false, maxFps: 0 });
-    expect(bgParams("drift", { ...base, lowPower: true }, "high").maxFps).toBe(30);
-    expect(bgParams("antigravity", { ...base, quality: "auto" }).maxFps).toBe(30); // auto starts at balanced
+    expect(bgParams("starfield", base, "balanced").maxFps).toBe(20);
+    expect(bgParams("starfield", base, "low").maxFps).toBe(12);
+    expect(bgParams("starfield", base, "static")).toMatchObject({ animated: false, maxFps: 0 });
+    expect(bgParams("drift", { ...base, lowPower: true }, "high").maxFps).toBe(20);
+    expect(bgParams("starfield", { ...base, quality: "auto" }).maxFps).toBe(20); // auto starts at balanced
   });
 
   it("caps the render scale per tier: never above the device ratio, within the pixel budget", () => {
-    const high = qualityProfile("antigravity", "high");
+    const high = qualityProfile("starfield", "high");
     expect(tierScale(1280, 720, 1, high)).toBe(1);
     expect(tierScale(1280, 720, 2, high)).toBe(1); // dpr 2 still renders 1 px per CSS px
     // 4K at 175%: 2195x1187 css
-    const s = tierScale(2195, 1187, 1.75, qualityProfile("antigravity", "balanced"));
+    const s = tierScale(2195, 1187, 1.75, qualityProfile("starfield", "balanced"));
     expect(2195 * s * 1187 * s).toBeLessThanOrEqual(1_500_000 + 1);
     // soft blobs render at a fifth of the css resolution
     expect(tierScale(2195, 1187, 1.75, qualityProfile("drift", "balanced"))).toBeCloseTo(0.2);
@@ -134,6 +133,7 @@ const setHidden = (hidden: boolean): void => {
 };
 
 beforeEach(() => {
+  CanvasBg.frameTimers = false;
   cfg = { on: true, intensity: 60, speed: 50, density: 50, pointer: true, followAccent: true, hue: -1, lowPower: false, quality: "high", pauseWhileTyping: false, dim: 0, blur: 0 };
   raf = new Map();
   nextId = 1;
@@ -158,6 +158,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  CanvasBg.frameTimers = true;
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -166,8 +167,8 @@ afterEach(() => {
   document.documentElement.removeAttribute("style");
 });
 
-const make = (kind: BgPresetKind) => (kind === "antigravity" ? new Antigravity(kind, host) : kind === "starfield" ? new Starfield(kind, host) : new GradientDrift(kind, host));
-const kinds: BgPresetKind[] = ["antigravity", "starfield", "drift"];
+const make = (kind: BgPresetKind) => (kind === "starfield" ? new Starfield(kind, host) : new GradientDrift(kind, host));
+const kinds: BgPresetKind[] = ["starfield", "drift"];
 
 describe.each(kinds)("%s lifecycle", (kind) => {
   const ids = bgIds(kind);
@@ -302,20 +303,9 @@ describe.each(kinds)("%s lifecycle", (kind) => {
 });
 
 describe("canvas presets", () => {
-  it("antigravity draws in batched strokes (at most 20 per frame) and not per particle", () => {
-    const bg = new Antigravity("antigravity", host);
-    bg.update();
-    expect(bg.particleCount).toBeGreaterThan(1000);
-    const c = ctxs.find((x) => x.calls.stroke)!;
-    expect(c.calls.stroke).toBeGreaterThan(0);
-    expect(c.calls.stroke).toBeLessThanOrEqual(20);
-    expect(c.calls.moveTo).toBeGreaterThan(500);
-    bg.stop();
-  });
-
-  it("density changes the particle count and the canvas is capped to the render scale", () => {
+  it("density changes the star count and the canvas is capped to the render scale", () => {
     Object.defineProperty(window, "devicePixelRatio", { configurable: true, value: 3 });
-    const bg = new Antigravity("antigravity", host);
+    const bg = new Starfield("starfield", host);
     bg.update();
     const canvas = document.querySelector("canvas") as HTMLCanvasElement;
     const css = document.documentElement.clientWidth || window.innerWidth;
@@ -323,12 +313,12 @@ describe("canvas presets", () => {
     // a cheaper tier re-sizes the backing store at once
     cfg.quality = "low";
     bg.update();
-    expect(canvas.width / css).toBeLessThanOrEqual(0.5 + 0.01);
+    expect(canvas.width / css).toBeLessThanOrEqual(0.6 + 0.01);
     cfg.quality = "high";
-    const before = bg.particleCount;
+    const before = bg.starCount;
     cfg.density = 100;
     bg.update();
-    expect(bg.particleCount).toBeGreaterThan(before);
+    expect(bg.starCount).toBeGreaterThan(before);
     bg.stop();
     Object.defineProperty(window, "devicePixelRatio", { configurable: true, value: 1 });
   });
@@ -344,9 +334,8 @@ describe("canvas presets", () => {
     bg.stop();
   });
 
-  it("runs at 30 fps for the starfield and for Low power: a 60 Hz callback is skipped every other frame", () => {
-    cfg.lowPower = true;
-    const bg = new Antigravity("antigravity", host);
+  it("runs at 30 fps at High (a 60 Hz callback is skipped every other frame) and at 20 fps with Low power", () => {
+    const bg = new Starfield("starfield", host);
     bg.update();
     const draws = (): number => ctxs.reduce((n, c) => n + (c.calls.clearRect ?? 0), 0);
     flush(1000); // first frame always draws
@@ -355,6 +344,13 @@ describe("canvas presets", () => {
     expect(draws()).toBe(first); // skipped
     flush(1033.4);
     expect(draws()).toBeGreaterThan(first);
+    cfg.lowPower = true;
+    bg.update();
+    const second = draws();
+    flush(1066.8);
+    expect(draws()).toBe(second); // 33 ms after the last frame: too early for 20 fps
+    flush(1083.5);
+    expect(draws()).toBeGreaterThan(second);
     bg.stop();
   });
 
@@ -371,7 +367,7 @@ describe("canvas presets", () => {
 
   it("pointer moves are ignored when Pointer reactive is off", () => {
     cfg.pointer = false;
-    const bg = new Antigravity("antigravity", host);
+    const bg = new Starfield("starfield", host);
     bg.update();
     const move = new Event("pointermove");
     Object.assign(move, { clientX: 5, clientY: 5 });
@@ -385,9 +381,9 @@ describe("canvas presets", () => {
   });
 
   it("adaptive quality: slow frames lower the density, still slow stops it and tells the host once", () => {
-    const bg = new Antigravity("antigravity", host);
+    const bg = new Starfield("starfield", host);
     bg.update();
-    const full = bg.particleCount;
+    const full = bg.starCount;
     let t = 0;
     const slow = vi.spyOn(performance, "now").mockImplementation(() => {
       t += 12; // every draw (two now() calls) costs 12 ms
@@ -396,12 +392,12 @@ describe("canvas presets", () => {
     let ms = 1000;
     const frames = (n: number): void => {
       for (let i = 0; i < n; i++) {
-        ms += 17;
+        ms += 34; // 30 fps: every callback draws
         flush(ms);
       }
     };
     frames(61);
-    expect(bg.particleCount).toBeLessThan(full);
+    expect(bg.starCount).toBeLessThan(full);
     expect(stopped).toEqual([]);
     slow.mockRestore();
     // very slow now: 20 ms per draw
@@ -411,19 +407,19 @@ describe("canvas presets", () => {
       return t;
     });
     frames(61 * 3);
-    expect(stopped).toEqual(["antigravity"]);
-    expect(document.getElementById(bgIds("antigravity").root)).toBeNull();
+    expect(stopped).toEqual(["starfield"]);
+    expect(document.getElementById(bgIds("starfield").root)).toBeNull();
     expect(bg.autoStopped).toBe(true);
     // a settings change does not bring it back by itself...
     bg.update();
-    expect(document.getElementById(bgIds("antigravity").root)).toBeNull();
+    expect(document.getElementById(bgIds("starfield").root)).toBeNull();
     // ...switching it off and on again does
     cfg.on = false;
     bg.update();
     cfg.on = true;
     vi.restoreAllMocks();
     bg.update();
-    expect(document.getElementById(bgIds("antigravity").root)).not.toBeNull();
+    expect(document.getElementById(bgIds("starfield").root)).not.toBeNull();
     bg.stop();
   });
 
@@ -473,9 +469,9 @@ describe("canvas presets", () => {
   it("auto quality: a slow window sheds the blur first, the next one lowers the tier", () => {
     cfg.quality = "auto";
     cfg.blur = 8;
-    const bg = new Antigravity("antigravity", host);
+    const bg = new Starfield("starfield", host);
     bg.update();
-    const canvas = document.querySelector(`#${bgIds("antigravity").root}`) as HTMLCanvasElement;
+    const canvas = document.querySelector(`#${bgIds("starfield").root}`) as HTMLCanvasElement;
     expect(bg.tier).toBe("balanced");
     expect(canvas.style.filter).toBe(""); // never a CSS filter
     const blits = (): number => ctxs.reduce((n, c) => n + (c.calls.drawImage ?? 0), 0);
@@ -487,7 +483,7 @@ describe("canvas presets", () => {
     vi.spyOn(performance, "now").mockImplementation(() => (t += 5)); // every draw costs ~5 ms: over the 4 ms limit
     let ms = 1000;
     const frames = (n: number): void => {
-      for (let i = 0; i < n; i++) flush((ms += 34));
+      for (let i = 0; i < n; i++) flush((ms += 51));
     };
     vi.advanceTimersByTime(1000); // the first tick opens the window
     frames(400);
@@ -507,7 +503,7 @@ describe("canvas presets", () => {
     cfg.pauseWhileTyping = true;
     const added = vi.spyOn(window, "addEventListener");
     const a = new Starfield("starfield", host);
-    const b = new Antigravity("antigravity", host);
+    const b = new GradientDrift("drift", host);
     a.update();
     b.update();
     expect(added.mock.calls.filter((c) => c[0] === "keydown")).toHaveLength(1);

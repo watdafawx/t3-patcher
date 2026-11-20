@@ -237,8 +237,8 @@ describe("takeover and restore", () => {
     expect(document.getElementById("t3p-bg-dim")!.previousElementSibling).toBe(document.getElementById("t3p-bg-drift"));
   });
 
-  it("custom background also takes over the Antigravity, Gradient drift and Starfield presets", async () => {
-    for (const kind of ["antigravity", "drift", "starfield"]) {
+  it("custom background also takes over the Gradient drift and Starfield presets", async () => {
+    for (const kind of ["drift", "starfield"]) {
       await start(fakeT3({ oceanOn: true, bgKind: kind }));
       expect(document.getElementById(`t3p-bg-${kind}`)).not.toBeNull();
       await toggle("background", true);

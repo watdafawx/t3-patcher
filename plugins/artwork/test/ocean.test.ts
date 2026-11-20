@@ -2,7 +2,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { activity } from "../src/bg-activity.js";
-import { oceanPalette, oceanParams, parseRgb, type OceanConfig } from "../src/model.js";
+import { CanvasBg } from "../src/bg-base.js";
+import type { BgConfig } from "../src/bg-model.js";
+import { oceanPalette, oceanParams, parseRgb } from "../src/model.js";
 import { OCEAN_ATTR, OCEAN_CLEAR_ATTR, OCEAN_CANVAS_ID, OCEAN_STYLE_ID, Ocean } from "../src/ocean.js";
 
 describe("ocean model", () => {
@@ -45,7 +47,7 @@ function fakeCtx() {
   };
 }
 
-let cfg: OceanConfig;
+let cfg: BgConfig;
 let raf: Map<number, FrameRequestCallback>;
 let nextId: number;
 let reduced: boolean;
@@ -60,7 +62,8 @@ const setHidden = (hidden: boolean): void => {
 };
 
 beforeEach(() => {
-  cfg = { on: true, intensity: 60, speed: 50, ripples: true, hue: -1 };
+  CanvasBg.frameTimers = false;
+  cfg = { on: true, intensity: 60, speed: 50, density: 50, pointer: true, ripples: true, followAccent: true, hue: -1, lowPower: false, quality: "high", pauseWhileTyping: false, dim: 0, blur: 0 };
   raf = new Map();
   nextId = 1;
   reduced = false;
@@ -79,6 +82,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  CanvasBg.frameTimers = true;
   ocean.stop();
   vi.useRealTimers();
   vi.unstubAllGlobals();
@@ -135,7 +139,7 @@ describe("ocean lifecycle", () => {
     expect(document.getElementById(OCEAN_STYLE_ID)).toBeNull();
     expect(document.documentElement.hasAttribute(OCEAN_ATTR)).toBe(false);
     expect(raf.size).toBe(0);
-    expect(removed.mock.calls.map((c) => c[0])).toEqual(expect.arrayContaining(["resize", "pointerdown", "pointermove", "scroll"]));
+    expect(removed.mock.calls.map((c) => c[0])).toEqual(expect.arrayContaining(["resize", "pointerdown", "pointermove", "blur", "focus"]));
     expect(vi.getTimerCount()).toBe(0);
     expect(ocean.running).toBe(false);
     expect(() => pointerDown(window)).not.toThrow();
@@ -200,7 +204,7 @@ describe("ocean lifecycle", () => {
     cfg.quality = "static";
     ocean.update();
     expect(raf.size).toBe(0);
-    const canvas = ocean.canvas!;
+    const canvas = document.getElementById(OCEAN_CANVAS_ID) as HTMLCanvasElement;
     const css = document.documentElement.clientWidth || window.innerWidth;
     expect(canvas.width / css).toBeLessThanOrEqual(1.01);
     cfg.quality = "low";

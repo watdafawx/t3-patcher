@@ -2,6 +2,8 @@
 
 With a full-app background on (Ocean, Antigravity, Gradient drift, Starfield) the whole app felt slow at 4K: typing, scrolling and streamed chat output stuttered, although our JavaScript draw cost was below 1 ms per frame. This page records how that was measured, what the cause was, what changed, and the raw numbers.
 
+> **WP-17 update:** Antigravity was dropped and the lifecycle of every background was rewritten. See [WP-17](#wp-17-lifecycle-rewrite-and-the-antigravity-drop) at the end. The older sections keep their Antigravity numbers as history.
+
 ## Setup
 
 - Rig slot 2 (stock T3 Code + patcher, Electron / Chrome 152), maximized on a 4K monitor at 175 % scale: viewport 2195x1187 CSS px, dpr 1.75, 120 Hz (vsync 8.3 ms). That matches a 4K desktop at 150-200 %.
@@ -244,3 +246,137 @@ Result: blur 8 and 20 are within about 2 points of blur 0 while typing on every 
 - Visual check not done on rig: the blur looks the same by construction (same gaussian sigma = the CSS px, scaled by the internal resolution) but nobody compared screenshots.
 - `ctx.filter` is a Chromium canvas feature (Electron here is Chrome 152). A context that ignored it would show the layer unblurred rather than break; not tested.
 - Each drawn frame now also pays one blit (GPU raster of one blur pass at 0.5 to 0.8x of the tier resolution); it is included in the idle numbers above.
+
+## WP-17: lifecycle rewrite and the Antigravity drop
+
+The maintainer reported the animated backgrounds as "extremely buggy". Each bug was reproduced on rig slot 2 (maximized 4K, 2195x1187 CSS px at dpr 1.75, 120 Hz) over CDP. The scripted repro covers:
+
+- turning each kind on, rapid switching, master on/off;
+- typing and streaming, with the dock open and closed;
+- slider churn, theme toggles, window resize, dpr override;
+- dim and blur, every quality tier, hide/show;
+- Custom HTML takeover, sidebar collapse;
+- 10 minutes idle.
+
+### Bugs and root causes
+
+| # | Symptom | Repro | Root cause |
+|---|---|---|---|
+| 1 | **Every preset frozen forever** with the defaults (0 draws/s, "the background never moves") | turn any kind on with the plugin dock open, or with any plugin whose UI re-renders; draws stay 0 | the pause-while-typing gate counted DOM mutations from plugin UI (dock re-renders, our own layers) as chat streaming, so it never went idle. An open dock also puts `t3p-dock-open` on `<body>`, so a first fix that skipped "nodes inside plugin UI" matched every node and hid real streaming |
+| 2 | Theme switch repaints 0.8 to 1.9 s late, and never while frozen or static | toggle dark/light; time to the first draw | the palette came from a 1-2 s computed-style poll that was skipped while busy and did not repaint a frozen frame |
+| 3 | Minimizing or covering the window dropped a quality tier | minimize 10 s, restore: tier went balanced to low | the browser throttles rAF in a hidden or occluded window; Auto read the late frames as a slow page |
+| 4 | Wakeups at the display rate | rAF callbacks ~121/s for a 20 fps background | every loop requested an animation frame each vsync and skipped most of them |
+| 5 | Ocean jumps and reshuffles | Ocean jumped ~4 s of motion on start; every resize re-rolled every letter; a blank frame after resize; ripples aged with the speed setting | Ocean had its own second copy of the engine (loop, poll, listeners, resize path) with its own bugs: time started at t=4, letters came from a random pass per layout, the resize cleared the canvas and waited for the next frame |
+| 6 | Blank or stretched frame after a resize or zoom (all kinds) | resize the window; screenshot right after | `window.resize` resized the backing store (clearing it) and waited for the next 20-30 fps frame; zoom and monitor moves (dpr) were not watched |
+| 7 | Antigravity snapped to a new layout on any slider change | drag Intensity | `configure()` relaid out the particle field on every settings change, not only on a count change |
+| 8 | A modal backdrop or a translucent card lost its fill | open a dialog with a background on | `markSurfaces` cleared any surface with a background colour, including semi-transparent ones |
+| 9 | Gradient drift froze with Follow accent on | Drift on, follow accent; draws stay 0 | the colour probe element `resolve()` adds to read the accent was itself counted as a DOM mutation, feeding bug 1 |
+
+### Fix: one engine
+
+`src/bg-base.ts` (`CanvasBg`) is the only lifecycle owner for all kinds, Ocean included (`src/ocean.ts` is now a `CanvasBg` subclass with `incremental` drawing):
+
+- **Mount and unmount are idempotent.** Every listener, observer and timer goes through one disposer list. `stop()` runs all of them. A second `update()` never adds a second set (tests check the listener count against a baseline).
+- **Frame loop.** A timer sleeps until the next frame is due (minus 8 ms), then one rAF draws it. A 20 fps layer wakes the page ~21 times a second (was 121).
+- **Sizing.** A `ResizeObserver` on the canvas, plus a `(resolution: Xdppx)` media query for zoom and monitor moves. The canvas is resized and repainted inside the callback, so no blank frame shows.
+- **Theme.** A `MutationObserver` on `<html>` (class, style, `data-theme`) plus `prefers-color-scheme`. The palette refreshes and repaints at once, also while frozen or static: ~30 ms after the toggle (was 0.8 to 1.9 s).
+- **Resume can't get stuck.**
+  - The activity gate ignores mutations inside plugin UI. It walks up from the node and stops before `<body>`/`<html>`.
+  - Auto quality ignores frames that came more than 250 ms late (throttled, not slow).
+  - Visibility pauses at once. A blur pauses after 5 s. Both resume on the next event.
+- **Smaller fixes.**
+  - Surfaces are cleared only if fully opaque.
+  - The colour probe (`src/bg-surfaces.ts`) has a `t3p-` id, and the activity monitor ignores records that only add or remove plugin nodes, so reading a colour never looks like streaming.
+  - `syncBackgrounds()` stops the other kinds before it starts the new one, so two canvases never coexist.
+
+Tests: `plugins/artwork/test/lifecycle.test.ts` runs, per kind:
+
+- idempotent mount and unmount, with no leaked listeners;
+- hidden, blur, reduced motion and typing pauses, and that each one resumes;
+- resize repaints synchronously;
+- the theme observer;
+- switching between kinds;
+- frame timers;
+- the throttled-frame rule;
+- Ocean's cell-stable letters and real-time ripples;
+- the plugin-UI activity filter, including the `<body>` dock class;
+- `isOpaqueColor`.
+
+### Real-app repro after the fix (rig slot 2)
+
+- One canvas per kind. Rapid switching (3 rounds over every kind) leaves exactly one canvas, one style and one `<html>` marker. Master off removes all of them, and the dim with them.
+- Typing and streaming freeze the frame (0 draws) and it resumes within 2.5 s, with the dock open and closed. Before: it never resumed.
+- Theme toggle repaints in 32 to 36 ms on every kind, also when static.
+- Window resize and a dpr override keep the image (no blank frame). The canvas is resized to the tier budget.
+- Dim and blur land on the right element. Every tier gives the expected frame rate (Ocean/Starfield 30/20/12/0, Drift 30/20/10/0) and resolution.
+- Hide/show pauses (2 rAF/s while hidden) and resumes.
+- Custom HTML background takes over (no canvas) and gives the preset back.
+- Sidebar collapse/expand keeps animating at the same rate.
+- No console errors or exceptions in any scenario.
+- 10 minutes idle (Ocean): still animating every minute (5,100 to 6,100 letter draws/s, 22 rAF/s), JS heap 50.4 MB at the start, 51.4 MB at the end (peaks of 60-62 MB were collected), no errors.
+
+### Before / after (`tools/rig/perf/bg-perf.mjs --set wp17`, rig slot 2)
+
+Before = the build before WP-17. After = this branch. `default` = the shipped defaults (quality Auto, pause while typing). Idle = nothing but the background. Work = typing, scrolling and a fake stream. The numbers are GPU process CPU % and dropped frames per second. Rig load moves between runs, so compare against `off` from the same run.
+
+| Scenario | idle draws/s before -> after | idle GPU % before -> after | work drop/s before -> after |
+|---|---|---|---|
+| off | 0 -> 0 | 30.1 -> 30.0 | 0.6 -> 1.2 |
+| ocean-default | **0** -> 20 | 29.9 -> 33.8 | 0.6 -> 1.2 |
+| drift-default | **0** -> 19.8 | 29.9 -> 30.1 | 0 -> 0.8 |
+| starfield-default | **0** -> 19.6 | 30.1 -> 38.0 | 0.6 -> 0.4 |
+| antigravity-default | **0** -> 29.4 | 30.2 -> 50.4 | 0.6 -> 1.4 |
+| ocean-high-nopause | **0** -> 29.2 | 34.8 -> 35.4 | 2.0 -> 3.3 |
+| drift-high-nopause | 30 -> 29.6 | 31.4 -> 31.6 | 1.8 -> 2.8 |
+| starfield-high-nopause | 30 -> 29.6 | 48.1 -> 50.7 | 4.6 -> 11.2 |
+| antigravity-high-nopause | 59.5 -> 58.5 | 76.2 -> 71.2 | 25.5 -> 24.4 |
+
+How to read it:
+
+- Before, the defaults never animated (bug 1). Ocean didn't animate even with the pause off. Their low "before" cost is the cost of a still picture.
+- After, every default animates while idle. It still freezes during work, so work drops equal `off` on every kind.
+- The "after" idle cost is the real price of the animation. Antigravity's is +20 points.
+
+Always-animating cost at Balanced (pause off, 3 interleaved repeats, `--repeat 3`, a busier rig so `off` is higher):
+
+| Scenario | idle GPU % | work GPU % | work drop/s | frame p95 ms |
+|---|---|---|---|---|
+| off | 41.7-42.5 | 45.8-45.9 | 1.6-2.0 | 8.4 |
+| drift | 43.8-44.1 | 47.0-47.5 | 4.1-4.5 | 8.4 |
+| ocean | 47.5-48.2 | 49.7-50.8 | 10.0-10.9 | 8.5 |
+| starfield | 53.3-53.8 | 54.6-56.5 | 10.4-12.2 | 8.5-16.6 |
+| antigravity | 63.9-66.1 | 65.6-67.2 | 16.8-18.9 | 16.7 |
+
+### Where Antigravity's cost goes (A/B, Balanced, pause off)
+
+| Variant | idle GPU % | work drop/s |
+|---|---|---|
+| off | 33.4 | 1.8 |
+| Antigravity | 51.1 | 12.0 |
+| canvas `display:none` (JS and canvas commands still run) | 50.5 | 11.3 |
+| square line caps instead of round | 50.4 | 10.7 |
+| Low tier (15 fps, 0.5x) | 35.8 | 5.1 |
+| 2D context on the CPU (`willReadFrequently`), separate run, `off` 30.7 / 1.8 | GPU 48.0 -> 34.7, renderer 36.2 -> 44.4 | 9.2 -> 10.1 |
+
+A hidden canvas costs the same as a visible one, so the cost is rastering ~1700 strokes per frame, not compositing. Moving the raster to the CPU only moves the cost to the renderer, and the drops stay. Line caps don't matter. Only fewer frames and pixels help, and the Low tier no longer looks like the preset. A WebGL rewrite could change that. It was not attempted here.
+
+### Verdicts
+
+| Preset | Verdict | Evidence |
+|---|---|---|
+| Ocean | **KEEP** | defaults: animates idle at 20 fps for +4 GPU points, frozen during work (drops = off). Always-animating Balanced: +6 GPU, ~+8 drops/s |
+| Gradient drift | **KEEP** | the cheapest: +0 to +2 GPU, +2.5 drops/s even with the pause off |
+| Starfield | **KEEP** | defaults: +8 GPU idle, drops = off during work. With the pause off at Balanced: ~+10 drops/s and frame p95 16.6 ms in 2 of 3 runs. Smooth only with the default pause |
+| Antigravity | **DROP** | +20 GPU idle even on the defaults, +22 at Balanced, 16.8 to 18.9 drops/s and frame p95 16.7 ms whenever it animates. No compositing or raster fix helped (table above) |
+
+How the drop works:
+
+- Code, tests, panel entry and screenshot are removed.
+- A saved `bgKind: "antigravity"` comes back as Ocean. The settings runtime (`effectiveValue`, `packages/renderer-runtime/src/storage.ts`) returns the default for an enum value that is no longer an option, and writing it is rejected (`does not fit the enum schema`, seen on rig). A panel test covers the fallback.
+- Low power now caps at 20 fps. 30 was above every kept preset's High.
+
+### Unverified (WP-17)
+
+- Real provider streaming and scrolling long real threads were not driven. Streaming was the synthetic stream column plus DOM bursts in the real app.
+- Only rig was measured (RTX 3080, 120 Hz, 175 %). 60 Hz screens, integrated GPUs and FOX itself were not.
+- Visual quality was checked by draws and canvas state, not by comparing screenshots side by side.

@@ -14,7 +14,6 @@ const LEVELS = 4;
 const TINTS = 2;
 
 export class Starfield extends CanvasBg {
-
   #n = 0;
   #x = new Float32Array(0);
   #y = new Float32Array(0);
@@ -30,10 +29,6 @@ export class Starfield extends CanvasBg {
   #styleDirty = true;
   #buckets: Int32Array[] = [];
   #bucketN = new Int32Array(LEVELS * TINTS);
-
-  protected css(): string {
-    return "";
-  }
 
   protected override configure(): void {
     this.#styleDirty = true;

@@ -2,9 +2,9 @@ import type { PluginModule, SettingSchema, SettingValue, T3Api } from "@t3p/api"
 
 import { CUSTOM_KEY, CustomLayers, emptyBundle, parseBundle, serializeBundle, type CustomId } from "./custom.js";
 import { backgroundTemplate, headerTemplate } from "./custom-templates.js";
-import { Antigravity } from "./antigravity.js";
+import { syncBackgrounds } from "./bg-base.js";
 import { BgDim } from "./bg-dim.js";
-import { BG_KINDS, BG_LABELS, BLUR_MAX, DIM_MAX, dimOpacity, isBgKind, type BgConfig, type BgKind, type BgPresetKind } from "./bg-model.js";
+import { BG_KINDS, BG_LABELS, BLUR_MAX, DIM_MAX, dimOpacity, isBgKind, type BgConfig, type BgKind } from "./bg-model.js";
 import { BG_QUALITIES, BG_QUALITY_LABELS, isBgQuality, type BgQuality } from "./bg-perf.js";
 import { GradientDrift } from "./drift.js";
 import { Ocean } from "./ocean.js";
@@ -31,7 +31,6 @@ import {
   nextPreset,
   uniqueName,
   type ArtworkConfig,
-  type OceanConfig,
   type LogoMode,
   type Preset,
   type SavedArtwork,
@@ -93,7 +92,7 @@ const G_BG = "Background";
 const G_CUSTOM = "Custom HTML/CSS";
 /** Visibility of the Background rows: which kind needs them. Hidden rows keep their stored value. */
 const OCEAN_ONLY = { key: "bgKind", equals: "ocean" } as const;
-const NOT_OCEAN = { key: "bgKind", in: ["antigravity", "drift", "starfield"] } as const;
+const NOT_OCEAN = { key: "bgKind", in: ["drift", "starfield"] } as const;
 
 /**
  * Order matters: the Plugins page lists sections in order of first appearance (Sidebar artwork, Logo,
@@ -135,12 +134,12 @@ export const settings: SettingSchema[] = [
   { key: "bgIntensity", type: "range", default: 60, min: 0, max: 100, group: G_BG, label: "Intensity", description: "How strong the background is.", showWhen: NOT_OCEAN },
   { key: "oceanSpeed", type: "range", default: 50, min: 0, max: 100, group: G_BG, label: "Speed", description: "Drift, shimmer and ripple speed. 0 is a still frame. Also still under reduced motion and paused while the window is hidden.", showWhen: OCEAN_ONLY },
   { key: "bgSpeed", type: "range", default: 50, min: 0, max: 100, group: G_BG, label: "Speed", description: "Motion speed. 0 is a still frame.", showWhen: NOT_OCEAN },
-  { key: "bgDensity", type: "range", default: 50, min: 0, max: 100, group: G_BG, label: "Density", description: "How many particles (Antigravity, Starfield) or how large the blobs (Gradient drift). The app lowers it by itself when frames get slow.", showWhen: NOT_OCEAN },
+  { key: "bgDensity", type: "range", default: 50, min: 0, max: 100, group: G_BG, label: "Density", description: "How many stars (Starfield) or how large the blobs (Gradient drift). The app lowers it by itself when frames get slow.", showWhen: NOT_OCEAN },
   { key: "bgDim", type: "range", default: 0, min: 0, max: DIM_MAX, group: G_BG, label: "Dim (%)", description: "A flat veil in the app background color between the background and the app. Calms busy backgrounds and improves text contrast. Costs nothing per frame." },
   { key: "bgBlur", type: "range", default: 0, min: 0, max: BLUR_MAX, group: G_BG, label: "Blur (px)", description: "Softens the background only, never the app. Gradient drift gets bigger, flatter blobs instead (free). On the canvas backgrounds the blur is redrawn on every app frame, even while paused: on a 4K screen it costs noticeable GPU while you type. Switches itself off if frames get slow." },
-  { key: "bgPointer", type: "boolean", default: true, group: G_BG, label: "Pointer reactive", description: "The Antigravity ring follows the pointer and the Starfield shifts slightly with it.", showWhen: { key: "bgKind", in: ["antigravity", "starfield"] } },
+  { key: "bgPointer", type: "boolean", default: true, group: G_BG, label: "Pointer reactive", description: "The Starfield shifts slightly with the pointer.", showWhen: { key: "bgKind", in: ["starfield"] } },
   { key: "bgFollowAccent", type: "boolean", default: true, group: G_BG, label: "Follow accent color", description: "Colors come from the app accent (or the sidebar artwork hue). Off uses each background's own palette.", showWhen: NOT_OCEAN },
-  { key: "bgLowPower", type: "boolean", default: false, group: G_BG, label: "Low power", description: "Caps Antigravity, Gradient drift and Starfield at 30 fps for laptops on battery (most quality tiers are already at or below that).", showWhen: NOT_OCEAN },
+  { key: "bgLowPower", type: "boolean", default: false, group: G_BG, label: "Low power", description: "Caps Gradient drift and Starfield at 20 fps for laptops on battery.", showWhen: NOT_OCEAN },
   { key: "oceanRipples", type: "boolean", default: true, group: G_BG, label: "Ripples", description: "Clicks send a ripple through the letters and the pointer lights them up. Clicks always still reach the app.", showWhen: OCEAN_ONLY },
   // Performance (shared by every kind; the dock panel shows them as their own block inside Background).
   {
@@ -198,42 +197,38 @@ const plugin: PluginModule = {
     disposers.push(() => saveTimer && clearTimeout(saveTimer));
     let customLoaded = false;
 
-    const oceanConfig = (): OceanConfig => ({
-      on: get<boolean>("oceanOn") && bgKind() === "ocean" && !custom.active("background"),
-      intensity: get<number>("oceanIntensity"),
-      speed: get<number>("oceanSpeed"),
-      ripples: get<boolean>("oceanRipples"),
-      hue: get<number>("hue"),
-      quality: bgQuality(),
-      pauseWhileTyping: get<boolean>("bgPauseWhileTyping"),
-      blur: get<number>("bgBlur"),
-    });
-    const ocean = new Ocean({ config: oceanConfig });
-    disposers.push(() => ocean.stop());
-
     const bgQuality = (): BgQuality => {
       const q = get<string>("bgQuality");
       return isBgQuality(q) ? q : "auto";
     };
     const bgKind = (): BgKind => {
       const k = get<string>("bgKind");
+      // A dropped kind (Antigravity) never gets here: the runtime already returns the default for it.
       return isBgKind(k) ? k : "ocean";
     };
-    const bgConfig = (kind: BgPresetKind): BgConfig => ({
-      on: get<boolean>("oceanOn") && bgKind() === kind && !custom.active("background"),
-      intensity: get<number>("bgIntensity"),
-      speed: get<number>("bgSpeed"),
-      density: get<number>("bgDensity"),
-      pointer: get<boolean>("bgPointer"),
-      followAccent: get<boolean>("bgFollowAccent"),
-      hue: get<number>("hue"),
-      lowPower: get<boolean>("bgLowPower"),
-      quality: bgQuality(),
-      pauseWhileTyping: get<boolean>("bgPauseWhileTyping"),
-      dim: get<number>("bgDim"),
-      blur: get<number>("bgBlur"),
-    });
-    const onAutoStop = (kind: BgPresetKind): void => {
+    const bgConfig = (kind: BgKind): BgConfig => {
+      const shared = {
+        on: get<boolean>("oceanOn") && bgKind() === kind && !custom.active("background"),
+        hue: get<number>("hue"),
+        lowPower: get<boolean>("bgLowPower"),
+        quality: bgQuality(),
+        pauseWhileTyping: get<boolean>("bgPauseWhileTyping"),
+        dim: get<number>("bgDim"),
+        blur: get<number>("bgBlur"),
+      };
+      // Ocean keeps its own rows (intensity, speed, ripples); its glow always follows the pointer and the accent.
+      if (kind === "ocean")
+        return { ...shared, intensity: get<number>("oceanIntensity"), speed: get<number>("oceanSpeed"), density: 50, pointer: true, ripples: get<boolean>("oceanRipples"), followAccent: true };
+      return {
+        ...shared,
+        intensity: get<number>("bgIntensity"),
+        speed: get<number>("bgSpeed"),
+        density: get<number>("bgDensity"),
+        pointer: get<boolean>("bgPointer"),
+        followAccent: get<boolean>("bgFollowAccent"),
+      };
+    };
+    const onAutoStop = (kind: BgKind): void => {
       t3.ui.toast({
         title: "Artwork",
         message: `${BG_LABELS[kind]} background stopped: frames were still slow after lowering the density. Lower Background density, or turn on Low power, then switch it on again.`,
@@ -241,11 +236,12 @@ const plugin: PluginModule = {
         durationMs: 9000,
       });
     };
-    const bgHost = (kind: BgPresetKind) => ({ config: () => bgConfig(kind), onAutoStop });
-    const backgrounds = [new Antigravity("antigravity", bgHost("antigravity")), new GradientDrift("drift", bgHost("drift")), new Starfield("starfield", bgHost("starfield"))];
+    const bgHost = (kind: BgKind) => ({ config: () => bgConfig(kind), onAutoStop });
+    // One engine for all four (bg-base.ts); syncBackgrounds stops the old one before starting the new one.
+    const backgrounds = [new Ocean(bgHost("ocean")), new GradientDrift("drift", bgHost("drift")), new Starfield("starfield", bgHost("starfield"))];
     disposers.push(() => backgrounds.forEach((b) => b.stop()));
     // Dim: one flat element between the preset and the app, only while a preset runs.
-    const dim = new BgDim({ active: () => get<boolean>("oceanOn") && !custom.active("background"), opacity: () => dimOpacity(get<number>("bgDim")) });
+    const dim = new BgDim({ active: () => backgrounds.some((b) => b.running), opacity: () => dimOpacity(get<number>("bgDim")) });
     disposers.push(() => dim.stop());
 
     // ---- layers ------------------------------------------------------------------------------
@@ -369,8 +365,7 @@ const plugin: PluginModule = {
     });
 
     const applyAll = (): void => {
-      ocean.update();
-      for (const b of backgrounds) b.update();
+      syncBackgrounds(backgrounds);
       dim.update();
       applyLayers();
       ensure();

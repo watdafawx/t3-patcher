@@ -2,20 +2,27 @@ import { qualityProfile, startTier, type BgQuality, type BgTier } from "./bg-per
 import { clamp, type Rgb } from "./model.js";
 
 /**
- * Pure helpers shared by the full-app background presets (Antigravity, Starfield, Gradient drift).
- * Ocean predates them and keeps its own model in `model.ts`.
+ * Pure helpers shared by the full-app background presets (Ocean, Starfield, Gradient drift). Ocean's letter palette
+ * lives in `model.ts` (`oceanPalette`).
  */
 
-export const BG_KINDS = ["ocean", "antigravity", "drift", "starfield"] as const;
+export const BG_KINDS = ["ocean", "drift", "starfield"] as const;
 export type BgKind = (typeof BG_KINDS)[number];
 export const BG_LABELS: Record<BgKind, string> = {
   ocean: "Ocean",
-  antigravity: "Antigravity",
   drift: "Gradient drift",
   starfield: "Starfield",
 };
-/** The three presets built on `BgLayer` (Ocean has its own engine). */
-export type BgPresetKind = Exclude<BgKind, "ocean">;
+
+/**
+ * Kinds that were removed. Antigravity was dropped in WP-17: its canvas raster alone (measured with the canvas
+ * hidden) halved the app frame rate while typing on a 4K screen at its default tier (docs/artwork-perf.md).
+ * Migration needs no code: the settings runtime returns the default (`ocean`) for a stored enum value that is no
+ * longer an option, so a saved `bgKind: "antigravity"` comes back as Ocean.
+ */
+export const DROPPED_BG_KINDS: readonly string[] = ["antigravity"];
+/** Every kind runs on the same `CanvasBg` engine (`bg-base.ts`). Kept as an alias for older imports. */
+export type BgPresetKind = BgKind;
 
 export const BG_KEYS = ["bgIntensity", "bgSpeed", "bgDensity", "bgDim", "bgBlur", "bgPointer", "bgFollowAccent", "bgLowPower", "bgQuality", "bgPauseWhileTyping"] as const;
 
@@ -32,11 +39,13 @@ export interface BgConfig {
   /** 0 to 100 */
   density: number;
   pointer: boolean;
+  /** Ocean: clicks send a ripple through the letters (the pointer glow follows `pointer`). */
+  ripples?: boolean;
   /** True: colors come from the app accent (or the artwork hue). False: the preset's own palette. */
   followAccent: boolean;
   /** Same hue setting as the sidebar artwork: negative follows the app accent. */
   hue: number;
-  /** Cap at 30 fps. */
+  /** Cap at {@link LOW_POWER_FPS}. */
   lowPower: boolean;
   /** Render quality tier, or `auto` (adaptive, see `bg-perf.ts`). */
   quality: BgQuality;
@@ -59,8 +68,8 @@ export interface BgParams {
   maxFps: number;
 }
 
-export const ANTIGRAVITY_MIN = 500;
-export const ANTIGRAVITY_SPAN = 2400;
+/** Frame cap of the Low power setting. */
+export const LOW_POWER_FPS = 20;
 export const STARFIELD_MIN = 80;
 export const STARFIELD_SPAN = 240;
 
@@ -68,14 +77,14 @@ export function bgParams(kind: BgPresetKind, cfg: Pick<BgConfig, "intensity" | "
   const fps = qualityProfile(kind, tier).fps;
   const speed = clamp(cfg.speed, 0, 100) / 50;
   const d = clamp(cfg.density, 0, 100) / 100;
-  const count = kind === "starfield" ? Math.round(STARFIELD_MIN + d * STARFIELD_SPAN) : Math.round(ANTIGRAVITY_MIN + d * ANTIGRAVITY_SPAN);
+  const count = kind === "starfield" ? Math.round(STARFIELD_MIN + d * STARFIELD_SPAN) : 0;
   return {
     alpha: Math.round((clamp(cfg.intensity, 0, 100) / 60) * 1000) / 1000,
     speed,
     animated: speed > 0 && fps > 0,
     count,
-    // The quality tier sets the frame rate (Starfield is 30 fps at most); Low power caps everything at 30.
-    maxFps: cfg.lowPower ? Math.min(30, fps) : fps,
+    // The quality tier sets the frame rate (30 fps at most); Low power caps it at 20.
+    maxFps: cfg.lowPower ? Math.min(LOW_POWER_FPS, fps) : fps,
   };
 }
 

@@ -69,7 +69,6 @@ describe("artwork settings schema", () => {
 
   it("shows only what each kind uses", () => {
     expect(backgroundRows("ocean")).toEqual(["oceanOn", "bgKind", "oceanIntensity", "oceanSpeed", "bgDim", "bgBlur", "oceanRipples", "bgQuality", "bgPauseWhileTyping"]);
-    expect(backgroundRows("antigravity")).toEqual(["oceanOn", "bgKind", "bgIntensity", "bgSpeed", "bgDensity", "bgDim", "bgBlur", "bgPointer", "bgFollowAccent", "bgLowPower", "bgQuality", "bgPauseWhileTyping"]);
     expect(backgroundRows("starfield")).toEqual(["oceanOn", "bgKind", "bgIntensity", "bgSpeed", "bgDensity", "bgDim", "bgBlur", "bgPointer", "bgFollowAccent", "bgLowPower", "bgQuality", "bgPauseWhileTyping"]);
     expect(backgroundRows("drift")).toEqual(["oceanOn", "bgKind", "bgIntensity", "bgSpeed", "bgDensity", "bgDim", "bgBlur", "bgFollowAccent", "bgLowPower", "bgQuality", "bgPauseWhileTyping"]);
   });

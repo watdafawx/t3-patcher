@@ -125,9 +125,8 @@ describe("artwork dock tab", () => {
     expect(fake.panels.map((p) => p.keys)).toEqual([
       ["intensity", "speed", "fadeHeight", "blur", "angle", "scrim", "mainGlow"],
       ["oceanIntensity", "oceanSpeed", "bgDim", "bgBlur", "oceanRipples"],
+      ["bgIntensity", "bgSpeed", "bgDensity", "bgDim", "bgBlur", "bgFollowAccent", "bgLowPower"],
       ["bgIntensity", "bgSpeed", "bgDensity", "bgDim", "bgBlur", "bgPointer", "bgFollowAccent", "bgLowPower"],
-      ["bgIntensity", "bgSpeed", "bgDensity", "bgDim", "bgBlur", "bgFollowAccent"],
-      ["bgIntensity", "bgSpeed", "bgDensity", "bgDim", "bgBlur", "bgPointer", "bgFollowAccent"],
       ["bgQuality", "bgPauseWhileTyping"],
       ["logoMode", "logoText", "logoHeight"],
     ]);
@@ -138,11 +137,11 @@ describe("artwork dock tab", () => {
 
   describe("background kind (radio)", () => {
     const chip = (id: string): HTMLButtonElement => document.querySelector(`[data-t3p-bg-kind="${id}"]`) as HTMLButtonElement;
-    const roots = (): string[] => ["t3p-ocean", "t3p-bg-antigravity", "t3p-bg-drift", "t3p-bg-starfield"].filter((id) => document.getElementById(id));
+    const roots = (): string[] => ["t3p-ocean", "t3p-bg-drift", "t3p-bg-starfield"].filter((id) => document.getElementById(id));
 
-    it("shows Off plus four kinds as a radio group, Off checked by default", async () => {
+    it("shows Off plus three kinds as a radio group, Off checked by default", async () => {
       await start(fakeT3());
-      expect([...document.querySelectorAll("[data-t3p-bg-kind]")].map((b) => b.getAttribute("data-t3p-bg-kind"))).toEqual(["off", "ocean", "antigravity", "drift", "starfield"]);
+      expect([...document.querySelectorAll("[data-t3p-bg-kind]")].map((b) => b.getAttribute("data-t3p-bg-kind"))).toEqual(["off", "ocean", "drift", "starfield"]);
       expect(document.querySelector("[data-t3p-bg]")!.getAttribute("role")).toBe("radiogroup");
       expect(chip("off").getAttribute("aria-checked")).toBe("true");
       expect(chip("ocean").getAttribute("aria-checked")).toBe("false");
@@ -152,13 +151,10 @@ describe("artwork dock tab", () => {
     it("picking a kind turns the app background on with that kind; only one runs at a time", async () => {
       const fake = fakeT3();
       await start(fake);
-      chip("antigravity").click();
-      await vi.advanceTimersByTimeAsync(0);
-      expect(fake.sets).toEqual(expect.arrayContaining([["bgKind", "antigravity"], ["oceanOn", true]]));
-      expect(chip("antigravity").getAttribute("aria-checked")).toBe("true");
-      expect(roots()).toEqual(["t3p-bg-antigravity"]);
       chip("starfield").click();
       await vi.advanceTimersByTimeAsync(0);
+      expect(fake.sets).toEqual(expect.arrayContaining([["bgKind", "starfield"], ["oceanOn", true]]));
+      expect(chip("starfield").getAttribute("aria-checked")).toBe("true");
       expect(roots()).toEqual(["t3p-bg-starfield"]);
       chip("drift").click();
       await vi.advanceTimersByTimeAsync(0);
@@ -181,11 +177,12 @@ describe("artwork dock tab", () => {
       expect([...document.querySelectorAll<HTMLElement>("[data-t3p-bg-settings]")].every((b) => b.hidden)).toBe(true);
     });
 
-    it("marks Antigravity as heavy with a warning chip, the others not", async () => {
+    it("a saved Antigravity (dropped in WP-17) falls back to the Ocean", async () => {
       await start(fakeT3({ oceanOn: true, bgKind: "antigravity" }));
-      expect(document.querySelector("[data-t3p-bg-heavy]")?.getAttribute("data-tone")).toBe("warn");
-      chip("drift").click();
-      expect(document.querySelector("[data-t3p-bg-heavy]")).toBeNull();
+      expect(roots()).toEqual(["t3p-ocean"]);
+      expect(document.getElementById("t3p-bg-antigravity")).toBeNull();
+      expect(document.querySelector('[data-t3p-bg-kind="antigravity"]')).toBeNull();
+      expect(chip("ocean").getAttribute("aria-checked")).toBe("true");
     });
 
     it("an old install with only oceanOn=true still gets the Ocean", async () => {
@@ -412,16 +409,16 @@ describe("background dim and blur", () => {
     await fake.t3.settings.set(key, value);
     await vi.advanceTimersByTimeAsync(0);
   };
-  const rootIds = { ocean: "t3p-ocean", antigravity: "t3p-bg-antigravity", drift: "t3p-bg-drift", starfield: "t3p-bg-starfield" } as const;
+  const rootIds = { ocean: "t3p-ocean", drift: "t3p-bg-drift", starfield: "t3p-bg-starfield" } as const;
 
   it("an old install (no dim, no blur) gets no overlay and no filter", async () => {
-    await start(fakeT3({ oceanOn: true, oceanIntensity: 30, oceanSpeed: 20, oceanRipples: false, bgKind: "antigravity", bgIntensity: 70 }));
+    await start(fakeT3({ oceanOn: true, oceanIntensity: 30, oceanSpeed: 20, oceanRipples: false, bgKind: "starfield", bgIntensity: 70 }));
     expect(dimEl()).toBeNull();
-    expect(document.getElementById("t3p-bg-antigravity")!.style.filter).toBe("");
+    expect(document.getElementById("t3p-bg-starfield")!.style.filter).toBe("");
     expect(document.getElementById("t3p-ocean")).toBeNull();
   });
 
-  for (const kind of ["ocean", "antigravity", "drift", "starfield"] as const) {
+  for (const kind of ["ocean", "drift", "starfield"] as const) {
     it(`${kind}: one fixed click-through overlay right after the running preset`, async () => {
       await start(fakeT3({ oceanOn: true, bgKind: kind, bgDim: 40 }));
       const dim = dimEl()!;
@@ -451,7 +448,7 @@ describe("background dim and blur", () => {
   it("dim previews live from the dock slider before any write", async () => {
     const fake = fakeT3({ oceanOn: true, bgKind: "starfield" });
     await start(fake);
-    const panel = fake.panels.find((p) => p.keys?.includes("bgDim") && p.keys.includes("bgPointer") && !p.keys.includes("bgLowPower"))!;
+    const panel = fake.panels.find((p) => p.keys?.includes("bgDim") && p.keys.includes("bgPointer"))!;
     panel.options.onLive?.("bgDim", 30);
     expect(dimEl()!.style.opacity).toBe("0.3");
     panel.options.onLive?.("bgDim", 0);
@@ -459,7 +456,7 @@ describe("background dim and blur", () => {
   });
 
   it("switching the master off, or stopping the plugin, removes the overlay", async () => {
-    const fake = fakeT3({ oceanOn: true, bgKind: "antigravity", bgDim: 30 });
+    const fake = fakeT3({ oceanOn: true, bgKind: "starfield", bgDim: 30 });
     await start(fake);
     expect(dimEl()).not.toBeNull();
     await set(fake, "oceanOn", false);
@@ -469,7 +466,7 @@ describe("background dim and blur", () => {
     (stop as () => void)();
     stop = undefined;
     expect(dimEl()).toBeNull();
-    expect(document.getElementById("t3p-bg-antigravity")).toBeNull();
+    expect(document.getElementById("t3p-bg-starfield")).toBeNull();
   });
 
   it("switching the kind keeps one overlay, after the new preset", async () => {
@@ -481,16 +478,16 @@ describe("background dim and blur", () => {
   });
 
   it("reset all puts dim and blur back to 0 and removes both", async () => {
-    const fake = fakeT3({ oceanOn: true, bgKind: "antigravity", bgDim: 45, bgBlur: 12 });
+    const fake = fakeT3({ oceanOn: true, bgKind: "starfield", bgDim: 45, bgBlur: 12 });
     await start(fake);
     expect(dimEl()).not.toBeNull();
-    expect(document.getElementById("t3p-bg-antigravity")!.style.filter).toBe("");
+    expect(document.getElementById("t3p-bg-starfield")!.style.filter).toBe("");
     await resetAllArtwork(fake.t3, { update: () => undefined }, false);
     await vi.advanceTimersByTimeAsync(0);
     expect(fake.t3.settings.get("bgDim")).toBe(0);
     expect(fake.t3.settings.get("bgBlur")).toBe(0);
     expect(dimEl()).toBeNull();
-    expect(document.getElementById("t3p-bg-antigravity")).toBeNull();
+    expect(document.getElementById("t3p-bg-starfield")).toBeNull();
   });
 
   it("dim and blur still apply under reduced motion (a still frame)", async () => {
@@ -508,9 +505,9 @@ describe("background dim and blur", () => {
 
   describe("blur", () => {
     it("is drawn into the canvas: no CSS filter, no will-change, no transform, never a backdrop-filter", async () => {
-      const fake = fakeT3({ oceanOn: true, bgKind: "antigravity", bgBlur: 8 });
+      const fake = fakeT3({ oceanOn: true, bgKind: "starfield", bgBlur: 8 });
       await start(fake);
-      const canvas = document.getElementById("t3p-bg-antigravity") as HTMLCanvasElement;
+      const canvas = document.getElementById("t3p-bg-starfield") as HTMLCanvasElement;
       expect(canvas.style.filter).toBe("");
       expect(canvas.style.willChange).toBe("");
       expect(canvas.style.transform).toBe("");

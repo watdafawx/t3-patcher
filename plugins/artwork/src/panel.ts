@@ -67,15 +67,11 @@ export interface PanelContext {
 export const LOOK_KEYS = ["intensity", "speed", "fadeHeight", "blur", "angle", "scrim", "mainGlow"];
 /** Dim and blur are shared: every kind lists them, after its own sliders. */
 export const OCEAN_KEYS = ["oceanIntensity", "oceanSpeed", "bgDim", "bgBlur", "oceanRipples"];
-export const ANTIGRAVITY_KEYS = ["bgIntensity", "bgSpeed", "bgDensity", "bgDim", "bgBlur", "bgPointer", "bgFollowAccent", "bgLowPower"];
-export const STARFIELD_KEYS = ["bgIntensity", "bgSpeed", "bgDensity", "bgDim", "bgBlur", "bgPointer", "bgFollowAccent"];
-export const DRIFT_KEYS = ["bgIntensity", "bgSpeed", "bgDensity", "bgDim", "bgBlur", "bgFollowAccent"];
-const BG_KEYS_BY_KIND: Record<BgKind, string[]> = { ocean: OCEAN_KEYS, antigravity: ANTIGRAVITY_KEYS, drift: DRIFT_KEYS, starfield: STARFIELD_KEYS };
-/** Presets that stay costly at full quality (measured, docs/artwork-perf.md): the panel shows a warning chip. */
-const HEAVY_BG = new Set<BgKind>(["antigravity"]);
+export const STARFIELD_KEYS = ["bgIntensity", "bgSpeed", "bgDensity", "bgDim", "bgBlur", "bgPointer", "bgFollowAccent", "bgLowPower"];
+export const DRIFT_KEYS = ["bgIntensity", "bgSpeed", "bgDensity", "bgDim", "bgBlur", "bgFollowAccent", "bgLowPower"];
+const BG_KEYS_BY_KIND: Record<BgKind, string[]> = { ocean: OCEAN_KEYS, drift: DRIFT_KEYS, starfield: STARFIELD_KEYS };
 const BG_HINTS: Record<BgKind, string> = {
   ocean: "Letters drift behind the whole app. Click for ripples. Cost: a canvas frame up to 30 times a second.",
-  antigravity: "Round-capped dashes with a ring that follows the pointer. Heavy: thousands of strokes per frame for the GPU. Keep Quality on Auto or Balanced on a 4K screen.",
   drift: "Four slow soft blobs on a tiny canvas. Cost: the lightest animated background.",
   starfield: "Sparse twinkling stars. Cost: a small canvas frame up to 30 times a second.",
 };
@@ -211,7 +207,6 @@ export function renderPanel(host: HTMLElement, ctx: PanelContext): () => void {
     for (const [k, block] of bgBlocks) block.hidden = !(bgOn && k === bgKindNow);
     perfBlock.hidden = !bgOn;
     bgHint.textContent = bgOn ? BG_HINTS[bgKindNow] : "Pick a background for the whole app. Separate from the sidebar preset. Only one runs at a time.";
-    if (bgOn && HEAVY_BG.has(bgKindNow)) bgHint.prepend(el("span", { class: "t3p-chip", "data-tone": "warn", "data-t3p-bg-heavy": "" }, "Heavy"), " ");
   };
   for (const id of bgChoices) {
     const b = el("button", { type: "button", class: "t3p-btn", role: "radio", "aria-checked": "false", "data-t3p-bg-kind": id }, id === "off" ? "Off" : BG_LABELS[id]);

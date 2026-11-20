@@ -7,7 +7,10 @@ import { ActivityGate } from "./bg-perf.js";
  * - Input: `keydown`, `wheel` and `scroll` (capture, passive). Pointer events are not input here: the
  *   pointer-reactive presets follow the pointer and Ocean ripples on click.
  * - Streaming: one `MutationObserver` on <body> (child lists and text). Its callback only counts records; the gate
- *   decides from the rate, so a ticking clock never freezes the background.
+ *   decides from the rate, so a ticking clock never freezes the background. Records inside plugin UI (anything
+ *   under an element with a `t3p-` class or id, `[data-t3p-root]`) do not count: the plugin dock re-renders its
+ *   panels every second even while closed (~11-14 records/s with Provider limits installed), which on rig kept the
+ *   gate busy forever and froze every background on its first frame (WP-17).
  * - Long animation frames (where supported) are forwarded to the quality governor.
  *
  * Subscribers get `busy(true)` when the user becomes busy and `busy(false)` once the gate is quiet again.
@@ -16,6 +19,27 @@ import { ActivityGate } from "./bg-perf.js";
 export type ActivityListener = { busy(on: boolean): void; blocking?(ms: number): void };
 
 const now = (): number => performance.now();
+
+/** Plugin UI (dock, status bar chips, slots, our own probes): its mutations are not the chat streaming. */
+const PLUGIN_UI = '[class*="t3p-"],[id^="t3p-"],[data-t3p-root]';
+
+/**
+ * True for a node inside plugin UI. The walk stops below <body>: plugins put state classes on <body> and <html>
+ * (`t3p-dock-open`), and matching those would hide the whole chat from the gate.
+ */
+export function isPluginUi(node: Node): boolean {
+  for (let el = node.nodeType === 1 ? (node as Element) : node.parentElement; el && el !== document.body && el !== document.documentElement; el = el.parentElement)
+    if (el.matches?.(PLUGIN_UI)) return true;
+  return false;
+}
+
+/** A record that only touches plugin UI: inside it, or adding/removing nothing but plugin nodes (the color probe). */
+export function isPluginRecord(r: Pick<MutationRecord, "target" | "type" | "addedNodes" | "removedNodes">): boolean {
+  if (isPluginUi(r.target)) return true;
+  if (r.type !== "childList") return false;
+  const nodes = [...Array.from(r.addedNodes), ...Array.from(r.removedNodes)];
+  return nodes.length > 0 && nodes.every((n) => n.nodeType === 1 && (n as Element).matches?.(PLUGIN_UI));
+}
 
 export class ActivityMonitor {
   readonly gate = new ActivityGate();
@@ -49,7 +73,11 @@ export class ActivityMonitor {
     window.addEventListener("wheel", this.#onInput, opts);
     window.addEventListener("scroll", this.#onInput, opts);
     if (typeof MutationObserver === "function" && document.body) {
-      this.#observer = new MutationObserver((records) => this.#onMutations(records.length));
+      this.#observer = new MutationObserver((records) => {
+        let n = 0;
+        for (const r of records) if (!isPluginRecord(r)) n++;
+        if (n > 0) this.#onMutations(n);
+      });
       this.#observer.observe(document.body, { childList: true, characterData: true, subtree: true });
     }
     try {

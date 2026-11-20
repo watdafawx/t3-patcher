@@ -2,7 +2,7 @@
   "id": "artwork",
   "name": "Artwork",
   "description": "Animated aurora, gradient, mesh or your own image behind the sidebar header, plus a custom logo or title. Pure CSS, theme aware.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "tier": 1,
   "permissions": [],
   "t3Versions": ["*"],
