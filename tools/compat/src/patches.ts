@@ -1,5 +1,5 @@
 import { CAPTURES } from "@t3p/main-runtime/patch-catalog";
-import { applyServerGuardPatch, SERVER_GUARD_FIND } from "@t3p/main-runtime/server-patch-catalog";
+import { applyServerGuardPatch, applyServerMcpPatch, SERVER_GUARD_FIND, SERVER_MCP_FIND } from "@t3p/main-runtime/server-patch-catalog";
 import type { ChunkSet, Patch } from "@t3p/patch-engine";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -61,6 +61,7 @@ export function scanFinds(chunks: ChunkSet, entries: readonly FindEntry[]): Find
 
 export const CORE_CATALOG_ORIGIN = "packages/main-runtime/src/patches/captures.ts";
 export const SERVER_GUARD_ORIGIN = "packages/main-runtime/src/guard/server-patch.ts";
+export const SERVER_MCP_ORIGIN = "packages/main-runtime/src/guard/mcp-patch.ts";
 
 /**
  * The server-side turn guard patch (WP-6C): the runtime's own `applyServerGuardPatch` must apply to
@@ -83,6 +84,33 @@ export function serverGuardFinding(chunks: ReadonlyMap<string, string> | undefin
     label: "serverGuard",
     origin: SERVER_GUARD_ORIGIN,
     find: SERVER_GUARD_FIND,
+    hits,
+    status,
+    ...(failures.length > 0 ? { detail: failures.join("; ") } : {}),
+  };
+}
+
+/**
+ * The server-side MCP tools patch (`t3_provider_limits`): `applyServerMcpPatch` must apply to
+ * exactly one server chunk. Null when there is no server bundle to check.
+ */
+export function serverMcpFinding(chunks: ReadonlyMap<string, string> | undefined): FindResult | null {
+  if (!chunks || chunks.size === 0) return null;
+  const hits: string[] = [];
+  const failures: string[] = [];
+  for (const [name, source] of chunks) {
+    if (!source.includes(SERVER_MCP_FIND)) continue;
+    const result = applyServerMcpPatch(source);
+    if (result.ok) hits.push(name);
+    else failures.push(`${name}: ${result.reason} (${result.detail})`);
+  }
+  hits.sort();
+  const status = hits.length === 1 ? "ok" : hits.length === 0 ? "no-match" : "ambiguous";
+  return {
+    owner: "t3p.core",
+    label: "serverMcpTools",
+    origin: SERVER_MCP_ORIGIN,
+    find: SERVER_MCP_FIND,
     hits,
     status,
     ...(failures.length > 0 ? { detail: failures.join("; ") } : {}),

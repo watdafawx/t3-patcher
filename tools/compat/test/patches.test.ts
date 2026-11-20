@@ -10,6 +10,7 @@ import {
   readPatchFile,
   scanFinds,
   serverGuardFinding,
+  serverMcpFinding,
   type FindEntry,
 } from "../src/patches.js";
 
@@ -135,5 +136,33 @@ const dispatchWithReceipt = fnUntraced(function* (command) {
   it("is skipped without server chunks", () => {
     expect(serverGuardFinding(undefined)).toBeNull();
     expect(serverGuardFinding(new Map())).toBeNull();
+  });
+});
+
+describe("serverMcpFinding", () => {
+  const chunk = `import { x as orElseSucceed } from "./effect.mjs";
+const makeInvoke = (context) => { const services = context === void 0 ? empty() : omitRequestServices(context); return { services }; };
+const analytics = () => { serviceOption(ProviderRegistry); return new CallToolResult$5({ isError: false, content: [] }); };
+const layerToolExposure = effect(McpToolExposure, gen(function* () {
+\tconst server = yield* McpServer;
+\treturn server;
+}));
+const deferred = () => getOrUndefined(scope)?.thread?.providerSessionId;`;
+
+  it("is ok when the patch applies to exactly one server chunk", () => {
+    const result = serverMcpFinding(new Map([["apps/server/dist/server-A.mjs", chunk], ["apps/server/dist/bin.mjs", "export {};"]]));
+    expect(result).toMatchObject({ owner: "t3p.core", label: "serverMcpTools", status: "ok", hits: ["apps/server/dist/server-A.mjs"] });
+    expect(result?.detail).toBeUndefined();
+  });
+
+  it("reports why the anchor no longer patches", () => {
+    const result = serverMcpFinding(new Map([["apps/server/dist/server-A.mjs", chunk.replace("as orElseSucceed", "as other")]]));
+    expect(result).toMatchObject({ status: "no-match", hits: [] });
+    expect(result?.detail).toContain("no-or-else-succeed");
+  });
+
+  it("is skipped without server chunks", () => {
+    expect(serverMcpFinding(undefined)).toBeNull();
+    expect(serverMcpFinding(new Map())).toBeNull();
   });
 });

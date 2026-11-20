@@ -17,8 +17,8 @@ const SERVER_ENTRY_RE = /(?:^|[\\/])apps[\\/]server[\\/]dist[\\/]bin\.mjs$/;
 export interface GuardInjection {
   /** Absolute path of the bundled server-hook.mjs. */
   hookPath: string;
-  pipe: string;
-  token: string;
+  pipe?: string | null;
+  token?: string | null;
 }
 
 /** True for the local T3 backend spawn. */
@@ -30,14 +30,18 @@ export function isBackendSpawn(command: unknown, args: unknown, execPath: string
 }
 
 /**
- * Returns the spawn arguments with the hook preloaded and the pipe env set. `options.env` missing
- * means the child inherits `process.env`; then a copy of it is used.
+ * Returns the spawn arguments with the hook preloaded and the pipe env set (when provided).
+ * `options.env` missing means the child inherits `process.env`; then a copy of it is used.
  */
 export function injectGuard(args: readonly string[], options: ChildProcess.SpawnOptions | undefined, injection: GuardInjection): { args: string[]; options: ChildProcess.SpawnOptions } {
   const hookArg = `--import=${pathToFileURL(injection.hookPath).href}`;
   const nextArgs = args.includes(hookArg) ? [...args] : [hookArg, ...args];
   const baseEnv = options?.env ?? process.env;
-  const env: NodeJS.ProcessEnv = { ...baseEnv, [GUARD_PIPE_ENV]: injection.pipe, [GUARD_TOKEN_ENV]: injection.token };
+  const env: NodeJS.ProcessEnv = { ...baseEnv };
+  if (injection.pipe && injection.token) {
+    env[GUARD_PIPE_ENV] = injection.pipe;
+    env[GUARD_TOKEN_ENV] = injection.token;
+  }
   return { args: nextArgs, options: { ...(options ?? {}), env } };
 }
 

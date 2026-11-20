@@ -71,3 +71,11 @@ export function applyServerGuardPatch(source: string): ServerPatchResult {
   const code = source.slice(0, at) + injected + source.slice(at);
   return { ok: true, code, detail: `dispatchWithReceipt(${cmd}) via ${anchor[1]}, ${tryPromise}, ${dispatchError}` };
 }
+
+export {
+  applyServerMcpPatch,
+  SERVER_MCP_FILE_RE,
+  SERVER_MCP_FIND,
+  SERVER_MCP_GLOBAL,
+  type ServerMcpPatchResult,
+} from "./mcp-patch.js";

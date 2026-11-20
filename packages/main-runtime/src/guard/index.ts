@@ -14,6 +14,7 @@ import { createRequire } from "node:module";
 import type { GuardRequestEvent } from "@t3p/api";
 
 import { createGuardBroker, type GuardBroker } from "./broker.js";
+import { T3_MCP_TOOLS_ENV } from "./mcp-tools.js";
 import { newGuardEndpoint, startGuardPipeServer } from "./pipe.js";
 import { installSpawnWrap } from "./spawn-wrap.js";
 
@@ -34,38 +35,58 @@ export function guardDisabled(env: NodeJS.ProcessEnv): boolean {
   return env.T3P_GUARD === "0";
 }
 
+export function mcpToolsDisabled(env: NodeJS.ProcessEnv): boolean {
+  return env[T3_MCP_TOOLS_ENV] === "0";
+}
+
 /**
  * Starts the broker and, unless disabled or the hook file is missing, the pipe and the spawn wrap.
  * Call before the desktop main.cjs loads.
  */
 export function startTurnGuard(deps: TurnGuardDeps): TurnGuard {
   const broker = createGuardBroker({ emit: deps.emit, log: deps.log });
-  if (guardDisabled(deps.env)) {
-    deps.log.info("turn guard off (T3P_GUARD=0)");
+  const guardOff = guardDisabled(deps.env);
+  const mcpOff = mcpToolsDisabled(deps.env);
+  if (guardOff) deps.log.info("turn guard off (T3P_GUARD=0)");
+  if (mcpOff) deps.log.info("server MCP tools off (T3P_MCP_TOOLS=0)");
+  if (guardOff && mcpOff) {
     return { broker, endpoint: null };
   }
   if (!existsSync(deps.hookPath)) {
-    deps.log.warn(`turn guard off: ${deps.hookPath} is missing`);
+    deps.log.warn(`server hook off: ${deps.hookPath} is missing`);
     return { broker, endpoint: null };
   }
-  const endpoint = newGuardEndpoint();
-  let listening = true;
-  startGuardPipeServer({ path: endpoint.path, token: endpoint.token, decide: (ctx) => broker.decide(ctx), log: deps.log }).then(
-    (server) => {
-      server.unref();
-      deps.log.info(`turn guard pipe listening on ${endpoint.path}`);
-    },
-    (error: unknown) => {
-      listening = false;
-      deps.log.warn(`turn guard pipe failed (${String(error)}); turns are not guarded`);
-    },
-  );
+
+  let endpoint: { path: string; token: string } | null = null;
+  let listening = false;
+  if (!guardOff) {
+    endpoint = newGuardEndpoint();
+    listening = true;
+    const ep = endpoint;
+    startGuardPipeServer({ path: ep.path, token: ep.token, decide: (ctx) => broker.decide(ctx), log: deps.log }).then(
+      (server) => {
+        server.unref();
+        deps.log.info(`turn guard pipe listening on ${ep.path}`);
+      },
+      (error: unknown) => {
+        listening = false;
+        deps.log.warn(`turn guard pipe failed (${String(error)}); turns are not guarded`);
+      },
+    );
+  }
   // The CJS module object, the one the desktop main.cjs reads `spawn` from at load.
   const cp = createRequire(__filename)("node:child_process") as typeof childProcess;
   installSpawnWrap(
     cp,
-    () => (listening ? { hookPath: deps.hookPath, pipe: endpoint.path, token: endpoint.token } : null),
-    () => deps.log.info("turn guard: backend spawned with the server hook"),
+    () => {
+      const pipeReady = !guardOff && listening && endpoint !== null;
+      if (!pipeReady && mcpOff) return null;
+      return {
+        hookPath: deps.hookPath,
+        ...(pipeReady && endpoint ? { pipe: endpoint.path, token: endpoint.token } : {}),
+      };
+    },
+    () => deps.log.info("server hook: backend spawned with the server hook"),
   );
-  return { broker, endpoint: { path: endpoint.path } };
+  return { broker, endpoint: endpoint ? { path: endpoint.path } : null };
 }

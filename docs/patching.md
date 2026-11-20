@@ -222,3 +222,22 @@ Every other command passes without delay.
   server process that the runtime does not start.
 - The compat checker runs `applyServerGuardPatch` on every server chunk of the target
   (`serverGuard` in the patch list); it must apply to exactly one.
+
+## Server MCP tools (`t3_provider_limits`)
+
+The same `server-hook.mjs` load hook also patches `apps/server/dist/server-*.mjs` (`src/guard/mcp-patch.ts`,
+`applyServerMcpPatch`) inside `layerToolExposure` to register custom T3 Patcher MCP tools directly on
+T3 Code's `McpServer` (`globalThis.__t3pMcpTools`, `src/guard/mcp-tools.ts`).
+
+- **`t3_provider_limits`**: read-only MCP tool letting any model connected to T3's MCP server check
+  configured providers' usage limits, remaining percentage (`remainingPercent`, `minRemainingPercent`),
+  and reset times (`resetsAt`, `resetsInSeconds`).
+  - Optional inputs: `provider` (filter by `instanceId`, `driver`, or `displayName`), `refresh`
+    (re-probe live limits via `ProviderRegistry`), `includeDisabled` (include disabled providers when
+    unfiltered).
+  - Non-deferred MCP clients list it automatically; deferred clients (`tool_search`) discover it via
+    `server.tools`.
+- **Fail-open & opt-out**: if any anchor is missing or ambiguous, `server-*.mjs` loads unpatched.
+  `T3P_MCP_TOOLS=0` disables the MCP tool registration without affecting the turn guard (and
+  `T3P_GUARD=0` disables the turn guard without affecting `t3_provider_limits`).
+- The compat checker verifies `applyServerMcpPatch` on every target (`serverMcpTools` in the patch list).
