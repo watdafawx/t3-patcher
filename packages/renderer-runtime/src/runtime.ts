@@ -174,6 +174,20 @@ export function bootstrap(env: BootstrapEnv): Promise<PluginLoadResult[]> {
             .catch((error: unknown) => env.consoleError(`[t3p] permission reload of ${id} failed`, error));
           return;
         }
+        if (p?.type === "plugin-toggle-result" && typeof p.plugin === "string") {
+          const r = payload as { status?: string; plugin: string; enabled?: boolean; restartRequired?: boolean };
+          if (r.status === "unavailable") {
+            shell.overlays.toast("t3p.core", { message: `The confirmation dialog could not open. Use: t3p ${r.enabled ? "enable" : "disable"} ${r.plugin}`, kind: "warning" });
+          } else if (r.status === "toggled") {
+            if (r.restartRequired) {
+              shell.overlays.toast("t3p.core", { title: `${r.enabled ? "Enabled" : "Disabled"} ${r.plugin}`, message: "Restart T3 Code to apply main-process changes.", kind: "info", durationMs: 6000 });
+            }
+            manager.reload(r.plugin).catch((error: unknown) => env.consoleError(`[t3p] toggle sync of ${r.plugin} failed`, error));
+          } else {
+            manager.notify();
+          }
+          return;
+        }
         if (p?.type === "plugin-grant-result" && typeof p.plugin === "string") {
           const status = (payload as { status?: unknown }).status;
           if (status === "unavailable") shell.overlays.toast("t3p.core", { message: "The grant dialog could not open. Use: t3p grant " + p.plugin + " <permission>", kind: "warning" });

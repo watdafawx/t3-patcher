@@ -57,7 +57,9 @@ export const GRANT_REQUEST_CHANNEL = "t3p:privileged:grant-request";
  * opens a native confirmation dialog; nothing is downloaded or removed until the user confirms there.
  */
 export const REGISTRY_REQUEST_CHANNEL = "t3p:privileged:registry-request";
-export const PRIVILEGED_CHANNELS = [GRANT_REQUEST_CHANNEL, REGISTRY_REQUEST_CHANNEL] as const;
+/** Ask the main process to enable or disable a trusted plugin (main/patches/spawn) via a native dialog: `{ id, enabled }`. */
+export const TOGGLE_REQUEST_CHANNEL = "t3p:privileged:trusted-toggle";
+export const PRIVILEGED_CHANNELS = [GRANT_REQUEST_CHANNEL, REGISTRY_REQUEST_CHANNEL, TOGGLE_REQUEST_CHANNEL] as const;
 
 /** DOM attributes the preload's trusted-click listener reads (on the Plugins page's Grant buttons). */
 export const GRANT_ATTR = "data-t3p-grant-request";
@@ -65,6 +67,9 @@ export const GRANT_PERMS_ATTR = "data-t3p-grant-perms";
 /** DOM attributes on the Browse tab's Install / Update / Uninstall buttons (read by the same preload listener). */
 export const REGISTRY_ACTION_ATTR = "data-t3p-registry-action";
 export const REGISTRY_ID_ATTR = "data-t3p-registry-id";
+/** DOM attributes on trusted plugin enable/disable switches (read by the same preload listener). */
+export const TOGGLE_ID_ATTR = "data-t3p-trusted-toggle";
+export const TOGGLE_ENABLE_ATTR = "data-t3p-trusted-enable";
 export const REGISTRY_ACTIONS = ["install", "update", "uninstall"] as const;
 export type RegistryAction = (typeof REGISTRY_ACTIONS)[number];
 export function isRegistryAction(value: unknown): value is RegistryAction {

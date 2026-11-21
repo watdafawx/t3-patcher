@@ -34,6 +34,7 @@ import { DialogGate } from "./plugins/dialog-gate.js";
 import { type DialogLike, GrantFlow } from "./plugins/grants.js";
 import { PluginHost } from "./plugins/host.js";
 import { RegistryFlow } from "./plugins/registry-flow.js";
+import { TrustedToggleFlow } from "./plugins/trusted-toggle.js";
 import { readStateForWrite, writeStateFile } from "./plugins/state-io.js";
 import { watchPluginDirs } from "./plugins/dev-watch.js";
 import { StorageStore } from "./storage/store.js";
@@ -277,6 +278,21 @@ function boot(): void {
       })
     : null;
 
+  const trustedToggleFlow = dialog
+    ? new TrustedToggleFlow<BrowserWindowLike>({
+        dialog,
+        gate: dialogGate,
+        getWindow: () => tracker.get(),
+        target: (id) => host.grantTarget(id),
+        readState: () => readStateForWrite(paths.state),
+        writeState: (state) => writeStateFile(paths.state, state),
+        clearHealth: (id) => host.clearHealthFor(id),
+        applied: (id) => host.applyTrustedToggle(id),
+        emit: (payload) => router.emit("t3p:event", payload),
+        log: log.child("trusted-toggle"),
+      })
+    : null;
+
   guard(
     log,
     "core IPC channels",
@@ -306,6 +322,7 @@ function boot(): void {
         setEnabled: (id, enabled) => host.setEnabled(id, enabled),
         ...(grants ? { grants } : {}),
         ...(registryFlow ? { registry: registryFlow } : {}),
+        ...(trustedToggleFlow ? { trustedToggle: trustedToggleFlow } : {}),
         setLoadOrder: (order) => host.setLoadOrder(order),
         pluginHealth: (plugin, ok, error) => host.reportHealth(plugin, ok, error),
         internals,

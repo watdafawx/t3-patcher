@@ -549,7 +549,7 @@ describe("permissions section", () => {
     expect(q("[data-t3p-perm-section]")).toBeNull();
   });
 
-  it("shows the grants of a disabled trusted plugin and points at the CLI instead of the switch", () => {
+  it("shows the grants of a disabled trusted plugin and wires its switch to the privileged toggle", () => {
     mount(
       fakeManager([
         plugin("media", "Media", {
@@ -561,8 +561,10 @@ describe("permissions section", () => {
       ]),
     );
     const toggle = q<HTMLInputElement>("[data-t3p-toggle=media]");
-    expect(toggle.disabled).toBe(true);
+    expect(toggle.disabled).toBe(false);
     expect(toggle.checked).toBe(false);
+    expect(toggle.getAttribute("data-t3p-trusted-toggle")).toBe("media");
+    expect(toggle.getAttribute("data-t3p-trusted-enable")).toBe("true");
     expect(q("[data-t3p-perm-count]").textContent).toBe("3 of 3 granted");
     expect(q("[data-t3p-item='media'] [data-t3p-badge=perm]")).toBeNull();
     expect(all("[data-t3p-perm-section='media'] [data-t3p-grant-request]")).toEqual([]);

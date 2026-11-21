@@ -8,6 +8,9 @@ import {
   REGISTRY_ACTION_ATTR,
   REGISTRY_ID_ATTR,
   REGISTRY_REQUEST_CHANNEL,
+  TOGGLE_ENABLE_ATTR,
+  TOGGLE_ID_ATTR,
+  TOGGLE_REQUEST_CHANNEL,
   type RegistryAction,
 } from "@t3p/api";
 
@@ -97,20 +100,40 @@ export function registryRequestFromClick(event: ClickLike): RegistryRequest | nu
   return { action, id };
 }
 
+export interface TrustedToggleRequest {
+  id: string;
+  enabled: boolean;
+}
+
+/** Reads a trusted plugin enable/disable request from a trusted click, or null. Pure. */
+export function toggleRequestFromClick(event: ClickLike): TrustedToggleRequest | null {
+  const el = trustedTarget(event, `[${TOGGLE_ID_ATTR}]`);
+  if (!el) return null;
+  const id = el.getAttribute(TOGGLE_ID_ATTR) ?? "";
+  const raw = el.getAttribute(TOGGLE_ENABLE_ATTR);
+  if (!isValidPluginId(id) || (raw !== "true" && raw !== "false")) return null;
+  return { id, enabled: raw === "true" };
+}
+
 /** Installs the capture-phase click listener on the preload's `window`. Returns a remover (tests). */
 export function installGrantClicks(
   target: { addEventListener(type: string, fn: (event: ClickLike) => void, capture: boolean): void; removeEventListener(type: string, fn: (event: ClickLike) => void, capture: boolean): void },
   ipc: Pick<IpcRendererLike, "invoke">,
 ): () => void {
   const onClick = (event: ClickLike): void => {
-    // Answers reach the page as `t3p:event` pushes (plugin-grant-result, plugin-registry-result) from the main process.
+    // Answers reach the page as `t3p:event` pushes (plugin-grant-result, plugin-registry-result, plugin-toggle-result) from the main process.
     const request = grantRequestFromClick(event);
     if (request) {
       ipc.invoke(GRANT_REQUEST_CHANNEL, request).catch(() => undefined);
       return;
     }
     const registry = registryRequestFromClick(event);
-    if (registry) ipc.invoke(REGISTRY_REQUEST_CHANNEL, registry).catch(() => undefined);
+    if (registry) {
+      ipc.invoke(REGISTRY_REQUEST_CHANNEL, registry).catch(() => undefined);
+      return;
+    }
+    const toggle = toggleRequestFromClick(event);
+    if (toggle) ipc.invoke(TOGGLE_REQUEST_CHANNEL, toggle).catch(() => undefined);
   };
   target.addEventListener("click", onClick, true);
   return () => target.removeEventListener("click", onClick, true);

@@ -1,4 +1,4 @@
-import { GRANT_ATTR, GRANT_PERMS_ATTR, isHighRisk, parsePermissions, permissionInfo, permissionScope, settingVisible, type SettingSchema, type SettingValue } from "@t3p/api";
+import { GRANT_ATTR, GRANT_PERMS_ATTR, isHighRisk, parsePermissions, permissionInfo, permissionScope, settingVisible, TOGGLE_ENABLE_ATTR, TOGGLE_ID_ATTR, type SettingSchema, type SettingValue } from "@t3p/api";
 
 import type { ManagedPlugin, RegistryResultEvent, RegistryView } from "../manager.js";
 import { clear, ensureStyles, h } from "./dom.js";
@@ -337,12 +337,29 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
   const toggleFor = (plugin: ManagedPlugin): HTMLInputElement => {
     const trusted = isTrusted(plugin);
     const on = plugin.status === "started" || plugin.status === "pending" || plugin.hostStatus === "active" || plugin.hostStatus === "loaded";
+    if (trusted) {
+      return h("input", {
+        class: "t3p-switch",
+        type: "checkbox",
+        checked: on,
+        disabled: busy,
+        title: on ? "Disable (confirms in a native dialog)" : "Enable (confirms in a native dialog)",
+        "aria-label": `${on ? "Disable" : "Enable"} ${plugin.name}`,
+        "data-t3p-toggle": plugin.id,
+        [TOGGLE_ID_ATTR]: plugin.id,
+        [TOGGLE_ENABLE_ATTR]: on ? "false" : "true",
+        onClick: (e: Event) => {
+          // Keep visual state unchanged until the user confirms in the native dialog.
+          e.preventDefault();
+        },
+      }) as HTMLInputElement;
+    }
     return h("input", {
       class: "t3p-switch",
       type: "checkbox",
       checked: on,
-      disabled: trusted || busy,
-      title: trusted ? "Has main code, patches or spawn: use `t3p enable` / `t3p disable`." : on ? "Disable" : "Enable",
+      disabled: busy,
+      title: on ? "Disable" : "Enable",
       "aria-label": `${on ? "Disable" : "Enable"} ${plugin.name}`,
       "data-t3p-toggle": plugin.id,
       onChange: (e: Event) => {
@@ -611,9 +628,9 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
           ? h(
               "div",
               { class: "t3p-muted", "data-t3p-cli-hint": "" },
-              `This plugin runs main-process code, so the switch is off limits: ${running ? "stop" : "start"} it with `,
+              `This plugin runs trusted code: toggling asks for confirmation in a native dialog (or use `,
               h("code", null, `t3p ${running ? "disable" : "enable"} ${plugin.id}`),
-              ".",
+              ").",
             )
           : null,
         plugin.error ? h("div", { class: "t3p-error", "data-t3p-error": "" }, plugin.error) : null,

@@ -1,4 +1,4 @@
-import { GRANT_REQUEST_CHANNEL, isValidPluginId, PERMISSION_NAMES, type PermissionSet, REGISTRY_ACTIONS, REGISTRY_REQUEST_CHANNEL, type RegistryAction } from "@t3p/api";
+import { GRANT_REQUEST_CHANNEL, isValidPluginId, PERMISSION_NAMES, type PermissionSet, REGISTRY_ACTIONS, REGISTRY_REQUEST_CHANNEL, type RegistryAction, TOGGLE_REQUEST_CHANNEL } from "@t3p/api";
 
 import type { Logger } from "../log.js";
 import type { NativeServices } from "../native/index.js";
@@ -35,6 +35,8 @@ export interface CoreChannelDeps {
    * (native dialog, privileged channel only). See plugins/registry-flow.ts and docs/security.md section 4.7.
    */
   registry?: { view(refresh: boolean): Promise<unknown>; request(action: RegistryAction, id: string): Promise<unknown> };
+  /** Trusted plugin enable/disable via native confirmation dialog (privileged channel only). */
+  trustedToggle?: { request(id: string, enabled: boolean): Promise<unknown> };
   /** Crash-loop guard: the renderer reports a plugin start outcome (`t3p:plugin-health`). */
   pluginHealth?(plugin: string, ok: boolean, error?: string): boolean;
   /** Tier 2 capture status (renderer reports, `internals-status.json`). */
@@ -148,6 +150,10 @@ export function registerCoreChannels(deps: CoreChannelDeps): void {
     // Privileged, like the grant request: only the preload's trusted-click listener sends it. The page
     // names an action and an id; the entry itself comes from the index the main process fetched.
     router.handle(REGISTRY_REQUEST_CHANNEL, schemas.registryRequest, (p) => registry.request(p.action, p.id));
+  }
+  if (deps.trustedToggle) {
+    const trustedToggle = deps.trustedToggle;
+    router.handle(TOGGLE_REQUEST_CHANNEL, schemas.setEnabled, (p) => trustedToggle.request(p.id, p.enabled));
   }
   if (deps.setLoadOrder) {
     const setLoadOrder = deps.setLoadOrder;

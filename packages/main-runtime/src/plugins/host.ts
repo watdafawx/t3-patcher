@@ -437,6 +437,29 @@ export class PluginHost {
   }
 
   /**
+   * After a trusted plugin is enabled or disabled via the native confirmation dialog:
+   * hot-reloads or deactivates it live when possible; falls back to `restartRequired` only for
+   * legacy main plugins without a disposer.
+   */
+  async applyTrustedToggle(id: string): Promise<{ restartRequired: boolean }> {
+    const rec = this.records.get(id);
+    if (!rec) return { restartRequired: false };
+    if (rec.mainLoaded && !this.canHotUnload(rec)) {
+      rec.restartRequired = true;
+      return { restartRequired: true };
+    }
+    if (rec.mainLoaded) await this.deactivateMain(id);
+    const state = readStateFile(this.deps.stateFile, this.deps.log);
+    this.records.delete(id);
+    try {
+      await this.loadOne(id, state);
+    } catch (error) {
+      this.deps.log.error(`plugin ${id}: reload after trusted toggle failed`, error);
+    }
+    return { restartRequired: false };
+  }
+
+  /**
    * After a grant or revoke written to state.json: reload a renderer-only plugin's record now (its
    * effective permissions change live, native calls read them per call). A plugin with main code
    * hot-reloads if its activate(ctx) returned a disposer; otherwise it keeps its record until the
