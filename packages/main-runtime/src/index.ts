@@ -40,6 +40,7 @@ import { StorageStore } from "./storage/store.js";
 import { serveVirtual } from "./protocol/virtual.js";
 import { type Handler, installProtocolWrap } from "./protocol/wrap.js";
 import { detectDevMode } from "./dev-mode.js";
+import { detectDiagnostics } from "./diagnostics.js";
 import { detectSafeMode } from "./safe-mode.js";
 import { installUpdaterHook } from "./updater/hook.js";
 
@@ -135,6 +136,12 @@ function boot(): void {
   const dev = detectDevMode({ env: process.env, markerPath: paths.devMarker });
   if (dev.dev) log.info(`dev mode (${dev.reason}): hot reload watcher on`);
 
+  // Troubleshooting switches (marker files or T3P_NO_*): split the runtime without safe mode.
+  const diagnostics = detectDiagnostics({ env: process.env, baseDir: paths.base });
+  if (diagnostics.reasons.length > 0) {
+    log.warn(`diagnostic toggles on (${diagnostics.reasons.join(", ")}): noInject=${diagnostics.noInject} noPlugins=${diagnostics.noPlugins} noGuard=${diagnostics.noGuard}`);
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- electron is external, resolved by the Electron runtime
   const electron = require("electron") as ElectronLike;
   const { app } = electron;
@@ -204,12 +211,14 @@ function boot(): void {
 
   // Turn guard: before the desktop main.cjs loads, which captures child_process.spawn once.
   const guardLog = log.child("guard");
-  const turnGuard = guard(
-    log,
-    "turn guard",
-    () => startTurnGuard({ env: process.env, hookPath: join(paths.runtime, "server-hook.mjs"), emit: (payload) => router.emit("t3p:event", payload), log: guardLog }),
-    null,
-  );
+  const turnGuard = diagnostics.noGuard
+    ? null
+    : guard(
+        log,
+        "turn guard",
+        () => startTurnGuard({ env: process.env, hookPath: join(paths.runtime, "server-hook.mjs"), emit: (payload) => router.emit("t3p:event", payload), log: guardLog }),
+        null,
+      );
 
   const sqliteWorker = join(paths.runtime, "sqlite-worker.cjs");
   const sqliteLaunch =
@@ -331,23 +340,29 @@ function boot(): void {
     },
     (error: unknown) => log.error("embed hook whenReady failed", error),
   );
-  const pluginsReady = host.loadAll({ safe: false }).catch((error: unknown) => log.error("plugin host failed", error));
+  const pluginsReady = diagnostics.noPlugins
+    ? Promise.resolve()
+    : host.loadAll({ safe: false }).catch((error: unknown) => log.error("plugin host failed", error));
 
-  guard(
-    log,
-    "protocol wrap",
-    () =>
-      installProtocolWrap(electron.protocol, "t3code", {
-        log: log.child("protocol"),
-        injectHtml: true,
-        ready: pluginsReady,
-        hasPatchesFor: (name) => patches.hasPatchesFor(name),
-        transform: (name, source) => patches.transform(name, source),
-        virtual: (url, request) =>
-          serveVirtual(url, request.method, { runtimeDir: paths.runtime, pluginDir: (id) => host.rendererDir(id), platform, log: log.child("protocol") }),
-      }),
-    undefined,
-  );
+  if (!diagnostics.noInject) {
+    guard(
+      log,
+      "protocol wrap",
+      () =>
+        installProtocolWrap(electron.protocol, "t3code", {
+          log: log.child("protocol"),
+          injectHtml: true,
+          ready: pluginsReady,
+          hasPatchesFor: (name) => patches.hasPatchesFor(name),
+          transform: (name, source) => patches.transform(name, source),
+          virtual: (url, request) =>
+            serveVirtual(url, request.method, { runtimeDir: paths.runtime, pluginDir: (id) => host.rendererDir(id), platform, log: log.child("protocol") }),
+        }),
+      undefined,
+    );
+  } else {
+    log.warn("diagnostic no-inject: protocol wrap and renderer bootstrap are off");
+  }
 
   app.whenReady().then(
     () => registerPreload(electron, join(paths.runtime, "preload.cjs"), log),
