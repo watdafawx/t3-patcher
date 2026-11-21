@@ -30,7 +30,7 @@
       "homepage": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/cache-watch",
       "source": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/cache-watch",
       "license": "MIT",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "apiVersion": "1",
       "permissions": [
         "rpc"
@@ -40,9 +40,9 @@
         "status-bar"
       ],
       "download": {
-        "url": "https://github.com/watdafawx/t3-patcher/releases/download/plugin-registry/t3p-plugin-cache-watch-0.1.0.zip",
-        "sha256": "fb3d7d6dec5cc23a6641c8e433cbe30fdd4554c4a5fe07e0db4ca5e32dc5b3ea",
-        "size": 6695
+        "url": "https://github.com/watdafawx/t3-patcher/releases/download/plugin-registry/t3p-plugin-cache-watch-0.1.1.zip",
+        "sha256": "674eadb1f5e8943478b9db8d4081150c3815099ed23e412f60441b1ea2a8ec90",
+        "size": 6806
       }
     },
     {
@@ -96,6 +96,30 @@
         "url": "https://github.com/watdafawx/t3-patcher/releases/download/plugin-registry/t3p-plugin-keep-warm-0.1.0.zip",
         "sha256": "7c103de940ea564137ae279411e6d04723dd2d801175be0a438e961629f08a2c",
         "size": 9183
+      }
+    },
+    {
+      "id": "mcp-relay",
+      "name": "MCP Relay",
+      "description": "Multi-agent MCP relay server. Connect harnesses once to a local Streamable HTTP endpoint; add, remove, toggle, and restart MCP servers live without restarting agent sessions.",
+      "author": "T3 Patcher",
+      "homepage": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/mcp-relay",
+      "source": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/mcp-relay",
+      "license": "MIT",
+      "version": "0.1.0",
+      "apiVersion": "1",
+      "permissions": [
+        "main"
+      ],
+      "tags": [
+        "mcp",
+        "developer",
+        "agents"
+      ],
+      "download": {
+        "url": "https://github.com/watdafawx/t3-patcher/releases/download/plugin-registry/t3p-plugin-mcp-relay-0.1.0.zip",
+        "sha256": "98174faa7215d43214ee936381f115958b9a01cad0a2bf86a951e928fc8a13e6",
+        "size": 14397
       }
     },
     {
