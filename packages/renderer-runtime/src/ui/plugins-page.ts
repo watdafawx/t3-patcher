@@ -236,7 +236,11 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
   type PageTab = "installed" | "browse" | "about";
   let tab: PageTab = "installed";
   const tabButtons = new Map<PageTab, HTMLButtonElement>();
-  const aboutRoot = h("section", { class: "t3p-pg-sec", "data-t3p-about": "", "aria-label": "About T3 Patcher" });
+  const aboutRoot = h("section", {
+    "data-t3p-about": "",
+    "aria-label": "About T3 Patcher",
+    style: "display:flex;flex-direction:column;gap:12px;padding:4px 0;max-width:680px",
+  });
   aboutRoot.hidden = true;
 
   let checkingUpdate = false;
@@ -247,8 +251,24 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
     const all = plugins();
     const activeCount = all.filter((p) => p.status === "started" || p.hostStatus === "active" || p.hostStatus === "loaded").length;
     const modeLabel = info.safe ? "Safe mode" : info.dev ? "Dev mode" : "Standard";
+    const cardStyle = "display:flex;flex-direction:column;gap:10px;padding:14px 16px";
+    const rowStyle = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
+    const codeStyle = "padding:3px 8px;border-radius:6px;background:var(--code-background,var(--muted,color-mix(in srgb,currentColor 10%,transparent)));font-family:var(--font-mono,monospace);font-size:12px;cursor:pointer";
     const link = (label: string, href: string): HTMLElement =>
-      h("a", { class: "t3p-btn", href, target: "_blank", rel: "noopener noreferrer" }, label);
+      h("a", { class: "t3p-btn", href, target: "_blank", rel: "noopener noreferrer", style: "text-decoration:none" }, label);
+    const cmdPill = (cmd: string): HTMLElement =>
+      h(
+        "code",
+        {
+          style: codeStyle,
+          title: "Click to copy",
+          onClick: () => {
+            void navigator.clipboard?.writeText(cmd);
+            onNotice(`Copied: ${cmd}`);
+          },
+        },
+        cmd,
+      );
 
     const checkBtn = manager.checkUpdate
       ? h(
@@ -273,11 +293,11 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
     aboutRoot.append(
       h(
         "div",
-        { class: "t3p-card" },
+        { class: "t3p-card", style: cardStyle },
         h(
           "div",
-          { class: "t3p-row" },
-          h("strong", null, "T3 Patcher"),
+          { style: rowStyle },
+          h("strong", { style: "font-size:14px" }, "T3 Patcher"),
           h("span", { class: "t3p-badge", "data-t3p-about-version": "" }, info.version ? `v${info.version}` : "unknown"),
           info.appVersion ? h("span", { class: "t3p-badge" }, `T3 Code ${info.appVersion}`) : null,
           h("span", { class: "t3p-badge", "data-tone": info.safe ? "warn" : info.dev ? "ok" : "" }, modeLabel),
@@ -286,25 +306,25 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
         upd?.updateAvailable
           ? h(
               "div",
-              { class: "t3p-row" },
+              { style: rowStyle },
               h("span", { class: "t3p-badge", "data-tone": "warn" }, `Update available: v${upd.latest}`),
               link("Release notes", upd.url),
-              h("code", null, "npm i -g t3-patcher@latest && t3p install"),
+              cmdPill("npm i -g t3-patcher@latest && t3p install"),
             )
           : upd && !upd.error
             ? h("div", { class: "t3p-muted" }, `Up to date (latest: v${upd.latest ?? info.version ?? "?"}).`)
             : upd?.error
               ? h("div", { class: "t3p-muted" }, `Update check failed: ${upd.error}`)
               : null,
-        checkBtn ? h("div", { class: "t3p-row" }, checkBtn) : null,
+        checkBtn ? h("div", { style: rowStyle }, checkBtn) : null,
       ),
       h(
         "div",
-        { class: "t3p-card" },
-        h("strong", null, "Links"),
+        { class: "t3p-card", style: cardStyle },
+        h("strong", { style: "font-size:13px" }, "Links"),
         h(
           "div",
-          { class: "t3p-row" },
+          { style: rowStyle },
           link("Source code (GitHub)", "https://github.com/watdafawx/t3-patcher"),
           link("Report an issue", "https://github.com/watdafawx/t3-patcher/issues"),
           link("Releases", "https://github.com/watdafawx/t3-patcher/releases"),
@@ -313,10 +333,10 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
       ),
       h(
         "div",
-        { class: "t3p-card" },
-        h("strong", null, "CLI commands"),
-        h("div", { class: "t3p-muted" }, "Run in a terminal for diagnostics, updates, or clean removal:"),
-        h("div", { class: "t3p-row" }, h("code", null, "t3p status"), h("code", null, "t3p doctor"), h("code", null, "t3p uninstall")),
+        { class: "t3p-card", style: cardStyle },
+        h("strong", { style: "font-size:13px" }, "CLI commands"),
+        h("div", { class: "t3p-muted" }, "Click any command to copy. Run in a terminal for diagnostics, updates, or clean removal:"),
+        h("div", { style: rowStyle }, cmdPill("t3p status"), cmdPill("t3p doctor"), cmdPill("t3p uninstall")),
       ),
     );
   };

@@ -92,7 +92,7 @@ export const CAPTURES: CaptureDef[] = [
         find: "`/settings/labs`,`/settings/about`,`/settings/archived`]",
         replacement: [
           { match: "`/settings/labs`,`/settings/about`,`/settings/archived`]", replace: "`/settings/labs`,`/settings/about`,`/settings/archived`,`/settings/plugins`]" },
-          { match: /"\/settings\/archived":([\w$]+)\(`Archive`\)\}/, replace: "\"/settings/archived\":$1(`Archive`),\"/settings/plugins\":$1(`Plugins`)}" },
+          { match: /"\/settings\/archived":([\w$]+)\(`Archive`\)\}/, replace: "\"/settings/archived\":$1(`Archive`),\"/settings/plugins\":$1(`Patcher & Plugins`)}" },
         ],
       }),
       // settings layout chunk: icon map (an unknown path would render an undefined component)

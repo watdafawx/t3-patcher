@@ -62,7 +62,7 @@ export class Fallbacks {
     if (!about) return;
     const row = about.closest('[data-slot="sidebar-menu-item"]') ?? about;
     if (document.querySelector("[data-t3p-fallback=nav]")) return;
-    const button = h("button", { class: about.className, type: "button", "data-t3p-fallback": "nav", onClick: () => this.deps.openPluginsPage() }, "Plugins");
+    const button = h("button", { class: about.className, type: "button", "data-t3p-fallback": "nav", onClick: () => this.deps.openPluginsPage() }, "Patcher & Plugins");
     row.after(button);
   }
 
