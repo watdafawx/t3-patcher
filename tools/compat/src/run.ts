@@ -7,7 +7,7 @@ import { extractServerAsar } from "./extract.js";
 import { removeTree } from "./fsx.js";
 import { cloneTag, headCommit } from "./git.js";
 import { diffMethods, usedMethods, type BaselineMethod } from "./methods.js";
-import { corePatchFinds, pluginPatchFinds, readPatchFile, scanFinds, serverGuardFinding, serverMcpFinding, type FindEntry } from "./patches.js";
+import { corePatchFinds, pluginPatchFinds, readPatchFile, scanFinds, serverGuardFinding, serverMcpFinding, serverRelayFinding, type FindEntry } from "./patches.js";
 import { download, installerUrl, pickInstallerAsset, releaseAssets, resolveTag, type Log } from "./release.js";
 import { productSourceFiles, readTexts } from "./repo.js";
 import type { CompatReport } from "./report.js";
@@ -221,6 +221,8 @@ export async function runCompat(options: CompatOptions): Promise<CompatReport> {
   if (serverGuard) findings.push(serverGuard);
   const serverMcp = target.bundle && !options.noPatches ? serverMcpFinding(target.serverSources?.chunks) : null;
   if (serverMcp) findings.push(serverMcp);
+  const serverRelay = target.bundle && !options.noPatches ? serverRelayFinding(target.serverSources?.chunks) : null;
+  if (serverRelay) findings.push(serverRelay);
   const broken = findings.filter((finding) => finding.status !== "ok").length;
 
   let evidence: "server" | "client" | "source" = "server";

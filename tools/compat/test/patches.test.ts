@@ -11,6 +11,7 @@ import {
   scanFinds,
   serverGuardFinding,
   serverMcpFinding,
+  serverRelayFinding,
   type FindEntry,
 } from "../src/patches.js";
 
@@ -164,5 +165,29 @@ const deferred = () => getOrUndefined(scope)?.thread?.providerSessionId;`;
   it("is skipped without server chunks", () => {
     expect(serverMcpFinding(undefined)).toBeNull();
     expect(serverMcpFinding(new Map())).toBeNull();
+  });
+});
+
+describe("serverRelayFinding", () => {
+  const chunk = `const sessionMcpServers = (initializeResult, activationOptions) => {
+\tconst mcpCapabilities = initializeResult.agentCapabilities?.mcpCapabilities;
+\treturn activationOptions?.httpMcpServers ?? options.httpMcpServers ?? [];
+};`;
+
+  it("is ok when the patch applies to exactly one server chunk", () => {
+    const result = serverRelayFinding(new Map([["apps/server/dist/runtimeLayer-A.mjs", chunk], ["apps/server/dist/bin.mjs", "export {};"]]));
+    expect(result).toMatchObject({ owner: "t3p.core", label: "serverRelay", status: "ok", hits: ["apps/server/dist/runtimeLayer-A.mjs"] });
+    expect(result?.detail).toBeUndefined();
+  });
+
+  it("reports why the anchor no longer patches", () => {
+    const result = serverRelayFinding(new Map([["apps/server/dist/runtimeLayer-A.mjs", chunk.replace("(initializeResult, activationOptions) =>", "(initializeResult) =>")]]));
+    expect(result).toMatchObject({ status: "no-match", hits: [] });
+    expect(result?.detail).toContain("no-anchor");
+  });
+
+  it("is skipped without server chunks", () => {
+    expect(serverRelayFinding(undefined)).toBeNull();
+    expect(serverRelayFinding(new Map())).toBeNull();
   });
 });

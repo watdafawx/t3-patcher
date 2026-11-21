@@ -10,7 +10,10 @@
  *    - applies the turn-guard patch (server-patch.ts) to `runtimeLayer-*.mjs` when the pipe/token
  *      are present, and installs `globalThis.__t3pServerGuard`;
  *    - applies the MCP tools patch (mcp-patch.ts) to `server-*.mjs` unless `T3P_MCP_TOOLS=0`, and
- *      installs `globalThis.__t3pMcpTools` (registering `t3_provider_limits`).
+ *      installs `globalThis.__t3pMcpTools` (registering `t3_provider_limits`);
+ *    - applies the ACP relay patch (relay-acp-patch.ts) to `runtimeLayer-*.mjs` unless
+ *      `T3P_RELAY_ACP=0`, and installs `globalThis.__t3pRelayAcp` (adds the local MCP Relay to
+ *      ACP sessions such as Antigravity).
  *
  * Any failure leaves the server untouched (no hook, no global: the patched code checks for it).
  */
@@ -21,6 +24,8 @@ import { isMainThread } from "node:worker_threads";
 import { applyServerMcpPatch, SERVER_MCP_FILE_RE, SERVER_MCP_FIND, SERVER_MCP_GLOBAL } from "./mcp-patch.js";
 import { createServerMcpTools, T3_MCP_TOOLS_ENV } from "./mcp-tools.js";
 import { GUARD_PIPE_ENV, GUARD_TOKEN_ENV, createGuardPipeClient } from "./pipe.js";
+import { RELAY_ACP_DISABLE_ENV, RELAY_ACP_GLOBAL, createAcpRelayPicker } from "./relay-acp.js";
+import { applyServerRelayPatch, SERVER_RELAY_FILE_RE, SERVER_RELAY_FIND } from "./relay-acp-patch.js";
 import { createServerGuard } from "./server-guard.js";
 import { applyServerGuardPatch, SERVER_GUARD_FILE_RE, SERVER_GUARD_GLOBAL } from "./server-patch.js";
 
@@ -86,6 +91,27 @@ export function patchLoadedMcp(url: string, result: LoadResult, onResult: (file:
   return { ...result, source: patched.code };
 }
 
+/** Load hook body for the ACP relay patch, exported for tests. */
+export function patchLoadedRelay(url: string, result: LoadResult, onResult: (file: string, ok: boolean, detail: string) => void): LoadResult {
+  if (!url.startsWith("file:")) return result;
+  let file: string;
+  try {
+    file = fileURLToPath(url);
+  } catch {
+    return result;
+  }
+  if (!SERVER_RELAY_FILE_RE.test(file)) return result;
+  const text = sourceText(result.source);
+  if (text === null || !text.includes(SERVER_RELAY_FIND)) return result;
+  const patched = applyServerRelayPatch(text);
+  if (!patched.ok) {
+    onResult(file, false, `${patched.reason}: ${patched.detail}`);
+    return result;
+  }
+  onResult(file, true, patched.detail);
+  return { ...result, source: patched.code };
+}
+
 export function isServerEntry(argv: readonly string[]): boolean {
   return argv.some((arg) => SERVER_ENTRY_RE.test(arg));
 }
@@ -99,7 +125,8 @@ function install(): void {
 
   const enableGuard = Boolean(pipe && token);
   const enableMcp = process.env[T3_MCP_TOOLS_ENV] !== "0";
-  if (!enableGuard && !enableMcp) return;
+  const enableRelay = process.env[RELAY_ACP_DISABLE_ENV] !== "0";
+  if (!enableGuard && !enableMcp && !enableRelay) return;
 
   const registerHooks = (nodeModule as unknown as { registerHooks?: RegisterHooks }).registerHooks;
   if (typeof registerHooks !== "function") {
@@ -114,25 +141,36 @@ function install(): void {
   if (enableMcp) {
     (globalThis as Record<string, unknown>)[SERVER_MCP_GLOBAL] = createServerMcpTools({ log });
   }
+  if (enableRelay) {
+    (globalThis as Record<string, unknown>)[RELAY_ACP_GLOBAL] = createAcpRelayPicker();
+  }
 
   let guardDone = !enableGuard;
   let mcpDone = !enableMcp;
+  let relayDone = !enableRelay;
   registerHooks({
     load(url, context, nextLoad) {
-      const result = nextLoad(url, context);
-      if (guardDone && mcpDone) return result;
+      let result = nextLoad(url, context);
+      if (guardDone && mcpDone && relayDone) return result;
       try {
         if (!guardDone) {
-          const next = patchLoaded(url, result, (file, ok, detail) => {
+          result = patchLoaded(url, result, (file, ok, detail) => {
             if (ok) {
               guardDone = true;
               log("info", `turn guard patched ${file} (${detail})`);
             } else log("warn", `turn guard could not patch ${file}: ${detail}; turns are not guarded`);
           });
-          if (next !== result) return next;
+        }
+        if (!relayDone) {
+          result = patchLoadedRelay(url, result, (file, ok, detail) => {
+            if (ok) {
+              relayDone = true;
+              log("info", `MCP relay patched ${file} (${detail})`);
+            } else log("warn", `MCP relay could not patch ${file}: ${detail}; ACP sessions keep T3's servers only`);
+          });
         }
         if (!mcpDone) {
-          return patchLoadedMcp(url, result, (file, ok, detail) => {
+          result = patchLoadedMcp(url, result, (file, ok, detail) => {
             if (ok) {
               mcpDone = true;
               log("info", `mcp tools patched ${file} (${detail})`);

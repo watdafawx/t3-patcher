@@ -223,7 +223,27 @@ Every other command passes without delay.
 - The compat checker runs `applyServerGuardPatch` on every server chunk of the target
   (`serverGuard` in the patch list); it must apply to exactly one.
 
-## Server MCP tools (`t3_provider_limits`)
+## ACP providers and the MCP Relay (`serverRelay`)
+
+The same `server-hook.mjs` load hook patches `apps/server/dist/runtimeLayer-*.mjs`
+(`src/guard/relay-acp-patch.ts`, `applyServerRelayPatch`). T3 builds one MCP list per ACP session in
+`sessionMcpServers(initializeResult, activationOptions)` and passes only its own `t3-code` server;
+harness-level config files are never read for those sessions (Antigravity, Copilot and the other
+ACP adapters).
+
+- The patch inserts a `pick()` call at the top of `sessionMcpServers`; the picker
+  (`src/guard/relay-acp.ts`, installed as `globalThis.__t3pRelayAcp`) reads
+  `~/.t3-patcher/mcp-relay/config.json` on every session and appends a `t3-relay` HTTP server next
+  to `t3-code`.
+- Only acts when the agent advertises `mcpCapabilities.http` **and** T3 supplied HTTP servers
+  (its `mcpOverHttp` flavors). A missing relay config, an stdio-only agent, or a chunk that does not
+  match leaves T3's list untouched.
+- `T3P_RELAY_ACP=0` turns it off; `T3P_MCP_RELAY_URL` overrides the URL; `T3P_MCP_RELAY_CONFIG`
+  points at another config file.
+- The compat checker reports `serverRelay` (`serverRelayFinding`) next to `serverGuard` and
+  `serverMcpTools`.
+
+
 
 The same `server-hook.mjs` load hook also patches `apps/server/dist/server-*.mjs` (`src/guard/mcp-patch.ts`,
 `applyServerMcpPatch`) inside `layerToolExposure` to register custom T3 Patcher MCP tools directly on

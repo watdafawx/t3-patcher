@@ -79,3 +79,10 @@ export {
   SERVER_MCP_GLOBAL,
   type ServerMcpPatchResult,
 } from "./mcp-patch.js";
+
+export {
+  applyServerRelayPatch,
+  SERVER_RELAY_FILE_RE,
+  SERVER_RELAY_FIND,
+  type ServerRelayPatchResult,
+} from "./relay-acp-patch.js";
