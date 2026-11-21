@@ -1,15 +1,25 @@
 import type { JsonValue, PluginModule, T3Api } from "@t3p/api";
 
+interface ServerSource {
+  harness: string;
+  scope: "global" | "project";
+  path: string;
+  name: string;
+}
+
 interface ServerStatus {
   id: string;
   name: string;
   transport: "stdio" | "http";
   command?: string;
   args?: string[];
+  cwd?: string;
   url?: string;
   enabled: boolean;
   mode: "shared" | "session";
   pinnedTools?: string[];
+  harnesses?: string[];
+  source?: ServerSource;
   status: "connected" | "idle" | "disabled" | "error";
   toolCount: number;
   activeSessions: number;
@@ -40,9 +50,43 @@ interface RelayStatus {
 interface RelaySnippets {
   url: string;
   claude: string;
+  claudeDesktop: string;
   codex: string;
   opencode: string;
 }
+
+interface DiscoveredOrigin {
+  harness: string;
+  scope: "global" | "project";
+  path: string;
+  name: string;
+  label: string;
+}
+
+interface DiscoveryCandidate {
+  key: string;
+  name: string;
+  suggestedId: string;
+  transport: "stdio" | "http";
+  command?: string;
+  args?: string[];
+  cwd?: string;
+  url?: string;
+  envKeys: string[];
+  headerKeys: string[];
+  origins: DiscoveredOrigin[];
+  warnings: string[];
+  importedId: string | null;
+}
+
+interface ScanResult {
+  scannedAt: number;
+  harnessLabels: Record<string, string>;
+  candidates: DiscoveryCandidate[];
+  warnings: Array<{ harness: string; path: string; message: string }>;
+}
+
+const HARNESS_OPTIONS = ["claude", "claude-desktop", "codex", "opencode", "cursor", "vscode"];
 
 const STYLE = `
 [data-t3p-plugin="mcp-relay"] .mr-col{display:flex;flex-direction:column;gap:10px}
@@ -59,6 +103,8 @@ const STYLE = `
 [data-t3p-plugin="mcp-relay"] .mr-grow{flex:1;min-width:0}
 [data-t3p-plugin="mcp-relay"] .mr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
 [data-t3p-plugin="mcp-relay"] .mr-err{font-size:12px;color:var(--destructive-foreground,var(--destructive,#ef4444))}
+[data-t3p-plugin="mcp-relay"] .mr-cand{display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-top:1px solid var(--border,color-mix(in srgb,currentColor 10%,transparent))}
+[data-t3p-plugin="mcp-relay"] .mr-check{margin-top:3px}
 `;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
@@ -68,6 +114,11 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, t
   return node;
 }
 
+function harnessList(ids: string[] | undefined): string {
+  if (!ids || ids.length === 0) return "all harnesses";
+  return ids.join(", ");
+}
+
 const plugin: PluginModule = {
   start(t3: T3Api) {
     const styleEl = document.createElement("style");
@@ -75,6 +126,11 @@ const plugin: PluginModule = {
     document.head.append(styleEl);
 
     let latest: RelayStatus | null = null;
+    let scan: ScanResult | null = null;
+    let scanning = false;
+    const selected = new Set<string>();
+    const sourceChoice = new Map<string, number>();
+    let extraPaths = "";
     const listeners = new Set<() => void>();
 
     const notify = () => {
@@ -89,6 +145,30 @@ const plugin: PluginModule = {
       }
       notify();
       return latest;
+    };
+
+    const runScan = async () => {
+      scanning = true;
+      notify();
+      try {
+        scan = (await t3.native.invoke("scanHarnesses", {
+          paths: extraPaths
+            .split(/\r?\n/)
+            .map((p) => p.trim())
+            .filter(Boolean),
+        })) as ScanResult;
+        selected.clear();
+        for (const candidate of scan.candidates) {
+          if (!candidate.importedId && candidate.origins.length > 1 && !sourceChoice.has(candidate.key)) {
+            sourceChoice.set(candidate.key, 0);
+          }
+        }
+      } catch {
+        scan = null;
+      } finally {
+        scanning = false;
+        notify();
+      }
     };
 
     void refresh();
@@ -155,7 +235,8 @@ const plugin: PluginModule = {
             const copyRow = el("div", "mr-row");
             for (const [label, text] of [
               ["Copy URL", snippets.url],
-              ["Copy Claude JSON", snippets.claude],
+              ["Copy Claude Code JSON", snippets.claude],
+              ["Copy Claude Desktop JSON", snippets.claudeDesktop],
               ["Copy Codex TOML", snippets.codex],
               ["Copy OpenCode JSON", snippets.opencode],
             ] as const) {
@@ -170,11 +251,83 @@ const plugin: PluginModule = {
           }
           root.append(statusCard);
 
-          // 2. Servers list
+          // 2. Discover servers from harness configs
+          const discoverCard = el("div", "mr-card");
+          discoverCard.append(el("strong", "", "Installed in your harnesses"));
+          discoverCard.append(
+            el(
+              "div",
+              "mr-muted",
+              "Finds MCP servers already configured in Claude Code, Claude Desktop, OpenCode, Codex, Cursor and VS Code. Imported servers keep a reference to the original config, so tokens are read at spawn and never copied into the relay config.",
+            ),
+          );
+
+          const pathsInput = el("textarea", "t3p-input");
+          pathsInput.placeholder = "Extra project folders to scan (one per line, optional)";
+          pathsInput.rows = 2;
+          pathsInput.value = extraPaths;
+          pathsInput.addEventListener("input", () => {
+            extraPaths = pathsInput.value;
+          });
+
+          const scanRow = el("div", "mr-row");
+          const scanBtn = el("button", "t3p-btn", scanning ? "Scanning…" : "Detect installed MCPs");
+          scanBtn.type = "button";
+          (scanBtn as HTMLButtonElement).disabled = scanning;
+          scanBtn.addEventListener("click", () => void runScan());
+          scanRow.append(scanBtn);
+          discoverCard.append(pathsInput, scanRow);
+
+          if (scan) {
+            if (scan.candidates.length === 0) {
+              discoverCard.append(el("div", "mr-muted", "No MCP servers found in the scanned config files."));
+            }
+            for (const candidate of scan.candidates) {
+              discoverCard.append(renderCandidate(candidate, scan));
+            }
+            if (scan.warnings.length > 0) {
+              const warnLines = scan.warnings.map((w) => `${w.harness}: ${w.message} (${w.path})`);
+              discoverCard.append(el("pre", "mr-pre", warnLines.join("\n")));
+            }
+
+            const importRow = el("div", "mr-row");
+            const importBtn = el("button", "t3p-btn", `Import selected (${selected.size})`);
+            importBtn.type = "button";
+            (importBtn as HTMLButtonElement).disabled = selected.size === 0;
+            importBtn.addEventListener("click", async () => {
+              const selections: JsonValue = Array.from(selected)
+                .map((key) => {
+                  const candidate = scan?.candidates.find((c) => c.key === key);
+                  if (!candidate) return null;
+                  return {
+                    key,
+                    id: candidate.suggestedId,
+                    sourceIndex: sourceChoice.get(key) ?? 0,
+                    harnesses: [],
+                  };
+                })
+                .filter(Boolean) as JsonValue[];
+              if (selections.length === 0) return;
+              latest = (await t3.native.invoke("importServers", {
+                paths: extraPaths
+                  .split(/\r?\n/)
+                  .map((p) => p.trim())
+                  .filter(Boolean),
+                selections,
+              })) as RelayStatus;
+              selected.clear();
+              await runScan();
+            });
+            importRow.append(importBtn, el("span", "mr-muted", "Servers connect lazily on first tool call."));
+            discoverCard.append(importRow);
+          }
+          root.append(discoverCard);
+
+          // 3. Servers list
           const listCard = el("div", "mr-card");
           listCard.append(el("strong", "", `Configured MCP Servers (${latest?.servers.length ?? 0})`));
           if (!latest || latest.servers.length === 0) {
-            listCard.append(el("div", "mr-muted", "No MCP servers added yet. Add one below — running agents can use it immediately via relay_list_servers / relay_call."));
+            listCard.append(el("div", "mr-muted", "No MCP servers added yet. Import some above, or add one manually below."));
           } else {
             for (const srv of latest.servers) {
               const row = el("div", "mr-row");
@@ -188,6 +341,42 @@ const plugin: PluginModule = {
                 el("span", "mr-muted", `${srv.status}${srv.toolCount ? ` · ${srv.toolCount} tools` : ""}`),
               );
               info.append(head);
+
+              const metaRow = el("div", "mr-row");
+              if (srv.source) {
+                metaRow.append(
+                  el(
+                    "span",
+                    "mr-badge",
+                    `from ${srv.source.harness}${srv.source.scope === "project" ? " (project)" : ""}`,
+                  ),
+                  el("span", "mr-muted", "values resolved at spawn"),
+                );
+              }
+              if (srv.harnesses && srv.harnesses.length > 0) {
+                metaRow.append(el("span", "mr-badge", `only ${harnessList(srv.harnesses)}`));
+              } else {
+                metaRow.append(el("span", "mr-badge", "all harnesses"));
+              }
+
+              const exposureSel = el("select", "t3p-input");
+              for (const [value, label] of [
+                ["", "Exposed to: all"],
+                ...HARNESS_OPTIONS.map((h) => [h, `Exposed to: ${h}`] as const),
+              ] as const) {
+                exposureSel.append(new Option(label, value));
+              }
+              exposureSel.value = srv.harnesses && srv.harnesses.length === 1 ? srv.harnesses[0]! : "";
+              exposureSel.addEventListener("change", async () => {
+                const chosen = exposureSel.value;
+                latest = (await t3.native.invoke("addServer", {
+                  ...srv,
+                  harnesses: chosen ? [chosen] : [],
+                } as unknown as JsonValue)) as RelayStatus;
+                notify();
+              });
+              metaRow.append(exposureSel);
+              info.append(metaRow);
               if (srv.lastError) info.append(el("div", "mr-err", srv.lastError));
 
               const toggleBtn = el("button", "t3p-btn", srv.enabled ? "Disable" : "Enable");
@@ -217,9 +406,9 @@ const plugin: PluginModule = {
           }
           root.append(listCard);
 
-          // 3. Add server form
+          // 4. Add server form
           const addCard = el("div", "mr-card");
-          addCard.append(el("strong", "", "Add MCP Server (live, no session restart)"));
+          addCard.append(el("strong", "", "Add MCP Server Manually (live, no session restart)"));
           const grid = el("div", "mr-grid");
           const idInput = el("input", "t3p-input");
           idInput.placeholder = "id (e.g. github)";
@@ -233,7 +422,9 @@ const plugin: PluginModule = {
           argsInput.placeholder = "args (space-separated, stdio only)";
           const pinnedInput = el("input", "t3p-input");
           pinnedInput.placeholder = "pinned tools (comma-separated, optional)";
-          grid.append(idInput, transportSel, modeSel, cmdOrUrl, argsInput, pinnedInput);
+          const harnessesInput = el("input", "t3p-input");
+          harnessesInput.placeholder = "expose to (comma-separated harness ids, blank = all)";
+          grid.append(idInput, transportSel, modeSel, cmdOrUrl, argsInput, pinnedInput, harnessesInput);
 
           const formErr = el("div", "mr-err");
           const addBtn = el("button", "t3p-btn", "Add Server");
@@ -246,6 +437,10 @@ const plugin: PluginModule = {
                 .split(",")
                 .map((s) => s.trim())
                 .filter(Boolean);
+              const harnesses = harnessesInput.value
+                .split(",")
+                .map((s) => s.trim().toLowerCase())
+                .filter(Boolean);
               const payload: JsonValue =
                 transport === "stdio"
                   ? {
@@ -255,6 +450,7 @@ const plugin: PluginModule = {
                       command: cmdOrUrl.value.trim(),
                       args: argsInput.value.trim() ? argsInput.value.trim().split(/\s+/) : [],
                       pinnedTools,
+                      harnesses,
                       enabled: true,
                     }
                   : {
@@ -263,6 +459,7 @@ const plugin: PluginModule = {
                       mode: modeSel.value,
                       url: cmdOrUrl.value.trim(),
                       pinnedTools,
+                      harnesses,
                       enabled: true,
                     };
               latest = (await t3.native.invoke("addServer", payload)) as RelayStatus;
@@ -274,7 +471,7 @@ const plugin: PluginModule = {
           addCard.append(grid, addBtn, formErr);
           root.append(addCard);
 
-          // 4. Recent call log
+          // 5. Recent call log
           const logCard = el("div", "mr-card");
           logCard.append(el("strong", "", "Recent Relay Calls"));
           const calls = latest?.recentCalls ?? [];
@@ -287,6 +484,60 @@ const plugin: PluginModule = {
             logCard.append(el("pre", "mr-pre", lines.join("\n")));
           }
           root.append(logCard);
+        };
+
+        const renderCandidate = (candidate: DiscoveryCandidate, result: ScanResult) => {
+          const row = el("div", "mr-cand");
+          const checkbox = el("input", "mr-check");
+          checkbox.type = "checkbox";
+          checkbox.disabled = Boolean(candidate.importedId);
+          checkbox.checked = selected.has(candidate.key);
+          checkbox.addEventListener("change", () => {
+            if (checkbox.checked) selected.add(candidate.key);
+            else selected.delete(candidate.key);
+            renderPage();
+          });
+
+          const info = el("div", "mr-grow");
+          const head = el("div", "mr-row");
+          head.append(
+            el("strong", "", candidate.name),
+            el("span", "mr-badge", candidate.transport),
+          );
+          for (const origin of candidate.origins) {
+            head.append(el("span", "mr-badge", result.harnessLabels[origin.harness] ?? origin.harness));
+          }
+          if (candidate.importedId) head.append(el("span", "mr-badge", `imported as ${candidate.importedId}`));
+          info.append(head);
+
+          const detail = el("div", "mr-muted", candidate.transport === "stdio"
+            ? `${candidate.command ?? ""} ${(candidate.args ?? []).join(" ")}`.trim()
+            : candidate.url ?? "");
+          info.append(detail);
+
+          const facts: string[] = [];
+          if (candidate.envKeys.length > 0) facts.push(`env: ${candidate.envKeys.join(", ")} (values read at spawn)`);
+          if (candidate.headerKeys.length > 0) facts.push(`headers: ${candidate.headerKeys.join(", ")} (values read at spawn)`);
+          if (facts.length > 0) info.append(el("div", "mr-muted", facts.join(" · ")));
+          for (const warning of candidate.warnings) info.append(el("div", "mr-err", warning));
+
+          if (candidate.origins.length > 1 && !candidate.importedId) {
+            const originRow = el("div", "mr-row");
+            originRow.append(el("span", "mr-muted", "Use values from:"));
+            const originSel = el("select", "t3p-input");
+            candidate.origins.forEach((origin, index) => {
+              originSel.append(new Option(origin.label, String(index)));
+            });
+            originSel.value = String(sourceChoice.get(candidate.key) ?? 0);
+            originSel.addEventListener("change", () => {
+              sourceChoice.set(candidate.key, Number(originSel.value));
+            });
+            originRow.append(originSel);
+            info.append(originRow);
+          }
+
+          row.append(checkbox, info);
+          return row;
         };
 
         listeners.add(renderPage);

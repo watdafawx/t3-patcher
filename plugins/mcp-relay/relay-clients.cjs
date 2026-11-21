@@ -1,9 +1,17 @@
 "use strict";
 
 const { spawn } = require("node:child_process");
+const path = require("node:path");
 
 const PROTOCOL_VERSION = "2025-03-26";
 const DEFAULT_TIMEOUT_MS = 30_000;
+
+// Windows needs a shell to resolve `npx`, `.cmd` and `.bat` shims.
+function needsShell(command) {
+  if (process.platform !== "win32") return false;
+  const base = path.basename(String(command || "")).toLowerCase();
+  return !(base.endsWith(".exe") || base.endsWith(".com"));
+}
 
 /**
  * Lightweight MCP JSON-RPC 2.0 client over stdio (newline-delimited JSON).
@@ -16,6 +24,7 @@ class StdioMcpClient {
    *   env?: Record<string, string>;
    *   cwd?: string;
    *   timeoutMs?: number;
+   *   shell?: boolean;
    *   onExit?: (err?: Error) => void;
    * }} opts
    */
@@ -39,6 +48,7 @@ class StdioMcpClient {
       env,
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
+      shell: this.opts.shell ?? needsShell(this.opts.command),
     });
     this.proc = proc;
 

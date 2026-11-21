@@ -65,6 +65,23 @@ function jsonTextResult(value, isError = false) {
   };
 }
 
+const HARNESS_HEADER = "x-t3p-harness";
+
+/**
+ * Picks a harness id from the MCP client name reported at initialize.
+ * @param {string | undefined} clientName
+ */
+function detectHarness(clientName) {
+  const name = String(clientName || "").toLowerCase();
+  if (!name) return null;
+  if (name.includes("claude")) return "claude";
+  if (name.includes("codex")) return "codex";
+  if (name.includes("opencode")) return "opencode";
+  if (name.includes("cursor")) return "cursor";
+  if (name.includes("vscode") || name.includes("visual studio code")) return "vscode";
+  return null;
+}
+
 /**
  * Streamable HTTP MCP server exposing the McpRelayPool on localhost.
  */
@@ -75,7 +92,7 @@ class McpRelayHttpServer {
   constructor(pool) {
     this.pool = pool;
     this.server = null;
-    this.sessions = new Set();
+    this.sessions = new Map();
     this.listeningPort = null;
   }
 
@@ -158,9 +175,17 @@ class McpRelayHttpServer {
     }
 
     let sessionId = typeof req.headers["mcp-session-id"] === "string" ? req.headers["mcp-session-id"] : null;
+    const headerHarness = typeof req.headers[HARNESS_HEADER] === "string" ? String(req.headers[HARNESS_HEADER]).trim().toLowerCase() : "";
     if (msg.method === "initialize" && !sessionId) {
       sessionId = randomUUID();
-      this.sessions.add(sessionId);
+      const clientName = msg.params && msg.params.clientInfo ? msg.params.clientInfo.name : undefined;
+      this.sessions.set(sessionId, {
+        clientName: clientName ? String(clientName) : null,
+        harness: detectHarness(clientName) || (headerHarness || null),
+      });
+    } else if (sessionId && headerHarness) {
+      const meta = this.sessions.get(sessionId) || {};
+      this.sessions.set(sessionId, { ...meta, harness: headerHarness });
     }
 
     // Notifications have no id -> 202 Accepted
@@ -177,8 +202,15 @@ class McpRelayHttpServer {
     res.end(JSON.stringify(response));
   }
 
+  _harnessFor(sessionId) {
+    if (!sessionId) return "unknown";
+    const meta = this.sessions.get(sessionId);
+    return (meta && meta.harness) || "unknown";
+  }
+
   async _dispatchRpc(msg, sessionId) {
     const { id, method, params } = msg;
+    const harness = this._harnessFor(sessionId);
     try {
       if (method === "initialize") {
         return {
@@ -197,7 +229,7 @@ class McpRelayHttpServer {
       }
 
       if (method === "tools/list") {
-        const pinned = this.pool.getPinnedTools().map(({ name, description, inputSchema }) => ({
+        const pinned = this.pool.getPinnedTools(harness).map(({ name, description, inputSchema }) => ({
           name,
           description,
           inputSchema,
@@ -210,7 +242,7 @@ class McpRelayHttpServer {
       }
 
       if (method === "tools/call") {
-        const result = await this._handleToolCall(params || {}, sessionId);
+        const result = await this._handleToolCall(params || {}, sessionId, harness);
         return { jsonrpc: "2.0", id, result };
       }
 
@@ -228,12 +260,12 @@ class McpRelayHttpServer {
     }
   }
 
-  async _handleToolCall(params, sessionId) {
+  async _handleToolCall(params, sessionId, harness) {
     const name = String(params.name || "");
     const args = params.arguments && typeof params.arguments === "object" ? params.arguments : {};
 
     if (name === "relay_list_servers") {
-      return jsonTextResult(this.pool.listServers());
+      return jsonTextResult(this.pool.listServers(harness));
     }
 
     if (name === "relay_list_tools") {
@@ -241,6 +273,7 @@ class McpRelayHttpServer {
         server: typeof args.server === "string" && args.server.trim() ? args.server.trim() : undefined,
         query: typeof args.query === "string" ? args.query : undefined,
         sessionKey: sessionId || undefined,
+        harness,
       });
       return jsonTextResult(res);
     }
@@ -255,7 +288,7 @@ class McpRelayHttpServer {
         ? args.sessionKey.trim()
         : sessionId || undefined;
       try {
-        return await this.pool.callTool(server, tool, args.arguments || {}, sessionKey);
+        return await this.pool.callTool(server, tool, args.arguments || {}, sessionKey, harness);
       } catch (err) {
         return jsonTextResult(err instanceof Error ? err.message : String(err), true);
       }
@@ -265,7 +298,7 @@ class McpRelayHttpServer {
       const server = String(args.server || "").trim();
       if (!server) return jsonTextResult("relay_reload_server requires `server`", true);
       try {
-        const res = await this.pool.restartServer(server, sessionId || undefined);
+        const res = await this.pool.restartServer(server, sessionId || undefined, harness);
         return jsonTextResult(res);
       } catch (err) {
         return jsonTextResult(err instanceof Error ? err.message : String(err), true);
@@ -273,7 +306,7 @@ class McpRelayHttpServer {
     }
 
     // Check pinned tools (<serverId>__<toolName>)
-    const pinned = this.pool.getPinnedTools().find((t) => t.name === name);
+    const pinned = this.pool.getPinnedTools(harness).find((t) => t.name === name);
     if (pinned) {
       try {
         return await this.pool.callTool(
@@ -281,6 +314,7 @@ class McpRelayHttpServer {
           pinned._relayTarget.tool,
           args,
           sessionId || undefined,
+          harness,
         );
       } catch (err) {
         return jsonTextResult(err instanceof Error ? err.message : String(err), true);
@@ -312,4 +346,6 @@ function readBody(req) {
 module.exports = {
   McpRelayHttpServer,
   META_TOOLS,
+  HARNESS_HEADER,
+  detectHarness,
 };

@@ -5,6 +5,7 @@ const path = require("node:path");
 const os = require("node:os");
 const { randomUUID } = require("node:crypto");
 const { StdioMcpClient, HttpMcpClient } = require("./relay-clients.cjs");
+const { resolveSourceEntry, normalizeSourceRef } = require("./discovery.cjs");
 
 const DEFAULT_PORT = 39393;
 const DEFAULT_HOST = "127.0.0.1";
@@ -13,6 +14,28 @@ const SESSION_IDLE_TTL_MS = 15 * 60 * 1000;
 
 function defaultConfigPath() {
   return path.join(os.homedir(), ".t3-patcher", "mcp-relay", "config.json");
+}
+
+/**
+ * Harness ids a server is exposed to. Empty = every harness.
+ * @param {any} raw
+ */
+function normalizeHarnesses(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const value of raw) {
+    const id = String(value || "").trim().toLowerCase();
+    if (!id || id.length > 32 || !/^[a-z0-9-]+$/.test(id)) continue;
+    if (!out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
+function isExposedTo(cfg, harness) {
+  if (!cfg || !cfg.enabled) return false;
+  if (!cfg.harnesses || cfg.harnesses.length === 0) return true;
+  if (!harness) return true;
+  return cfg.harnesses.includes(harness) || cfg.harnesses.includes("all");
 }
 
 /**
@@ -31,6 +54,21 @@ function normalizeServerConfig(raw) {
   const pinnedTools = Array.isArray(raw.pinnedTools)
     ? raw.pinnedTools.map((t) => String(t).trim()).filter(Boolean)
     : [];
+  const harnesses = normalizeHarnesses(raw.harnesses);
+  const source = raw.source ? normalizeSourceRef(raw.source) : null;
+
+  // Imported servers keep a reference to their harness config: env/headers are
+  // never stored here, they are resolved in memory at spawn time.
+  if (source) {
+    const snapshot = transport === "http"
+      ? { url: String(raw.url || "").trim() }
+      : {
+          command: String(raw.command || "").trim(),
+          args: Array.isArray(raw.args) ? raw.args.map(String) : [],
+          ...(typeof raw.cwd === "string" && raw.cwd.trim() ? { cwd: raw.cwd.trim() } : {}),
+        };
+    return { id, name: raw.name ? String(raw.name) : id, transport, enabled, mode, pinnedTools, harnesses, source, ...snapshot };
+  }
 
   if (transport === "stdio") {
     const command = String(raw.command || "").trim();
@@ -38,7 +76,7 @@ function normalizeServerConfig(raw) {
     const args = Array.isArray(raw.args) ? raw.args.map(String) : [];
     const env = raw.env && typeof raw.env === "object" ? Object.fromEntries(Object.entries(raw.env).map(([k, v]) => [String(k), String(v)])) : undefined;
     const cwd = typeof raw.cwd === "string" && raw.cwd.trim() ? raw.cwd.trim() : undefined;
-    return { id, name: raw.name ? String(raw.name) : id, transport, command, args, env, cwd, enabled, mode, pinnedTools };
+    return { id, name: raw.name ? String(raw.name) : id, transport, command, args, env, cwd, enabled, mode, pinnedTools, harnesses };
   }
 
   const url = String(raw.url || "").trim();
@@ -46,7 +84,7 @@ function normalizeServerConfig(raw) {
   const headers = raw.headers && typeof raw.headers === "object"
     ? Object.fromEntries(Object.entries(raw.headers).map(([k, v]) => [String(k), String(v)]))
     : undefined;
-  return { id, name: raw.name ? String(raw.name) : id, transport, url, headers, enabled, mode, pinnedTools };
+  return { id, name: raw.name ? String(raw.name) : id, transport, url, headers, enabled, mode, pinnedTools, harnesses };
 }
 
 /**
@@ -63,6 +101,7 @@ class McpRelayPool {
    *   persist?: boolean;
    *   log?: { info: (m: string) => void; warn: (m: string) => void };
    *   clientFactory?: (cfg: any, onExit: (err?: Error) => void) => any;
+   *   sourceResolver?: (source: any) => any;
    * }} [opts]
    */
   constructor(opts = {}) {
@@ -70,6 +109,7 @@ class McpRelayPool {
     this.persist = opts.persist !== false;
     this.log = opts.log || { info: () => {}, warn: () => {} };
     this.clientFactory = opts.clientFactory || null;
+    this.sourceResolver = opts.sourceResolver || ((source) => resolveSourceEntry(source));
 
     this.port = DEFAULT_PORT;
     this.host = DEFAULT_HOST;
@@ -129,6 +169,7 @@ class McpRelayPool {
   }
 
   _createClient(cfg, key) {
+    const effective = cfg.source ? this._resolveFromSource(cfg) : cfg;
     const onExit = (err) => {
       const inst = this.instances.get(key);
       if (inst) {
@@ -137,23 +178,43 @@ class McpRelayPool {
         inst.error = err ? err.message : "Process exited";
       }
     };
-    if (this.clientFactory) return this.clientFactory(cfg, onExit);
-    if (cfg.transport === "http") {
-      return new HttpMcpClient({ url: cfg.url, headers: cfg.headers });
+    if (this.clientFactory) return this.clientFactory(effective, onExit);
+    if (effective.transport === "http") {
+      return new HttpMcpClient({ url: effective.url, headers: effective.headers });
     }
     return new StdioMcpClient({
-      command: cfg.command,
-      args: cfg.args,
-      env: cfg.env,
-      cwd: cfg.cwd,
+      command: effective.command,
+      args: effective.args,
+      env: effective.env,
+      cwd: effective.cwd,
       onExit,
     });
   }
 
-  async _ensureConnected(serverId, sessionKey) {
+  /**
+   * Re-reads the harness config a server was imported from, so tokens stay in
+   * that config and are only expanded in memory at spawn time.
+   * Falls back to the stored non-secret snapshot if the source entry vanished.
+   */
+  _resolveFromSource(cfg) {
+    try {
+      const fresh = this.sourceResolver(cfg.source);
+      return { ...cfg, ...fresh };
+    } catch (err) {
+      this.log.warn(
+        `MCP server "${cfg.id}": could not refresh from ${cfg.source.harness} config (${err instanceof Error ? err.message : String(err)}); using stored copy`,
+      );
+      return cfg;
+    }
+  }
+
+  async _ensureConnected(serverId, sessionKey, harness) {
     const cfg = this.configs.get(serverId);
     if (!cfg) throw new Error(`Unknown MCP server "${serverId}"`);
     if (!cfg.enabled) throw new Error(`MCP server "${serverId}" is disabled`);
+    if (harness && !isExposedTo(cfg, harness)) {
+      throw new Error(`MCP server "${serverId}" is not exposed to ${harness}`);
+    }
 
     const key = this._instanceKey(serverId, sessionKey);
     let inst = this.instances.get(key);
@@ -238,12 +299,12 @@ class McpRelayPool {
     return cfg;
   }
 
-  async restartServer(serverId, sessionKey) {
+  async restartServer(serverId, sessionKey, harness) {
     const cfg = this.configs.get(serverId);
     if (!cfg) throw new Error(`Unknown MCP server "${serverId}"`);
     this._closeInstancesFor(serverId);
     if (!cfg.enabled) return { id: serverId, status: "disabled", toolCount: 0 };
-    const inst = await this._ensureConnected(serverId, sessionKey);
+    const inst = await this._ensureConnected(serverId, sessionKey, harness);
     return { id: serverId, status: "connected", toolCount: inst.tools ? inst.tools.length : 0 };
   }
 
@@ -257,9 +318,10 @@ class McpRelayPool {
     return this.port;
   }
 
-  listServers() {
+  listServers(harness) {
     const result = [];
     for (const cfg of this.configs.values()) {
+      if (harness && !isExposedTo(cfg, harness)) continue;
       let activeSessions = 0;
       let status = cfg.enabled ? "idle" : "disabled";
       let toolCount = 0;
@@ -292,12 +354,14 @@ class McpRelayPool {
 
   /**
    * Lists tools across one or all enabled servers.
-   * @param {{ server?: string; query?: string; sessionKey?: string }} [opts]
+   * @param {{ server?: string; query?: string; sessionKey?: string; harness?: string }} [opts]
    */
   async listTools(opts = {}) {
     const targetIds = opts.server
       ? [opts.server]
-      : Array.from(this.configs.values()).filter((c) => c.enabled).map((c) => c.id);
+      : Array.from(this.configs.values())
+          .filter((c) => c.enabled && (!opts.harness || isExposedTo(c, opts.harness)))
+          .map((c) => c.id);
 
     const query = opts.query ? String(opts.query).toLowerCase() : "";
     const tools = [];
@@ -305,7 +369,7 @@ class McpRelayPool {
 
     for (const serverId of targetIds) {
       try {
-        const inst = await this._ensureConnected(serverId, opts.sessionKey);
+        const inst = await this._ensureConnected(serverId, opts.sessionKey, opts.harness);
         for (const t of inst.tools || []) {
           if (query) {
             const hay = `${serverId} ${t.name} ${t.description || ""}`.toLowerCase();
@@ -329,10 +393,11 @@ class McpRelayPool {
   /**
    * Returns pinned tools (already cached on connected servers) for hybrid mode.
    */
-  getPinnedTools() {
+  getPinnedTools(harness) {
     const pinned = [];
     for (const cfg of this.configs.values()) {
       if (!cfg.enabled || !cfg.pinnedTools || cfg.pinnedTools.length === 0) continue;
+      if (harness && !isExposedTo(cfg, harness)) continue;
       const inst = this.instances.get(cfg.id);
       const known = inst && inst.tools ? inst.tools : [];
       for (const toolName of cfg.pinnedTools) {
@@ -351,10 +416,10 @@ class McpRelayPool {
   /**
    * Calls a tool on a child MCP server and logs the call.
    */
-  async callTool(serverId, toolName, args, sessionKey) {
+  async callTool(serverId, toolName, args, sessionKey, harness) {
     const started = Date.now();
     try {
-      const inst = await this._ensureConnected(serverId, sessionKey);
+      const inst = await this._ensureConnected(serverId, sessionKey, harness);
       const res = await inst.client.callTool(toolName, args ?? {});
       this._recordCall({
         id: randomUUID(),
@@ -405,6 +470,8 @@ class McpRelayPool {
 module.exports = {
   McpRelayPool,
   normalizeServerConfig,
+  normalizeHarnesses,
+  isExposedTo,
   DEFAULT_PORT,
   DEFAULT_HOST,
 };
