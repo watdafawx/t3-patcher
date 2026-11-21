@@ -127,12 +127,17 @@ export class PluginManager {
   readonly #changeListeners = new Set<() => void>();
   readonly #registryListeners = new Set<(result: RegistryResultEvent) => void>();
   #dev = false;
+  #info: PatcherInfo = { version: null, appVersion: null, safe: false, dev: false };
   #order: string[] = [];
 
   constructor(private readonly deps: ManagerDeps) {}
 
   get dev(): boolean {
     return this.#dev;
+  }
+
+  info(): PatcherInfo {
+    return this.#info;
   }
 
   get #timeout(): number {
@@ -158,8 +163,14 @@ export class PluginManager {
   async refresh(): Promise<void> {
     const native = this.deps.native;
     if (!native) return;
-    const list = (await native.invoke("t3p:plugins:list")) as PluginsListResponse;
+    const list = (await native.invoke("t3p:plugins:list")) as PluginsListResponse & { version?: string; appVersion?: string | null; safe?: boolean };
     this.#dev = list.dev === true;
+    this.#info = {
+      version: typeof list.version === "string" ? list.version : null,
+      appVersion: typeof list.appVersion === "string" ? list.appVersion : null,
+      safe: list.safe === true,
+      dev: this.#dev,
+    };
     this.#order = (list.plugins ?? []).map((p) => p.id);
     this.#entries.clear();
     for (const entry of list.plugins ?? []) this.#entries.set(entry.id, entry);
@@ -514,6 +525,7 @@ export class PluginManager {
     onChange(callback: () => void): () => void;
     registry(refresh?: boolean): Promise<RegistryView>;
     onRegistryResult(callback: (result: RegistryResultEvent) => void): () => void;
+    info(): PatcherInfo;
   }> {
     return Object.freeze({
       list: () => this.list(),
@@ -529,8 +541,16 @@ export class PluginManager {
       onChange: (callback: () => void) => this.onChange(callback),
       registry: (refresh?: boolean) => this.registry(refresh === true),
       onRegistryResult: (callback: (result: RegistryResultEvent) => void) => this.onRegistryResult(callback),
+      info: () => this.info(),
     });
   }
+}
+
+export interface PatcherInfo {
+  version: string | null;
+  appVersion: string | null;
+  safe: boolean;
+  dev: boolean;
 }
 
 /** What `t3p:registry:index` returns (see main-runtime plugins/registry-flow.ts). */

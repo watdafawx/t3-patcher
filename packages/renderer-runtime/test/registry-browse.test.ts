@@ -107,7 +107,7 @@ describe("Browse tab", () => {
   it("has Installed | Browse tabs; Installed is the default and Browse loads on first show", async () => {
     const f = fakeManager();
     dispose = mountPluginsPage(host, f.manager, () => undefined);
-    expect($$("[role=tab]").map((t) => t.textContent)).toEqual(["Installed", "Browse"]);
+    expect($$("[role=tab]").map((t) => t.textContent)).toEqual(["Installed", "Browse", "About"]);
     expect($("[data-t3p-installed]")!.hidden).toBe(false);
     expect($("[data-t3p-browse]")!.hidden).toBe(true);
     expect(f.calls).toEqual([]);

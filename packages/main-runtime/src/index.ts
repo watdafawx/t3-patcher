@@ -45,7 +45,7 @@ import { detectDiagnostics } from "./diagnostics.js";
 import { detectSafeMode } from "./safe-mode.js";
 import { installUpdaterHook } from "./updater/hook.js";
 
-export const RUNTIME_VERSION = "0.1.0";
+export const RUNTIME_VERSION = "0.1.9";
 
 interface BrowserWindowLike extends WindowLike {
   id: number;

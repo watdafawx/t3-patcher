@@ -1,6 +1,6 @@
 import { GRANT_ATTR, GRANT_PERMS_ATTR, isHighRisk, parsePermissions, permissionInfo, permissionScope, settingVisible, TOGGLE_ENABLE_ATTR, TOGGLE_ID_ATTR, type SettingSchema, type SettingValue } from "@t3p/api";
 
-import type { ManagedPlugin, RegistryResultEvent, RegistryView } from "../manager.js";
+import type { ManagedPlugin, PatcherInfo, RegistryResultEvent, RegistryView } from "../manager.js";
 import { clear, ensureStyles, h } from "./dom.js";
 import { type BrowseHandle, mountBrowse } from "./registry-browse.js";
 import { createControl } from "./setting-controls.js";
@@ -20,6 +20,8 @@ export interface ManagerFacade {
   /** Registry (WP-14A). Optional: without it the page has no Browse tab. */
   registry?(refresh?: boolean): Promise<RegistryView>;
   onRegistryResult?(callback: (result: RegistryResultEvent) => void): () => void;
+  /** Patcher runtime metadata (version, T3 Code version, dev/safe flags). */
+  info?(): PatcherInfo;
 }
 
 /** localStorage keys (all reads and writes are in try/catch). */
@@ -225,19 +227,71 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
   const main = h("section", { class: "t3p-pg-main", "aria-label": "Plugin details" }, back, detail);
   const installedGrid = h("div", { class: "t3p-pg", "data-t3p-installed": "" }, side, main);
 
-  // ---- Installed | Browse tabs (WP-14A) -------------------------------------------------------------
+  // ---- Installed | Browse | About tabs --------------------------------------------------------------
   const registry = manager.registry?.bind(manager);
   const onRegistryResult = manager.onRegistryResult?.bind(manager);
   let browse: BrowseHandle | null = null;
-  let tab: "installed" | "browse" = "installed";
-  const tabButtons = new Map<"installed" | "browse", HTMLButtonElement>();
-  const setTab = (next: "installed" | "browse", opts: { focus?: boolean } = {}): void => {
-    if (!browse) next = "installed";
+  type PageTab = "installed" | "browse" | "about";
+  let tab: PageTab = "installed";
+  const tabButtons = new Map<PageTab, HTMLButtonElement>();
+  const aboutRoot = h("section", { class: "t3p-pg-sec", "data-t3p-about": "", "aria-label": "About T3 Patcher" });
+  aboutRoot.hidden = true;
+
+  const renderAbout = (): void => {
+    clear(aboutRoot);
+    const info = manager.info?.() ?? { version: null, appVersion: null, safe: false, dev: false };
+    const all = plugins();
+    const activeCount = all.filter((p) => p.status === "started" || p.hostStatus === "active" || p.hostStatus === "loaded").length;
+    const modeLabel = info.safe ? "Safe mode" : info.dev ? "Dev mode" : "Standard";
+    const link = (label: string, href: string): HTMLElement =>
+      h("a", { class: "t3p-btn", href, target: "_blank", rel: "noopener noreferrer" }, label);
+
+    aboutRoot.append(
+      h(
+        "div",
+        { class: "t3p-card" },
+        h(
+          "div",
+          { class: "t3p-row" },
+          h("strong", null, "T3 Patcher"),
+          h("span", { class: "t3p-badge", "data-t3p-about-version": "" }, info.version ? `v${info.version}` : "unknown"),
+          info.appVersion ? h("span", { class: "t3p-badge" }, `T3 Code ${info.appVersion}`) : null,
+          h("span", { class: "t3p-badge", "data-tone": info.safe ? "warn" : info.dev ? "ok" : "" }, modeLabel),
+        ),
+        h("div", { class: "t3p-muted" }, `${all.length} plugin${all.length === 1 ? "" : "s"} installed · ${activeCount} active`),
+      ),
+      h(
+        "div",
+        { class: "t3p-card" },
+        h("strong", null, "Links"),
+        h(
+          "div",
+          { class: "t3p-row" },
+          link("Source code (GitHub)", "https://github.com/watdafawx/t3-patcher"),
+          link("Report an issue", "https://github.com/watdafawx/t3-patcher/issues"),
+          link("Releases", "https://github.com/watdafawx/t3-patcher/releases"),
+          link("Plugin docs", "https://github.com/watdafawx/t3-patcher/blob/main/docs/plugin-authoring.md"),
+        ),
+      ),
+      h(
+        "div",
+        { class: "t3p-card" },
+        h("strong", null, "CLI commands"),
+        h("div", { class: "t3p-muted" }, "Run in a terminal for diagnostics, updates, or clean removal:"),
+        h("div", { class: "t3p-row" }, h("code", null, "t3p status"), h("code", null, "t3p doctor"), h("code", null, "t3p uninstall")),
+      ),
+    );
+  };
+
+  const setTab = (next: PageTab, opts: { focus?: boolean } = {}): void => {
+    if (!browse && next === "browse") next = "installed";
+    if (tabButtons.size === 0) next = "installed";
     tab = next;
     root.setAttribute("data-t3p-tab", next);
     installedGrid.hidden = next !== "installed";
     const browseRoot = root.querySelector<HTMLElement>("[data-t3p-browse]");
     if (browseRoot) browseRoot.hidden = next !== "browse";
+    aboutRoot.hidden = next !== "about";
     for (const [key, btn] of tabButtons) {
       btn.setAttribute("aria-selected", String(key === next));
       btn.tabIndex = key === next ? 0 : -1;
@@ -245,18 +299,28 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
     if (opts.focus) tabButtons.get(next)?.focus();
     writeStore(TAB_KEY, next);
     if (next === "browse") browse?.show();
+    if (next === "about") renderAbout();
   };
   if (registry && onRegistryResult) {
-    const tabButton = (key: "installed" | "browse", label: string): HTMLButtonElement => {
+    const tabButton = (key: PageTab, label: string): HTMLButtonElement => {
       const btn = h("button", { class: "t3p-pg-tab", type: "button", role: "tab", id: `t3p-pg-tab-${key}`, "data-t3p-tab-button": key, onClick: () => setTab(key) }, label) as HTMLButtonElement;
       tabButtons.set(key, btn);
       return btn;
     };
-    const bar = h("div", { class: "t3p-pg-tabs", role: "tablist", "aria-label": "Plugins" }, tabButton("installed", "Installed"), tabButton("browse", "Browse"));
+    const bar = h(
+      "div",
+      { class: "t3p-pg-tabs", role: "tablist", "aria-label": "Plugins" },
+      tabButton("installed", "Installed"),
+      tabButton("browse", "Browse"),
+      tabButton("about", "About"),
+    );
+    const tabOrder: PageTab[] = ["installed", "browse", "about"];
     bar.addEventListener("keydown", (e: KeyboardEvent) => {
       if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
       e.preventDefault();
-      setTab(tab === "installed" ? "browse" : "installed", { focus: true });
+      const idx = tabOrder.indexOf(tab);
+      const next = tabOrder[(idx + (e.key === "ArrowRight" ? 1 : tabOrder.length - 1)) % tabOrder.length]!;
+      setTab(next, { focus: true });
     });
     root.appendChild(bar);
     root.appendChild(installedGrid);
@@ -267,6 +331,7 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
         selectPlugin(id, "permissions");
       },
     });
+    root.appendChild(aboutRoot);
   } else root.appendChild(installedGrid);
 
   /** Shows only the selected plugin's `settingsPage` roots in the shared anchor. */
