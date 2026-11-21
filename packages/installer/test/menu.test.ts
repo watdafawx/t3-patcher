@@ -36,6 +36,9 @@ const result = (status: "installed" | "updated" | "noop" = "installed"): Install
 describe("compatibility", () => {
   it("flags supported, untested and unknown versions", () => {
     expect(compatibility("0.1.10").level).toBe("ok");
+    expect(compatibility("0.1.12").level).toBe("ok");
+    expect(compatibility("0.1.12-nightly.20261121.5051").level).toBe("ok");
+    expect(compatibility("0.1.1").level).toBe("untested");
     expect(compatibility("9.9.9").level).toBe("untested");
     expect(compatibility(null).level).toBe("unknown");
   });

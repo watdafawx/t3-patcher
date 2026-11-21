@@ -1,4 +1,4 @@
-export { SUPPORTED_VERSIONS } from "./types.js";
+export { isSupportedVersion, SUPPORTED_VERSIONS } from "./types.js";
 export type {
   Channel,
   CommonOpts,

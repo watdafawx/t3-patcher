@@ -1,7 +1,21 @@
 import type { Stats } from "node:fs";
 
 /** T3 Code builds this installer knows how to patch. */
-export const SUPPORTED_VERSIONS: readonly string[] = ["0.1.10", "0.1.11"];
+export const SUPPORTED_VERSIONS: readonly string[] = ["0.1.10", "0.1.11", "0.1.12"];
+
+/**
+ * True for a supported release and for its channel builds
+ * (`0.1.12-nightly.20261121.5051`). The suffix carries only a date and build
+ * number; the leading release is what says which client the patches were
+ * checked against. `--force` is still required for any other release.
+ */
+export function isSupportedVersion(
+  version: string | null | undefined,
+  supported: readonly string[] = SUPPORTED_VERSIONS,
+): boolean {
+  if (!version) return false;
+  return supported.some((base) => version === base || version.startsWith(`${base}-`));
+}
 
 /** The three Electron fuses that decide whether a replacement app.asar can load. */
 export interface FuseState {

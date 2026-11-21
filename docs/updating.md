@@ -138,7 +138,7 @@ Flags:
 - `--force`: Bypass version checks if updating to an unverified release.
 - `--worker-node auto|copy|skip`: Update the standalone repair interpreter in `<T3P_HOME>/.t3-patcher/bin/`.
 
-When repairing a `stale` install, `t3p repair` automatically allows unsupported versions by default (`allowUnsupportedVersion: true`), under the assumption that the user intentionally updated upstream. It still validates that Electron fuses remain safe.
+When repairing a `stale` install, `t3p repair` automatically allows unsupported versions by default (`allowUnsupportedVersion: true`), under the assumption that the user intentionally updated upstream. It still validates that Electron fuses remain safe. A channel build of a supported release (`0.1.12-nightly.…`) is not "unsupported": `t3p install` accepts it without `--force`.
 
 ## Rollback via uninstall
 

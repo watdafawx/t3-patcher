@@ -126,13 +126,23 @@ describe("install", () => {
 
   it("refuses an unsupported version unless forced", async () => {
     tree.cleanup();
-    tree = await createFakeInstall({ version: "0.1.12" });
+    tree = await createFakeInstall({ version: "0.1.13" });
     runtimeSource = createRuntimeSource(tree.root);
 
-    await expect(install(opts())).rejects.toThrow(/0\.1\.12 is not supported/);
+    await expect(install(opts())).rejects.toThrow(/0\.1\.13 is not supported/);
     const forced = await install(opts({ force: true }));
     expect(forced.status).toBe("installed");
     expect(forced.warnings.join("\n")).toMatch(/outside the supported versions/);
+  });
+
+  it("accepts a channel build of a supported version without --force", async () => {
+    tree.cleanup();
+    tree = await createFakeInstall({ version: "0.1.12-nightly.20261121.5051" });
+    runtimeSource = createRuntimeSource(tree.root);
+
+    const result = await install(opts());
+    expect(result.status).toBe("installed");
+    expect(result.warnings.join("\n")).not.toMatch(/outside the supported versions/);
   });
 
   it("rolls back when the asar swap fails", async () => {

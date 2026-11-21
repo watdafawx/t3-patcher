@@ -27,6 +27,7 @@ import { resolveInstall } from "./installs.js";
 import { extractEmbeddedRuntime } from "./runtime-pack.js";
 import { status } from "./status.js";
 import {
+  isSupportedVersion,
   SUPPORTED_VERSIONS,
   type InstallEntry,
   type InstallInfo,
@@ -219,7 +220,7 @@ export async function install(opts: InstallOpts = {}): Promise<InstallResult> {
       throw new T3pError(`Could not read the T3 Code version from the asar in ${info.resourcesDir}. Use --force to install anyway.`);
     }
     warnings.push("T3 Code version is unknown");
-  } else if (!SUPPORTED_VERSIONS.includes(info.version)) {
+  } else if (!isSupportedVersion(info.version)) {
     if (!opts.force && !opts.allowUnsupportedVersion) {
       throw new T3pError(
         `T3 Code ${info.version} is not supported (supported: ${SUPPORTED_VERSIONS.join(", ")}). Use --force to install anyway.`,

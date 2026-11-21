@@ -11,7 +11,7 @@ import { junctionInfo, layoutPaths } from "./layout.js";
 import { describeTaskXml, taskXmlPath, validateTaskXml } from "./logon-task.js";
 import { installKey, readManifest, sha256File } from "./manifest.js";
 import { status } from "./status.js";
-import { SUPPORTED_VERSIONS, type DoctorCheck, type DoctorOpts, type SignatureCheck } from "./types.js";
+import { isSupportedVersion, SUPPORTED_VERSIONS, type DoctorCheck, type DoctorOpts, type SignatureCheck } from "./types.js";
 
 async function verifyAuthenticode(exePath: string, platform: NodeJS.Platform): Promise<SignatureCheck> {
   if (platform !== "win32") return { ok: true, detail: "skipped (not Windows)" };
@@ -131,7 +131,7 @@ export async function doctor(opts: DoctorOpts = {}): Promise<{ checks: DoctorChe
     checks.push({ name: "fuses safe", ok: false, detail: "skipped (no install)" });
   }
 
-  const versionSupported = install?.version != null && SUPPORTED_VERSIONS.includes(install.version);
+  const versionSupported = isSupportedVersion(install?.version);
   checks.push({
     name: "version supported",
     ok: versionSupported,

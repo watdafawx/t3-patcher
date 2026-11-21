@@ -1,7 +1,7 @@
 import { basename } from "node:path";
 
 import { AppRunningError, T3pError } from "./errors.js";
-import { SUPPORTED_VERSIONS, type Channel, type InstallInfo, type InstallResult, type Layout, type StatusReport } from "./types.js";
+import { isSupportedVersion, SUPPORTED_VERSIONS, type Channel, type InstallInfo, type InstallResult, type Layout, type StatusReport } from "./types.js";
 
 /**
  * Guided console menu for `t3p.exe` double-clicked from Explorer.
@@ -28,7 +28,7 @@ export interface Compat {
 /** Is this T3 Code version one the patcher is tested against? */
 export function compatibility(version: string | null, supported: readonly string[] = SUPPORTED_VERSIONS): Compat {
   if (!version) return { level: "unknown", text: "unknown version (the patcher cannot tell if it is compatible)" };
-  if (supported.includes(version)) return { level: "ok", text: `compatible (tested with ${version})` };
+  if (isSupportedVersion(version, supported)) return { level: "ok", text: `compatible (tested with ${version})` };
   return {
     level: "untested",
     text: `not tested (the patcher supports ${supported.join(", ")}); Install may stop and ask for --force from a terminal`,
