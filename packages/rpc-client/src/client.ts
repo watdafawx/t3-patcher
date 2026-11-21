@@ -60,6 +60,8 @@ interface Sub {
 const DEFAULTS = { pingIntervalMs: 5000, silenceTimeoutMs: 15000, reconnect: { initialMs: 500, maxMs: 10000 } };
 const TICKET_PATHS = ["/api/auth/websocket-ticket/rpc", "/api/auth/websocket-ticket"];
 const WS_OPEN = 1;
+/** A probe or ticket request that gets no answer (server still booting, port held by a dying process) is abandoned after this long. */
+const HTTP_TIMEOUT_MS = 8000;
 
 export class RpcClient {
   readonly #opts: RpcClientOptions;
@@ -203,7 +205,27 @@ export class RpcClient {
     const bearer = await this.#opts.getBearer();
     const headers = new Headers(init.headers);
     headers.set("Authorization", `Bearer ${bearer}`);
-    return this.#fetch(this.#httpUrl(path), { ...init, headers });
+    return this.#request(this.#httpUrl(path), { ...init, headers });
+  }
+
+  /**
+   * Every HTTP call goes through here with `cache: "no-store"` and a timeout.
+   *
+   * Without `no-store`, Chromium keys its HTTP cache by URL only. The environment probe is the same URL
+   * the app's own environment check uses, so a probe sent while the server is still booting and left
+   * unanswered holds that cache entry, and the app's request (same URL, different headers) waits behind
+   * it until its own timeout: the app then shows no local environment. `no-store` keeps this client out
+   * of the cache entirely. The timeout drops a request that never gets an answer.
+   */
+  async #request(url: string, init: RequestInit = {}): Promise<Response> {
+    if (init.signal) return this.#fetch(url, { cache: "no-store", ...init });
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), HTTP_TIMEOUT_MS);
+    try {
+      return await this.#fetch(url, { cache: "no-store", ...init, signal: ctl.signal });
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   // ---- connection ----------------------------------------------------------------------------
@@ -215,7 +237,7 @@ export class RpcClient {
   async #checkEnvironment(): Promise<void> {
     let res: Response;
     try {
-      res = await this.#fetch(this.#httpUrl("/.well-known/t3/environment"));
+      res = await this.#request(this.#httpUrl("/.well-known/t3/environment"));
     } catch (e) {
       throw new RpcError("http", `environment probe failed: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -234,7 +256,7 @@ export class RpcClient {
     for (const p of TICKET_PATHS) {
       let res: Response;
       try {
-        res = await this.#fetch(this.#httpUrl(p), { method: "POST", headers: { Authorization: `Bearer ${bearer}` } });
+        res = await this.#request(this.#httpUrl(p), { method: "POST", headers: { Authorization: `Bearer ${bearer}` } });
       } catch (e) {
         throw new RpcError("http", `ticket request failed: ${e instanceof Error ? e.message : String(e)}`);
       }

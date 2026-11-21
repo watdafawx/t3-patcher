@@ -33,6 +33,28 @@ describe("connect and auth", () => {
     expect(u.searchParams.has("frameParts")).toBe(false);
   });
 
+  // Regression: a plain probe left unanswered while the server boots held Chromium's HTTP cache entry for
+  // /.well-known/t3/environment, and the app's own request for that URL queued behind it (empty UI).
+  it("sends every HTTP request with cache: no-store so it never takes an HTTP cache entry", async () => {
+    const { client, calls } = await open();
+    await client.http("/api/info");
+    expect(calls.length).toBeGreaterThanOrEqual(3);
+    for (const c of calls) expect(c.cache, `${c.method} ${c.url}`).toBe("no-store");
+  });
+
+  it("abandons an environment probe that never answers instead of hanging", async () => {
+    const { client, calls } = makeClient({}, { hangEnvironment: true });
+    const attempt = client.connect().then(
+      () => "connected",
+      (e: unknown) => e,
+    );
+    await vi.advanceTimersByTimeAsync(8_001);
+    const outcome = await attempt;
+    expect(outcome).toBeInstanceOf(RpcError);
+    expect((outcome as RpcError).message).toMatch(/environment probe failed/);
+    expect(calls[0]!.signal?.aborted).toBe(true);
+  });
+
   it("emits state changes idle -> connecting -> open and supports unsubscribe", async () => {
     const { client } = makeClient();
     const seen: RpcClientState[] = [];

@@ -69,12 +69,16 @@ export interface FetchConfig {
   bareTicketStatus?: number;
   /** throw (network error) on the next N fetches of the ticket */
   failTicketNetwork?: number;
+  /** the environment probe never answers (until its signal aborts), like a server that accepted the socket but is still booting */
+  hangEnvironment?: boolean;
 }
 
 export interface FetchCall {
   method: string;
   url: string;
   headers: Headers;
+  cache: RequestCache | undefined;
+  signal: AbortSignal | null | undefined;
 }
 
 export function createFetch(cfg: FetchConfig = {}) {
@@ -84,9 +88,14 @@ export function createFetch(cfg: FetchConfig = {}) {
   const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
     const headers = new Headers(init?.headers);
-    calls.push({ method: init?.method ?? "GET", url, headers });
+    calls.push({ method: init?.method ?? "GET", url, headers, cache: init?.cache, signal: init?.signal });
     const path = new URL(url).pathname;
     if (path === "/.well-known/t3/environment") {
+      if (state.hangEnvironment) {
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+        });
+      }
       return new Response(JSON.stringify({ environmentId: "e", orchestrationProtocolVersion: "protocol" in state ? state.protocol : 2 }), { status: 200 });
     }
     if (path.startsWith("/api/auth/websocket-ticket")) {
