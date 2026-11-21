@@ -5,6 +5,7 @@
 const { McpRelayPool } = require("./relay-pool.cjs");
 const { McpRelayHttpServer } = require("./relay-http.cjs");
 const { discoverHarnessServers, candidateToServerConfig, defaultSources, HARNESS_LABELS } = require("./discovery.cjs");
+const { linkStatuses, applyToAll, defaultTargets } = require("./autoconnect.cjs");
 
 function normalizePaths(value) {
   if (!Array.isArray(value)) return [];
@@ -91,6 +92,33 @@ function activate(ctx) {
 
   ctx.ipc.handle("scanHarnesses", (payload) => scan(payload));
 
+  ctx.ipc.handle("harnessLinks", () => linkStatuses({ url: httpServer.url }));
+
+  ctx.ipc.handle("setHarnessLinks", (payload) => {
+    const action = payload && typeof payload === "object" && payload.action === "disconnect" ? "disconnect" : "connect";
+    const ids = payload && typeof payload === "object" && Array.isArray(payload.ids)
+      ? payload.ids.map((id) => String(id))
+      : null;
+    const targets = defaultTargets().filter((target) => (ids ? ids.includes(target.id) : true));
+    const results = applyToAll({ targets, url: httpServer.url, action });
+    for (const result of results) {
+      if (result.error) ctx.log.warn(`Harness "${result.id}" ${action} failed: ${result.error}`);
+      else if (result.changed) ctx.log.info(`MCP Relay ${action}ed in ${result.id} config`);
+    }
+    return { action, results, links: linkStatuses({ url: httpServer.url }) };
+  });
+
+  const syncConnectedHarnesses = () => {
+    const { targets } = linkStatuses({ url: httpServer.url });
+    const connected = new Set(targets.filter((target) => target.connected).map((target) => target.id));
+    if (connected.size === 0) return;
+    applyToAll({
+      targets: defaultTargets().filter((target) => connected.has(target.id)),
+      url: httpServer.url,
+      action: "connect",
+    });
+  };
+
   ctx.ipc.handle("importServers", (payload) => {
     const selections = Array.isArray(payload && typeof payload === "object" ? payload.selections : undefined)
       ? payload.selections
@@ -157,6 +185,7 @@ function activate(ctx) {
     const port = payload && typeof payload === "object" ? Number(payload.port) : NaN;
     pool.setPort(port);
     await startServer();
+    syncConnectedHarnesses();
     return statusPayload();
   });
 

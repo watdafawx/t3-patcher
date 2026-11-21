@@ -77,6 +77,7 @@ function detectHarness(clientName) {
   if (name.includes("claude")) return "claude";
   if (name.includes("codex")) return "codex";
   if (name.includes("opencode")) return "opencode";
+  if (name.includes("antigravity")) return "antigravity";
   if (name.includes("cursor")) return "cursor";
   if (name.includes("vscode") || name.includes("visual studio code")) return "vscode";
   return null;
@@ -219,7 +220,7 @@ class McpRelayHttpServer {
           result: {
             protocolVersion: PROTOCOL_VERSION,
             capabilities: { tools: { listChanged: true } },
-            serverInfo: { name: "t3p-mcp-relay", version: "0.2.0" },
+            serverInfo: { name: "t3p-mcp-relay", version: "0.3.0" },
           },
         };
       }

@@ -18,6 +18,7 @@ const HARNESS_LABELS = {
   codex: "Codex",
   cursor: "Cursor",
   vscode: "VS Code",
+  antigravity: "Antigravity",
 };
 
 const KNOWN_HARNESSES = Object.keys(HARNESS_LABELS);
@@ -57,6 +58,9 @@ function defaultSources({ home = os.homedir(), cwd = process.cwd() } = {}) {
     { harness: "codex", scope: "project", format: "toml", kind: "mcp_servers", path: path.join(cwd, ".codex", "config.toml") },
     { harness: "vscode", scope: "project", format: "json", kind: "servers", path: path.join(cwd, ".vscode", "mcp.json") },
     { harness: "cursor", scope: "project", format: "json", kind: "mcpServers", path: path.join(cwd, ".cursor", "mcp.json") },
+    { harness: "antigravity", scope: "global", format: "json", kind: "mcpServers", path: path.join(home, ".gemini", "antigravity", "mcp_config.json") },
+    { harness: "antigravity", scope: "global", format: "json", kind: "mcpServers", path: path.join(home, ".gemini", "antigravity-ide", "mcp_config.json") },
+    { harness: "antigravity", scope: "global", format: "json", kind: "mcpServers", path: path.join(home, ".gemini", "config", "mcp_config.json") },
   ];
 }
 
@@ -416,11 +420,12 @@ function parseHarnessEntry(harness, entry, env = process.env) {
   if (!entry || typeof entry !== "object") return null;
 
   const type = String(entry.type || "").toLowerCase();
-  const hasUrl = typeof entry.url === "string" && entry.url.trim() !== "";
+  const rawUrl = typeof entry.url === "string" && entry.url.trim() !== "" ? entry.url : entry.serverUrl;
+  const hasUrl = typeof rawUrl === "string" && rawUrl.trim() !== "";
   const isHttp = hasUrl || type === "http" || type === "remote" || type === "sse";
 
   if (isHttp) {
-    const url = expandString(entry.url || "", env).trim();
+    const url = expandString(rawUrl || "", env).trim();
     if (!url) return null;
     let headers = expandMap(entry.headers || entry.http_headers, env);
     if (harness === "codex" && typeof entry.bearer_token_env_var === "string" && entry.bearer_token_env_var.trim()) {
@@ -565,6 +570,8 @@ function discoverHarnessServers({ home = os.homedir(), cwd = process.cwd(), env 
 
     const entries = extractEntries(doc, source);
     for (const [name, entry] of entries) {
+      // Never offer the relay itself as something to relay.
+      if (name === "t3-relay") continue;
       const parsed = parseHarnessEntry(source.harness, entry, env);
       if (!parsed) {
         warnings.push({ harness: source.harness, path: source.path, message: `Skipped "${name}": unsupported entry` });
@@ -597,6 +604,7 @@ function discoverHarnessServers({ home = os.homedir(), cwd = process.cwd(), env 
       for (const [projectPath, project] of Object.entries(doc.projects || {})) {
         if (normalizeProjectPath(projectPath) !== normalizedCwd) continue;
         for (const [name, entry] of Object.entries(project.mcpServers || {})) {
+          if (name === "t3-relay") continue;
           const parsed = parseHarnessEntry("claude", entry, env);
           if (!parsed) continue;
           const entryWarnings = [...hintsFor(parsed)];

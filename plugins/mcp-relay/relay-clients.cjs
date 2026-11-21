@@ -78,7 +78,7 @@ class StdioMcpClient {
     await this.request("initialize", {
       protocolVersion: PROTOCOL_VERSION,
       capabilities: {},
-      clientInfo: { name: "t3p-mcp-relay", version: "0.2.0" },
+      clientInfo: { name: "t3p-mcp-relay", version: "0.3.0" },
     });
     this.notify("notifications/initialized", {});
   }
@@ -192,7 +192,7 @@ class HttpMcpClient {
     await this.request("initialize", {
       protocolVersion: PROTOCOL_VERSION,
       capabilities: {},
-      clientInfo: { name: "t3p-mcp-relay", version: "0.2.0" },
+      clientInfo: { name: "t3p-mcp-relay", version: "0.3.0" },
     });
     await this._post({ jsonrpc: "2.0", method: "notifications/initialized", params: {} }, true);
     this.connected = true;

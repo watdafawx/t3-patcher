@@ -86,7 +86,23 @@ interface ScanResult {
   warnings: Array<{ harness: string; path: string; message: string }>;
 }
 
-const HARNESS_OPTIONS = ["claude", "claude-desktop", "codex", "opencode", "cursor", "vscode"];
+interface HarnessLink {
+  id: string;
+  label: string;
+  harness: string;
+  scope: "global" | "project";
+  path: string;
+  exists: boolean;
+  connected: boolean;
+  error: string | null;
+}
+
+interface HarnessLinks {
+  url: string;
+  targets: HarnessLink[];
+}
+
+const HARNESS_OPTIONS = ["claude", "claude-desktop", "codex", "opencode", "cursor", "vscode", "antigravity"];
 
 const STYLE = `
 [data-t3p-plugin="mcp-relay"] .mr-col{display:flex;flex-direction:column;gap:10px}
@@ -128,6 +144,8 @@ const plugin: PluginModule = {
     let latest: RelayStatus | null = null;
     let scan: ScanResult | null = null;
     let scanning = false;
+    let links: HarnessLinks | null = null;
+    let linksBusy = false;
     const selected = new Set<string>();
     const sourceChoice = new Map<string, number>();
     let extraPaths = "";
@@ -171,7 +189,34 @@ const plugin: PluginModule = {
       }
     };
 
+    const loadLinks = async () => {
+      try {
+        links = (await t3.native.invoke("harnessLinks")) as HarnessLinks;
+      } catch {
+        links = null;
+      }
+      notify();
+    };
+
+    const setLinks = async (action: "connect" | "disconnect", ids?: string[]) => {
+      linksBusy = true;
+      notify();
+      try {
+        const result = (await t3.native.invoke("setHarnessLinks", {
+          action,
+          ...(ids ? { ids } : {}),
+        })) as { links: HarnessLinks };
+        links = result.links;
+      } catch {
+        /* keep previous state */
+      } finally {
+        linksBusy = false;
+        notify();
+      }
+    };
+
     void refresh();
+    void loadLinks();
     const timer = setInterval(() => void refresh(), 5000);
 
     const statusReg = t3.ui.register({
@@ -250,6 +295,62 @@ const plugin: PluginModule = {
             statusCard.append(copyRow);
           }
           root.append(statusCard);
+
+          // 2. Harness connections (auto-write the relay entry)
+          const linksCard = el("div", "mr-card");
+          linksCard.append(el("strong", "", "Harness connections"));
+          linksCard.append(
+            el(
+              "div",
+              "mr-muted",
+              "Relay adds only a \"t3-relay\" entry to each harness config below, keeps a one-time *.t3p-backup, and removes only that entry on disconnect.",
+            ),
+          );
+          if (!links) {
+            linksCard.append(el("div", "mr-muted", "Loading…"));
+          } else {
+            const allRow = el("div", "mr-row");
+            const connectAll = el("button", "t3p-btn", linksBusy ? "Working…" : "Connect all");
+            connectAll.type = "button";
+            (connectAll as HTMLButtonElement).disabled = linksBusy;
+            connectAll.addEventListener("click", () => void setLinks("connect"));
+            const disconnectAll = el("button", "t3p-btn", "Disconnect all");
+            disconnectAll.type = "button";
+            (disconnectAll as HTMLButtonElement).disabled = linksBusy;
+            disconnectAll.addEventListener("click", () => void setLinks("disconnect"));
+            allRow.append(connectAll, disconnectAll);
+            linksCard.append(allRow);
+
+            for (const target of links.targets) {
+              if (!target.exists && target.scope === "project") continue;
+              const row = el("div", "mr-row");
+              const dot = el("span", `mr-dot ${target.connected ? "ok" : target.exists ? "idle" : "err"}`);
+              const info = el("div", "mr-grow");
+              const head = el("div", "mr-row");
+              head.append(
+                el("strong", "", target.label),
+                el("span", "mr-badge", target.scope),
+                el("span", "mr-badge", target.connected ? "connected" : target.exists ? "not connected" : "not installed"),
+              );
+              info.append(head);
+              info.append(el("div", "mr-mono mr-muted", target.path));
+              if (target.error) info.append(el("div", "mr-err", target.error));
+
+              if (target.exists) {
+                const btn = el("button", "t3p-btn", target.connected ? "Disconnect" : "Connect");
+                btn.type = "button";
+                (btn as HTMLButtonElement).disabled = linksBusy;
+                btn.addEventListener("click", () => {
+                  void setLinks(target.connected ? "disconnect" : "connect", [target.id]);
+                });
+                row.append(dot, info, btn);
+              } else {
+                row.append(dot, info);
+              }
+              linksCard.append(row);
+            }
+          }
+          root.append(linksCard);
 
           // 2. Discover servers from harness configs
           const discoverCard = el("div", "mr-card");

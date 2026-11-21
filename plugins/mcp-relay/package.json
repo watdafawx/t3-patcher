@@ -1,6 +1,6 @@
 {
   "name": "@t3p/mcp-relay",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Multi-agent MCP relay server with live add/remove/toggle and hybrid meta-tools",
