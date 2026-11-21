@@ -209,6 +209,15 @@ export function bootstrap(env: BootstrapEnv): Promise<PluginLoadResult[]> {
             .catch((error: unknown) => env.consoleError(`[t3p] permission reload of ${id} failed`, error));
           return;
         }
+        if (p?.type === "patcher-self-update-result") {
+          const r = payload as { status?: string; version?: string; error?: string };
+          if (r.status === "error") {
+            shell.overlays.toast("t3p.core", { title: "T3 Patcher update failed", message: String(r.error ?? "unknown error"), kind: "error", durationMs: 10000 });
+          } else if (r.status === "updated") {
+            shell.overlays.toast("t3p.core", { title: `Updated to v${r.version ?? ""}`, message: "Restarting T3 Code…", kind: "success", durationMs: 5000 });
+          }
+          return;
+        }
         if (p?.type === "plugin-toggle-result" && typeof p.plugin === "string") {
           const r = payload as { status?: string; plugin: string; enabled?: boolean; restartRequired?: boolean };
           if (r.status === "unavailable") {

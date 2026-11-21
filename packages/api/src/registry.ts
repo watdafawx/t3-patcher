@@ -16,7 +16,7 @@ import { parsePermissions, PERMISSION_NAMES, type PermissionJson, type Permissio
 
 export const REGISTRY_SCHEMA_VERSION = 1;
 /** The registry the CLI and the app use unless T3P_REGISTRY_URL or `registryUrl` in ~/.t3-patcher/config.json say otherwise. */
-export const DEFAULT_REGISTRY_URL = "https://raw.githubusercontent.com/watdafawx/t3-patcher/main/registry/index.json";
+export const DEFAULT_REGISTRY_URL = "https://github.com/watdafawx/t3-patcher/releases/download/plugin-registry/index.json";
 /** Caps (bytes). */
 export const REGISTRY_MAX_INDEX_BYTES = 1024 * 1024;
 export const REGISTRY_MAX_ZIP_BYTES = 25 * 1024 * 1024;

@@ -1,4 +1,4 @@
-import { GRANT_ATTR, GRANT_PERMS_ATTR, isHighRisk, parsePermissions, permissionInfo, permissionScope, settingVisible, TOGGLE_ENABLE_ATTR, TOGGLE_ID_ATTR, type SettingSchema, type SettingValue } from "@t3p/api";
+import { GRANT_ATTR, GRANT_PERMS_ATTR, isHighRisk, parsePermissions, permissionInfo, permissionScope, SELF_UPDATE_ATTR, settingVisible, TOGGLE_ENABLE_ATTR, TOGGLE_ID_ATTR, type SettingSchema, type SettingValue } from "@t3p/api";
 
 import type { ManagedPlugin, PatcherInfo, PatcherUpdateInfo, RegistryResultEvent, RegistryView } from "../manager.js";
 import { clear, ensureStyles, h } from "./dom.js";
@@ -308,8 +308,8 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
               "div",
               { style: rowStyle },
               h("span", { class: "t3p-badge", "data-tone": "warn" }, `Update available: v${upd.latest}`),
+              h("button", { class: "t3p-btn", type: "button", [SELF_UPDATE_ATTR]: "" }, "Update & restart"),
               link("Release notes", upd.url),
-              cmdPill("npm i -g t3-patcher@latest && t3p install"),
             )
           : upd && !upd.error
             ? h("div", { class: "t3p-muted" }, `Up to date (latest: v${upd.latest ?? info.version ?? "?"}).`)

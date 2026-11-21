@@ -35,6 +35,7 @@ import { type DialogLike, GrantFlow } from "./plugins/grants.js";
 import { PluginHost } from "./plugins/host.js";
 import { RegistryFlow } from "./plugins/registry-flow.js";
 import { TrustedToggleFlow } from "./plugins/trusted-toggle.js";
+import { SelfUpdateFlow } from "./updater/self-update.js";
 import { readStateForWrite, writeStateFile } from "./plugins/state-io.js";
 import { watchPluginDirs } from "./plugins/dev-watch.js";
 import { StorageStore } from "./storage/store.js";
@@ -293,6 +294,23 @@ function boot(): void {
       })
     : null;
 
+  const selfUpdateFlow = dialog
+    ? new SelfUpdateFlow<BrowserWindowLike>({
+        dialog,
+        gate: dialogGate,
+        getWindow: () => tracker.get(),
+        runtimeDir: paths.runtime,
+        currentVersion: RUNTIME_VERSION,
+        relaunch: () => {
+          const app = electron.app as { relaunch?(): void; exit?(code?: number): void } | undefined;
+          app?.relaunch?.();
+          app?.exit?.(0);
+        },
+        emit: (payload) => router.emit("t3p:event", payload),
+        log: log.child("self-update"),
+      })
+    : null;
+
   guard(
     log,
     "core IPC channels",
@@ -323,6 +341,7 @@ function boot(): void {
         ...(grants ? { grants } : {}),
         ...(registryFlow ? { registry: registryFlow } : {}),
         ...(trustedToggleFlow ? { trustedToggle: trustedToggleFlow } : {}),
+        ...(selfUpdateFlow ? { selfUpdate: selfUpdateFlow } : {}),
         checkUpdate: (() => {
           type UpdateInfo = { current: string; latest: string | null; updateAvailable: boolean; url: string; error?: string };
           let cached: { at: number; info: UpdateInfo } | null = null;

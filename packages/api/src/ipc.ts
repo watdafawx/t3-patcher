@@ -60,7 +60,9 @@ export const GRANT_REQUEST_CHANNEL = "t3p:privileged:grant-request";
 export const REGISTRY_REQUEST_CHANNEL = "t3p:privileged:registry-request";
 /** Ask the main process to enable or disable a trusted plugin (main/patches/spawn) via a native dialog: `{ id, enabled }`. */
 export const TOGGLE_REQUEST_CHANNEL = "t3p:privileged:trusted-toggle";
-export const PRIVILEGED_CHANNELS = [GRANT_REQUEST_CHANNEL, REGISTRY_REQUEST_CHANNEL, TOGGLE_REQUEST_CHANNEL] as const;
+/** Ask the main process to self-update T3 Patcher runtime from npm and relaunch T3 Code (native dialog). */
+export const SELF_UPDATE_CHANNEL = "t3p:privileged:self-update";
+export const PRIVILEGED_CHANNELS = [GRANT_REQUEST_CHANNEL, REGISTRY_REQUEST_CHANNEL, TOGGLE_REQUEST_CHANNEL, SELF_UPDATE_CHANNEL] as const;
 
 /** DOM attributes the preload's trusted-click listener reads (on the Plugins page's Grant buttons). */
 export const GRANT_ATTR = "data-t3p-grant-request";
@@ -71,6 +73,8 @@ export const REGISTRY_ID_ATTR = "data-t3p-registry-id";
 /** DOM attributes on trusted plugin enable/disable switches (read by the same preload listener). */
 export const TOGGLE_ID_ATTR = "data-t3p-trusted-toggle";
 export const TOGGLE_ENABLE_ATTR = "data-t3p-trusted-enable";
+/** DOM attribute on the "Update & Restart" button in Settings > Patcher & Plugins > About. */
+export const SELF_UPDATE_ATTR = "data-t3p-self-update";
 export const REGISTRY_ACTIONS = ["install", "update", "uninstall"] as const;
 export type RegistryAction = (typeof REGISTRY_ACTIONS)[number];
 export function isRegistryAction(value: unknown): value is RegistryAction {

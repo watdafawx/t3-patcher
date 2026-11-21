@@ -1,4 +1,4 @@
-import { GRANT_REQUEST_CHANNEL, isValidPluginId, PERMISSION_NAMES, type PermissionSet, REGISTRY_ACTIONS, REGISTRY_REQUEST_CHANNEL, type RegistryAction, TOGGLE_REQUEST_CHANNEL } from "@t3p/api";
+import { GRANT_REQUEST_CHANNEL, isValidPluginId, PERMISSION_NAMES, type PermissionSet, REGISTRY_ACTIONS, REGISTRY_REQUEST_CHANNEL, type RegistryAction, SELF_UPDATE_CHANNEL, TOGGLE_REQUEST_CHANNEL } from "@t3p/api";
 
 import type { Logger } from "../log.js";
 import type { NativeServices } from "../native/index.js";
@@ -39,6 +39,8 @@ export interface CoreChannelDeps {
   trustedToggle?: { request(id: string, enabled: boolean): Promise<unknown> };
   /** Check GitHub releases for a newer T3 Patcher version. */
   checkUpdate?(force: boolean): Promise<unknown>;
+  /** Self-update T3 Patcher runtime from npm and relaunch (native dialog, privileged channel). */
+  selfUpdate?: { request(): Promise<unknown> };
   /** Crash-loop guard: the renderer reports a plugin start outcome (`t3p:plugin-health`). */
   pluginHealth?(plugin: string, ok: boolean, error?: string): boolean;
   /** Tier 2 capture status (renderer reports, `internals-status.json`). */
@@ -160,6 +162,10 @@ export function registerCoreChannels(deps: CoreChannelDeps): void {
   if (deps.checkUpdate) {
     const checkUpdate = deps.checkUpdate;
     router.handle("t3p:update:check", schemas.registryIndex, (p) => checkUpdate(p.refresh === true));
+  }
+  if (deps.selfUpdate) {
+    const selfUpdate = deps.selfUpdate;
+    router.handle(SELF_UPDATE_CHANNEL, s.none(), () => selfUpdate.request());
   }
   if (deps.setLoadOrder) {
     const setLoadOrder = deps.setLoadOrder;

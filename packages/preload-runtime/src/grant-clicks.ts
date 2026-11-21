@@ -8,6 +8,8 @@ import {
   REGISTRY_ACTION_ATTR,
   REGISTRY_ID_ATTR,
   REGISTRY_REQUEST_CHANNEL,
+  SELF_UPDATE_ATTR,
+  SELF_UPDATE_CHANNEL,
   TOGGLE_ENABLE_ATTR,
   TOGGLE_ID_ATTR,
   TOGGLE_REQUEST_CHANNEL,
@@ -133,7 +135,13 @@ export function installGrantClicks(
       return;
     }
     const toggle = toggleRequestFromClick(event);
-    if (toggle) ipc.invoke(TOGGLE_REQUEST_CHANNEL, toggle).catch(() => undefined);
+    if (toggle) {
+      ipc.invoke(TOGGLE_REQUEST_CHANNEL, toggle).catch(() => undefined);
+      return;
+    }
+    if (trustedTarget(event, `[${SELF_UPDATE_ATTR}]`)) {
+      ipc.invoke(SELF_UPDATE_CHANNEL, {}).catch(() => undefined);
+    }
   };
   target.addEventListener("click", onClick, true);
   return () => target.removeEventListener("click", onClick, true);
