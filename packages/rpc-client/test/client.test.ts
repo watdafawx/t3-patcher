@@ -42,6 +42,15 @@ describe("connect and auth", () => {
     for (const c of calls) expect(c.cache, `${c.method} ${c.url}`).toBe("no-store");
   });
 
+  it("ignores a caller's cache mode and leaves plugin http() calls untimed", async () => {
+    const { client, calls } = await open();
+    await client.http("/api/info", { cache: "force-cache" });
+    const last = calls.at(-1)!;
+    expect(last.cache).toBe("no-store");
+    // Only the boot probe and ticket requests get the 8 s abort; a plugin call keeps its own signal.
+    expect(last.signal ?? null).toBeNull();
+  });
+
   it("abandons an environment probe that never answers instead of hanging", async () => {
     const { client, calls } = makeClient({}, { hangEnvironment: true });
     const attempt = client.connect().then(

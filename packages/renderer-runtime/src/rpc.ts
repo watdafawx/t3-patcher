@@ -202,8 +202,8 @@ export function createRpcApi(id: string, allowed: boolean, shared: SharedRpc, sc
       const { base } = await shared.ready();
       const headers = new Headers(init.headers);
       headers.set("Authorization", `Bearer ${await shared.bearer()}`);
-      // no-store: a plugin request must not take an HTTP cache entry the app's own request to the same URL would wait behind.
-      return shared.fetch(`${base}${path}`, { cache: "no-store", ...init, headers });
+      // no-store last: a plugin request must not take an HTTP cache entry the app's own request to the same URL would wait behind, even if the plugin asks for another cache mode.
+      return shared.fetch(`${base}${path}`, { ...init, cache: "no-store", headers });
     },
     get state(): RpcClientState {
       requireRpc(id, allowed);

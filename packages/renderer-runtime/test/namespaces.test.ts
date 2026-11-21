@@ -359,10 +359,14 @@ describe("t3.rpc", () => {
     const headers = new Headers((init as RequestInit).headers);
     expect(headers.get("authorization")).toBe("Bearer BEARER");
     expect(headers.get("x-test")).toBe("1");
+    expect((init as RequestInit).cache).toBe("no-store");
+    // A plugin cannot opt back into the shared HTTP cache entry the app's own request waits behind.
+    await t3.rpc.http("/api/auth/session", { cache: "force-cache" });
+    expect((fetchMock.mock.calls[1]![1] as RequestInit).cache).toBe("no-store");
     await expect(t3.rpc.http("http://evil.test/x")).rejects.toThrow(/must start with a single/);
     await expect(t3.rpc.http("//evil.test/x")).rejects.toThrow(/must start with a single/);
     await expect(t3.rpc.http("api/x")).rejects.toThrow(/must start with a single/);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("a failed connect rejects the call and can be retried", async () => {
