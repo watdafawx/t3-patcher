@@ -11,6 +11,7 @@ export const INVOKE_CHANNELS = [
   "t3p:ping",
   "t3p:log",
   "t3p:plugins:list",
+  "t3p:update:check",
   "t3p:plugins:set-enabled",
   "t3p:plugins:set-load-order",
   "t3p:plugins:revoke",

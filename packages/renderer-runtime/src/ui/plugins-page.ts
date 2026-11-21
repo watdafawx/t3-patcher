@@ -1,6 +1,6 @@
 import { GRANT_ATTR, GRANT_PERMS_ATTR, isHighRisk, parsePermissions, permissionInfo, permissionScope, settingVisible, TOGGLE_ENABLE_ATTR, TOGGLE_ID_ATTR, type SettingSchema, type SettingValue } from "@t3p/api";
 
-import type { ManagedPlugin, PatcherInfo, RegistryResultEvent, RegistryView } from "../manager.js";
+import type { ManagedPlugin, PatcherInfo, PatcherUpdateInfo, RegistryResultEvent, RegistryView } from "../manager.js";
 import { clear, ensureStyles, h } from "./dom.js";
 import { type BrowseHandle, mountBrowse } from "./registry-browse.js";
 import { createControl } from "./setting-controls.js";
@@ -22,6 +22,8 @@ export interface ManagerFacade {
   onRegistryResult?(callback: (result: RegistryResultEvent) => void): () => void;
   /** Patcher runtime metadata (version, T3 Code version, dev/safe flags). */
   info?(): PatcherInfo;
+  releaseInfo?(): PatcherUpdateInfo | null;
+  checkUpdate?(refresh?: boolean): Promise<PatcherUpdateInfo | null>;
 }
 
 /** localStorage keys (all reads and writes are in try/catch). */
@@ -237,14 +239,36 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
   const aboutRoot = h("section", { class: "t3p-pg-sec", "data-t3p-about": "", "aria-label": "About T3 Patcher" });
   aboutRoot.hidden = true;
 
+  let checkingUpdate = false;
   const renderAbout = (): void => {
     clear(aboutRoot);
     const info = manager.info?.() ?? { version: null, appVersion: null, safe: false, dev: false };
+    const upd = manager.releaseInfo?.() ?? null;
     const all = plugins();
     const activeCount = all.filter((p) => p.status === "started" || p.hostStatus === "active" || p.hostStatus === "loaded").length;
     const modeLabel = info.safe ? "Safe mode" : info.dev ? "Dev mode" : "Standard";
     const link = (label: string, href: string): HTMLElement =>
       h("a", { class: "t3p-btn", href, target: "_blank", rel: "noopener noreferrer" }, label);
+
+    const checkBtn = manager.checkUpdate
+      ? h(
+          "button",
+          {
+            class: "t3p-btn",
+            type: "button",
+            disabled: checkingUpdate,
+            onClick: () => {
+              checkingUpdate = true;
+              renderAbout();
+              void manager.checkUpdate?.(true).finally(() => {
+                checkingUpdate = false;
+                renderAbout();
+              });
+            },
+          },
+          checkingUpdate ? "Checking…" : "Check for updates",
+        )
+      : null;
 
     aboutRoot.append(
       h(
@@ -259,6 +283,20 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
           h("span", { class: "t3p-badge", "data-tone": info.safe ? "warn" : info.dev ? "ok" : "" }, modeLabel),
         ),
         h("div", { class: "t3p-muted" }, `${all.length} plugin${all.length === 1 ? "" : "s"} installed · ${activeCount} active`),
+        upd?.updateAvailable
+          ? h(
+              "div",
+              { class: "t3p-row" },
+              h("span", { class: "t3p-badge", "data-tone": "warn" }, `Update available: v${upd.latest}`),
+              link("Release notes", upd.url),
+              h("code", null, "npm i -g t3-patcher@latest && t3p install"),
+            )
+          : upd && !upd.error
+            ? h("div", { class: "t3p-muted" }, `Up to date (latest: v${upd.latest ?? info.version ?? "?"}).`)
+            : upd?.error
+              ? h("div", { class: "t3p-muted" }, `Update check failed: ${upd.error}`)
+              : null,
+        checkBtn ? h("div", { class: "t3p-row" }, checkBtn) : null,
       ),
       h(
         "div",
@@ -840,7 +878,8 @@ export function mountPluginsPage(host: HTMLElement, manager: ManagerFacade, onNo
   });
   renderList();
   renderDetail();
-  setTab(!openedForPlugin && readStore(TAB_KEY) === "browse" ? "browse" : "installed");
+  const savedTab = readStore(TAB_KEY);
+  setTab(!openedForPlugin && (savedTab === "browse" || savedTab === "about") ? savedTab : "installed");
   return () => {
     browse?.dispose();
     offManager();

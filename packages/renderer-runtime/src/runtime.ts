@@ -124,6 +124,41 @@ export function bootstrap(env: BootstrapEnv): Promise<PluginLoadResult[]> {
   shell.attach(manager.facade());
   shell.start(win);
 
+  if (native) {
+    let updateChip: { dispose(): void } | null = null;
+    const runUpdateCheck = (): void => {
+      void manager.checkUpdate(false).then((upd) => {
+        if (!upd?.updateAvailable || !upd.latest) return;
+        updateChip?.dispose();
+        updateChip = shell.slots.register("t3p.core", {
+          slot: "statusBar",
+          id: "t3p-update-chip",
+          render(host) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "t3p-chip";
+            btn.textContent = `T3P v${upd.latest} available`;
+            btn.title = `T3 Patcher v${upd.latest} is out (current: v${upd.current}). Click to open Settings > Plugins > About.`;
+            btn.addEventListener("click", () => {
+              try {
+                localStorage.setItem("t3p.plugins.tab", "about");
+              } catch {
+                // ignore storage errors
+              }
+              shell.openPluginsPage();
+            });
+            host.append(btn);
+            return () => btn.remove();
+          },
+        });
+      });
+    };
+    const t = setTimeout(runUpdateCheck, 3000);
+    const iv = setInterval(runUpdateCheck, 6 * 3_600_000);
+    if (typeof (t as { unref?: () => void }).unref === "function") (t as { unref: () => void }).unref();
+    if (typeof (iv as { unref?: () => void }).unref === "function") (iv as { unref: () => void }).unref();
+  }
+
   let resolveReady!: (value: PluginLoadResult[]) => void;
   const ready = new Promise<PluginLoadResult[]>((r) => (resolveReady = r));
 

@@ -128,6 +128,7 @@ export class PluginManager {
   readonly #registryListeners = new Set<(result: RegistryResultEvent) => void>();
   #dev = false;
   #info: PatcherInfo = { version: null, appVersion: null, safe: false, dev: false };
+  #updateInfo: PatcherUpdateInfo | null = null;
   #order: string[] = [];
 
   constructor(private readonly deps: ManagerDeps) {}
@@ -138,6 +139,23 @@ export class PluginManager {
 
   info(): PatcherInfo {
     return this.#info;
+  }
+
+  releaseInfo(): PatcherUpdateInfo | null {
+    return this.#updateInfo;
+  }
+
+  async checkUpdate(refresh = false): Promise<PatcherUpdateInfo | null> {
+    const native = this.deps.native;
+    if (!native) return null;
+    try {
+      const res = (await native.invoke("t3p:update:check", { refresh })) as PatcherUpdateInfo;
+      this.#updateInfo = res;
+      this.#changed();
+      return res;
+    } catch {
+      return null;
+    }
   }
 
   get #timeout(): number {
@@ -526,6 +544,8 @@ export class PluginManager {
     registry(refresh?: boolean): Promise<RegistryView>;
     onRegistryResult(callback: (result: RegistryResultEvent) => void): () => void;
     info(): PatcherInfo;
+    releaseInfo(): PatcherUpdateInfo | null;
+    checkUpdate(refresh?: boolean): Promise<PatcherUpdateInfo | null>;
   }> {
     return Object.freeze({
       list: () => this.list(),
@@ -542,6 +562,8 @@ export class PluginManager {
       registry: (refresh?: boolean) => this.registry(refresh === true),
       onRegistryResult: (callback: (result: RegistryResultEvent) => void) => this.onRegistryResult(callback),
       info: () => this.info(),
+      releaseInfo: () => this.releaseInfo(),
+      checkUpdate: (refresh?: boolean) => this.checkUpdate(refresh === true),
     });
   }
 }
@@ -551,6 +573,14 @@ export interface PatcherInfo {
   appVersion: string | null;
   safe: boolean;
   dev: boolean;
+}
+
+export interface PatcherUpdateInfo {
+  current: string;
+  latest: string | null;
+  updateAvailable: boolean;
+  url: string;
+  error?: string;
 }
 
 /** What `t3p:registry:index` returns (see main-runtime plugins/registry-flow.ts). */

@@ -323,6 +323,41 @@ function boot(): void {
         ...(grants ? { grants } : {}),
         ...(registryFlow ? { registry: registryFlow } : {}),
         ...(trustedToggleFlow ? { trustedToggle: trustedToggleFlow } : {}),
+        checkUpdate: (() => {
+          type UpdateInfo = { current: string; latest: string | null; updateAvailable: boolean; url: string; error?: string };
+          let cached: { at: number; info: UpdateInfo } | null = null;
+          const RELEASES_URL = "https://github.com/watdafawx/t3-patcher/releases";
+          const isNewer = (latest: string, current: string): boolean => {
+            const a = latest.replace(/^v/, "").split(".").map((n) => Number.parseInt(n, 10) || 0);
+            const b = current.replace(/^v/, "").split(".").map((n) => Number.parseInt(n, 10) || 0);
+            for (let i = 0; i < Math.max(a.length, b.length); i++) {
+              if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) > (b[i] ?? 0);
+            }
+            return false;
+          };
+          return async (force: boolean): Promise<UpdateInfo> => {
+            if (!force && cached && Date.now() - cached.at < 3_600_000) return cached.info;
+            try {
+              const res = await fetch("https://api.github.com/repos/watdafawx/t3-patcher/releases/latest", {
+                headers: { Accept: "application/vnd.github+json", "User-Agent": `t3-patcher/${RUNTIME_VERSION}` },
+                signal: AbortSignal.timeout(8000),
+              });
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              const data = (await res.json()) as { tag_name?: string; html_url?: string };
+              const latest = typeof data.tag_name === "string" ? data.tag_name.replace(/^v/, "") : null;
+              const info: UpdateInfo = {
+                current: RUNTIME_VERSION,
+                latest,
+                updateAvailable: Boolean(latest && isNewer(latest, RUNTIME_VERSION)),
+                url: typeof data.html_url === "string" ? data.html_url : RELEASES_URL,
+              };
+              cached = { at: Date.now(), info };
+              return info;
+            } catch (error) {
+              return { current: RUNTIME_VERSION, latest: null, updateAvailable: false, url: RELEASES_URL, error: error instanceof Error ? error.message : String(error) };
+            }
+          };
+        })(),
         setLoadOrder: (order) => host.setLoadOrder(order),
         pluginHealth: (plugin, ok, error) => host.reportHealth(plugin, ok, error),
         internals,

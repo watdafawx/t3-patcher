@@ -37,6 +37,8 @@ export interface CoreChannelDeps {
   registry?: { view(refresh: boolean): Promise<unknown>; request(action: RegistryAction, id: string): Promise<unknown> };
   /** Trusted plugin enable/disable via native confirmation dialog (privileged channel only). */
   trustedToggle?: { request(id: string, enabled: boolean): Promise<unknown> };
+  /** Check GitHub releases for a newer T3 Patcher version. */
+  checkUpdate?(force: boolean): Promise<unknown>;
   /** Crash-loop guard: the renderer reports a plugin start outcome (`t3p:plugin-health`). */
   pluginHealth?(plugin: string, ok: boolean, error?: string): boolean;
   /** Tier 2 capture status (renderer reports, `internals-status.json`). */
@@ -154,6 +156,10 @@ export function registerCoreChannels(deps: CoreChannelDeps): void {
   if (deps.trustedToggle) {
     const trustedToggle = deps.trustedToggle;
     router.handle(TOGGLE_REQUEST_CHANNEL, schemas.setEnabled, (p) => trustedToggle.request(p.id, p.enabled));
+  }
+  if (deps.checkUpdate) {
+    const checkUpdate = deps.checkUpdate;
+    router.handle("t3p:update:check", schemas.registryIndex, (p) => checkUpdate(p.refresh === true));
   }
   if (deps.setLoadOrder) {
     const setLoadOrder = deps.setLoadOrder;
