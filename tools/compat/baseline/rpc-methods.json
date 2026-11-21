@@ -1,8 +1,8 @@
 {
-  "tag": "v0.1.10",
-  "commit": "7d32075e3757ded707914e2450c3e392a9665765",
-  "source": "t3p-compat --update-baseline (server evidence)",
-  "count": 221,
+  "tag": "v0.1.12-nightly.20261121.5051",
+  "commit": "dd941b9c3b581b4a04539255fb85f2b0cbc3fa57",
+  "source": "t3p-compat --update-baseline (source evidence)",
+  "count": 247,
   "methods": [
     {
       "name": "agentSessions.import",
@@ -98,6 +98,62 @@
     },
     {
       "name": "guestShare.create",
+      "kind": "unary"
+    },
+    {
+      "name": "issues.candidates",
+      "kind": "unary"
+    },
+    {
+      "name": "issues.comment",
+      "kind": "unary"
+    },
+    {
+      "name": "issues.comments",
+      "kind": "unary"
+    },
+    {
+      "name": "issues.create",
+      "kind": "unary"
+    },
+    {
+      "name": "issues.detail",
+      "kind": "unary"
+    },
+    {
+      "name": "issues.linkedThreads",
+      "kind": "unary"
+    },
+    {
+      "name": "issues.list",
+      "kind": "unary"
+    },
+    {
+      "name": "issues.react",
+      "kind": "unary"
+    },
+    {
+      "name": "issues.setState",
+      "kind": "unary"
+    },
+    {
+      "name": "issues.templates",
+      "kind": "unary"
+    },
+    {
+      "name": "issues.update",
+      "kind": "unary"
+    },
+    {
+      "name": "issueTrackers.bindProject",
+      "kind": "unary"
+    },
+    {
+      "name": "issueTrackers.connect",
+      "kind": "unary"
+    },
+    {
+      "name": "issueTrackers.list",
       "kind": "unary"
     },
     {
@@ -218,6 +274,30 @@
     },
     {
       "name": "peerLinks.list",
+      "kind": "unary"
+    },
+    {
+      "name": "peerLinks.names",
+      "kind": "unary"
+    },
+    {
+      "name": "peerLinks.pairClient",
+      "kind": "unary"
+    },
+    {
+      "name": "peerLinks.pairLink",
+      "kind": "unary"
+    },
+    {
+      "name": "peerLinks.subscribeThread",
+      "kind": "stream"
+    },
+    {
+      "name": "peerLinks.threadHistoryPage",
+      "kind": "unary"
+    },
+    {
+      "name": "peerLinks.threadItem",
       "kind": "unary"
     },
     {
@@ -371,6 +451,14 @@
     {
       "name": "provider.install.subscribe",
       "kind": "stream"
+    },
+    {
+      "name": "provider.mcpSignIn.complete",
+      "kind": "unary"
+    },
+    {
+      "name": "provider.mcpSignIn.start",
+      "kind": "unary"
     },
     {
       "name": "provider.uploadFeedback",
@@ -882,6 +970,22 @@
     },
     {
       "name": "vcs.switchRef",
+      "kind": "unary"
+    },
+    {
+      "name": "workspace.addTaskFolderRepository",
+      "kind": "unary"
+    },
+    {
+      "name": "workspace.listFolders",
+      "kind": "unary"
+    },
+    {
+      "name": "workspace.scanFolders",
+      "kind": "unary"
+    },
+    {
+      "name": "workspace.taskFolder",
       "kind": "unary"
     },
     {

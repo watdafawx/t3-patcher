@@ -349,9 +349,11 @@ function updateBaselines(input: UpdateInput): void {
     log.warn(`not updating ${rpcFile}: this target cannot produce a complete method list`);
   }
 
-  if (currentSlots.length > 0) {
+  if (currentSlots.length > 0 && !report.slots.informational) {
     writeSlotsBaseline(slotsFile, { tag, commit, slots: currentSlots });
     log.info(`wrote ${slotsFile} (${currentSlots.length} slots)`);
+  } else if (report.slots.informational) {
+    log.warn(`not updating ${slotsFile}: a source checkout has no shipped client to read slots from`);
   } else {
     log.warn(`not updating ${slotsFile}: no data-slots were read from the target`);
   }
