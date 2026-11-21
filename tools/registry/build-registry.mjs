@@ -58,6 +58,7 @@ const DEFAULT_TAGS = {
   "cache-watch": ["usage", "status-bar"],
   devtools: ["developer", "logs"],
   "keep-warm": ["usage", "cache"],
+  "mcp-relay": ["mcp", "developer", "agents"],
   media: ["media", "youtube"],
   notes: ["productivity", "ui"],
   "provider-limits": ["usage", "providers"],

@@ -1,0 +1,11 @@
+{
+  "id": "mcp-relay",
+  "name": "MCP Relay",
+  "description": "Multi-agent MCP relay server. Connect harnesses once to a local Streamable HTTP endpoint; add, remove, toggle, and restart MCP servers live without restarting agent sessions.",
+  "version": "0.1.0",
+  "tier": 1,
+  "permissions": ["main"],
+  "t3Versions": ["*"],
+  "main": "main.cjs",
+  "renderer": "dist/renderer.js"
+}
