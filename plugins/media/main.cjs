@@ -15,7 +15,7 @@ function activate(ctx) {
     ctx.ipc.handle("poll", () => ({ state: "unavailable", retryInMs: 0, reason: "spawn not granted" }));
     ctx.ipc.handle("command", () => ({ state: "unavailable", retryInMs: 0, reason: "spawn not granted" }));
     ctx.ipc.handle("seek", () => ({ state: "unavailable", retryInMs: 0, reason: "spawn not granted" }));
-    return;
+    return () => {};
   }
   const service = createSmtcService({
     spawnSession,
@@ -26,7 +26,12 @@ function activate(ctx) {
   ctx.ipc.handle("poll", () => service.poll());
   ctx.ipc.handle("command", (payload) => service.command(payload && typeof payload === "object" ? payload.name : ""));
   ctx.ipc.handle("seek", (payload) => service.command("seek", payload && typeof payload === "object" ? Number(payload.sec) : NaN));
-  process.once("exit", () => service.stop());
+  const onExit = () => service.stop();
+  process.once("exit", onExit);
+  return () => {
+    process.removeListener("exit", onExit);
+    service.stop();
+  };
 }
 
 module.exports = { activate };

@@ -1,6 +1,6 @@
 import { mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve as resolvePath, sep } from "node:path";
 
 import {
   apiCompatible,
@@ -123,6 +123,8 @@ function withTimeout<T>(promise: Promise<T>, ms: number, what: string): Promise<
 export class PluginHost {
   readonly records = new Map<string, PluginRecord>();
   private readonly disposers = new Map<string, Array<() => void>>();
+  /** Optional cleanup function returned by a main entry's activate(ctx). Presence enables hot-reload. */
+  private readonly mainDisposers = new Map<string, () => unknown>();
   /** state.json `loadOrder`: these ids first, the rest sorted by id. */
   private loadOrder: string[] = [];
 
@@ -260,7 +262,12 @@ export class PluginHost {
       const activate = typeof mod?.activate === "function" ? mod.activate : typeof mod?.default?.activate === "function" ? mod.default.activate : null;
       if (!activate) return this.fail(rec, "main entry does not export activate(ctx)");
       const ctx = this.makeContext(rec, manifest, log);
-      await withTimeout(Promise.resolve().then(() => (activate as (c: PluginContext) => unknown)(ctx)), this.deps.activateTimeoutMs ?? 5000, "activate()");
+      const returned = await withTimeout(
+        Promise.resolve().then(() => (activate as (c: PluginContext) => unknown)(ctx)),
+        this.deps.activateTimeoutMs ?? 5000,
+        "activate()",
+      );
+      if (typeof returned === "function") this.mainDisposers.set(rec.id, returned as () => unknown);
       rec.activateMs = Math.round(performance.now() - started);
       log.info(`activated in ${rec.activateMs} ms`);
       return true;
@@ -268,6 +275,52 @@ export class PluginHost {
       log.error("activate failed", error);
       return this.fail(rec, `activate failed: ${(error as Error)?.message ?? String(error)}`);
     }
+  }
+
+  /** True when a plugin can be torn down and reloaded in-process without restarting the app. */
+  private canHotUnload(rec: PluginRecord): boolean {
+    return !rec.mainLoaded || this.mainDisposers.has(rec.id);
+  }
+
+  /** Evicts CommonJS require.cache entries inside a plugin's directory so the next require() loads fresh code. */
+  private evictRequireCache(dir: string): void {
+    try {
+      const req = createRequire(join(dir, "plugin.json"));
+      const cache = req.cache;
+      if (!cache) return;
+      const prefix = resolvePath(dir) + sep;
+      const lowerPrefix = this.deps.platform === "win32" ? prefix.toLowerCase() : prefix;
+      for (const key of Object.keys(cache)) {
+        const cmp = this.deps.platform === "win32" ? key.toLowerCase() : key;
+        if (cmp.startsWith(lowerPrefix)) delete cache[key];
+      }
+    } catch {
+      // ignore if require.cache is unavailable
+    }
+  }
+
+  /** Tears down a running main-process plugin: runs its returned disposer, unregisters IPC/patches/guards, and evicts require.cache. */
+  private async deactivateMain(id: string): Promise<void> {
+    const rec = this.records.get(id);
+    const cleanup = this.mainDisposers.get(id);
+    this.mainDisposers.delete(id);
+    if (cleanup) {
+      try {
+        await withTimeout(Promise.resolve().then(() => cleanup()), this.deps.activateTimeoutMs ?? 5000, "deactivate()");
+      } catch (error) {
+        this.deps.log.warn(`plugin ${id}: deactivate failed: ${(error as Error)?.message ?? String(error)}`);
+      }
+    }
+    for (const dispose of this.disposers.get(id) ?? []) {
+      try {
+        dispose();
+      } catch {
+        // keep disposing the rest
+      }
+    }
+    this.disposers.delete(id);
+    this.deps.registry.unregisterOwner(id);
+    if (rec) this.evictRequireCache(rec.dir);
   }
 
   private fail(rec: PluginRecord, message: string): false {
@@ -386,15 +439,17 @@ export class PluginHost {
   /**
    * After a grant or revoke written to state.json: reload a renderer-only plugin's record now (its
    * effective permissions change live, native calls read them per call). A plugin with main code
-   * keeps its record until the next start (`restartRequired`).
+   * hot-reloads if its activate(ctx) returned a disposer; otherwise it keeps its record until the
+   * next start (`restartRequired`).
    */
   async applyPermissionChange(id: string): Promise<{ restartRequired: boolean }> {
     const rec = this.records.get(id);
     if (!rec) return { restartRequired: false };
-    if (rec.mainLoaded || rec.manifest?.main) {
+    if (rec.mainLoaded && !this.canHotUnload(rec)) {
       rec.restartRequired = true;
       return { restartRequired: true };
     }
+    if (rec.mainLoaded) await this.deactivateMain(id);
     const state = readStateFile(this.deps.stateFile, this.deps.log);
     this.records.delete(id);
     try {
@@ -514,7 +569,8 @@ export class PluginHost {
 
   /**
    * Dev mode: picks up plugin folders that appeared and state.json changes (enable, disable, grant) without
-   * a restart. Returns the ids whose record changed. Plugins with a main entry are never unloaded in-process.
+   * a restart. Returns the ids whose record changed. Main-process plugins that returned a disposer from
+   * activate(ctx) are hot-reloaded only when their enabled/grant state actually changed.
    */
   async rescan(): Promise<string[]> {
     const state = readStateFile(this.deps.stateFile, this.deps.log);
@@ -526,16 +582,27 @@ export class PluginHost {
     }
     const sig = (r: PluginRecord | undefined): string => (r ? JSON.stringify([r.status, r.effective, r.rendererUrl, r.errors, r.manifest?.version ?? null]) : "none");
     const changed: string[] = [];
-    // A folder that disappeared: forget the record (a plugin with main code stays until restart).
+    // A folder that disappeared: forget the record (a main plugin without a disposer stays until restart).
     for (const [id, rec] of [...this.records]) {
-      if (names.includes(id) || rec.mainLoaded || rec.manifest?.main) continue;
+      if (names.includes(id)) continue;
+      if (rec.mainLoaded && !this.canHotUnload(rec)) continue;
+      if (rec.mainLoaded) await this.deactivateMain(id);
       this.records.delete(id);
       changed.push(id);
     }
     for (const name of this.ordered(names)) {
       if (!isValidPluginId(name)) continue;
       const old = this.records.get(name);
-      if (old && (old.mainLoaded || old.manifest?.main)) continue;
+      if (old && old.mainLoaded) {
+        if (!this.canHotUnload(old)) continue;
+        // Avoid tearing down a running main plugin when state.json changed for an unrelated plugin.
+        const ps = pluginState(state, name);
+        const nextEffective = old.manifest
+          ? effectivePermissions(old.manifest.permissions, ps.granted, { caseInsensitive: this.deps.platform === "win32" })
+          : {};
+        if (ps.enabled && JSON.stringify(nextEffective) === JSON.stringify(old.effective)) continue;
+        await this.deactivateMain(name);
+      }
       const before = sig(old);
       this.records.delete(name);
       try {
@@ -550,35 +617,38 @@ export class PluginHost {
 
   /**
    * After a registry install, update or uninstall (WP-14A): re-reads the plugin's folder and state.
-   * A new or removed renderer-only plugin shows up or disappears now. A plugin whose main code is
-   * loaded keeps running until the next start (`restartRequired`); a plugin with a main entry that
-   * is not loaded (a fresh install is disabled) gets a record but no main code runs.
+   * Renderer-only plugins and main plugins that returned a disposer from activate(ctx) reload live
+   * with no app restart. Main plugins without a disposer keep running until the next start (`restartRequired`).
    */
   async refreshInstalled(id: string): Promise<{ restartRequired: boolean }> {
     if (!isValidPluginId(id)) return { restartRequired: false };
     const old = this.records.get(id);
     const state = readStateFile(this.deps.stateFile, this.deps.log);
-    // Main code is never swapped in-process: loaded, or an enabled plugin whose previous version had a main entry.
-    if (old && (old.mainLoaded || (old.manifest?.main && pluginState(state, id).enabled))) {
+    if (old && old.mainLoaded && !this.canHotUnload(old)) {
       old.restartRequired = true;
       return { restartRequired: true };
     }
+    if (old?.mainLoaded) await this.deactivateMain(id);
     this.records.delete(id);
     try {
       await this.loadOne(id, state);
     } catch (error) {
       this.deps.log.error(`plugin ${id}: refresh after a registry change failed`, error);
     }
-    const rec = this.records.get(id);
-    return { restartRequired: rec?.status === "active" };
+    return { restartRequired: false };
   }
 
-  /** Re-reads one renderer-only plugin's manifest and state (after enable/disable or a dev file change). */
-  reloadRecord(id: string, state = readStateFile(this.deps.stateFile, this.deps.log)): void {
+  /** Re-reads one plugin's manifest and state (after enable/disable or a dev file change). Hot-reloads main plugins that returned a disposer. */
+  async reloadRecord(id: string, state = readStateFile(this.deps.stateFile, this.deps.log)): Promise<void> {
     const old = this.records.get(id);
     if (!old) return;
-    if (old.mainLoaded || old.manifest?.main) return; // main code cannot be unloaded in-process
+    if (old.mainLoaded && !this.canHotUnload(old)) return; // legacy main plugin without a disposer
+    if (old.mainLoaded) await this.deactivateMain(id);
     this.records.delete(id);
-    void this.loadOne(id, state).catch((error: unknown) => this.deps.log.error(`plugin ${id}: reload failed`, error));
+    try {
+      await this.loadOne(id, state);
+    } catch (error: unknown) {
+      this.deps.log.error(`plugin ${id}: reload failed`, error);
+    }
   }
 }

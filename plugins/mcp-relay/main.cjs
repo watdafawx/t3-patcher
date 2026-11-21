@@ -213,10 +213,17 @@ function activate(ctx) {
     };
   });
 
-  process.once("exit", () => {
+  const onExit = () => {
     pool.stopAll();
     void httpServer.stop();
-  });
+  };
+  process.once("exit", onExit);
+
+  return async () => {
+    process.removeListener("exit", onExit);
+    pool.stopAll();
+    await httpServer.stop();
+  };
 }
 
 module.exports = { activate };

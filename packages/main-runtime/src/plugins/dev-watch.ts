@@ -9,7 +9,7 @@ import type { Logger } from "../log.js";
 export interface DevWatchDeps {
   pluginsDir: string;
   router: IpcRouter;
-  host: { reloadRecord(id: string): void; rescan?(): Promise<string[]> };
+  host: { reloadRecord(id: string): void | Promise<void>; rescan?(): Promise<string[]> };
   /** The runtime folder: a changed renderer.js makes the page reload itself (the copy from `pnpm dev:sync`). */
   runtimeDir?: string;
   /** state.json: changes to it (t3p enable/disable/grant, a new `t3p dev` link) trigger a rescan. */
@@ -71,13 +71,24 @@ export function watchPluginDirs(deps: DevWatchDeps): () => void {
             id,
             setTimeout(() => {
               timers.delete(id);
+              const finish = (): void => {
+                log.info(`plugin ${id}: files changed`);
+                router.emit("t3p:event", { type: "plugin-files-changed", plugin: id });
+              };
               try {
-                deps.host.reloadRecord(id);
+                const res = deps.host.reloadRecord(id);
+                if (res && typeof (res as Promise<void>).then === "function") {
+                  void (res as Promise<void>)
+                    .catch((error: unknown) => {
+                      log.warn(`dev watch ${id}: record refresh failed: ${String(error)}`);
+                    })
+                    .finally(finish);
+                  return;
+                }
               } catch (error) {
                 log.warn(`dev watch ${id}: record refresh failed: ${String(error)}`);
               }
-              log.info(`plugin ${id}: files changed`);
-              router.emit("t3p:event", { type: "plugin-files-changed", plugin: id });
+              finish();
             }, debounce),
           );
         }),
@@ -114,13 +125,24 @@ export function watchPluginDirs(deps: DevWatchDeps): () => void {
                       id,
                       setTimeout(() => {
                         timers.delete(id);
+                        const finish = (): void => {
+                          log.info(`plugin ${id}: files changed`);
+                          router.emit("t3p:event", { type: "plugin-files-changed", plugin: id });
+                        };
                         try {
-                          deps.host.reloadRecord(id);
+                          const res = deps.host.reloadRecord(id);
+                          if (res && typeof (res as Promise<void>).then === "function") {
+                            void (res as Promise<void>)
+                              .catch((error: unknown) => {
+                                log.warn(`dev watch ${id}: record refresh failed: ${String(error)}`);
+                              })
+                              .finally(finish);
+                            return;
+                          }
                         } catch (error) {
                           log.warn(`dev watch ${id}: record refresh failed: ${String(error)}`);
                         }
-                        log.info(`plugin ${id}: files changed`);
-                        router.emit("t3p:event", { type: "plugin-files-changed", plugin: id });
+                        finish();
                       }, debounce),
                     );
                   }),
