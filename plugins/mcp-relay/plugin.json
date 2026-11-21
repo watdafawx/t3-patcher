@@ -2,7 +2,7 @@
   "id": "mcp-relay",
   "name": "MCP Relay",
   "description": "Multi-agent MCP relay server. Connect harnesses once to a local Streamable HTTP endpoint; connect every installed harness in one click, import servers already configured in Claude, Codex, OpenCode, Cursor, VS Code or Antigravity, then add, remove, toggle and restart them live without restarting agent sessions.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "tier": 1,
   "permissions": ["main"],
   "t3Versions": ["*"],

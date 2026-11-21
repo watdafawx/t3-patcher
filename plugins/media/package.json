@@ -1,6 +1,6 @@
 {
   "name": "@t3p/media",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "type": "module",
   "description": "Now playing and YouTube in the thread details popover",
