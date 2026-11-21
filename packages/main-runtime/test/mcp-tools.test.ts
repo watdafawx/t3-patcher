@@ -38,6 +38,12 @@ const layerDeferredListing = () => {
 };
 `;
 
+/** 0.1.12 turned the empty invocation context into a destructured object literal. */
+const FIXTURE_CHUNK_0112 = FIXTURE_CHUNK.replace(
+  "const services = context === void 0 ? empty() : omitRequestServices(context);",
+  "const { localMiddleware, services } = context === void 0 ? {\n\t\tservices: empty(),\n\t\tlocalMiddleware: []\n\t} : prepareContext(context);",
+);
+
 const SAMPLE_PROVIDERS: ServerProviderLike[] = [
   {
     instanceId: "claudeAgent",
@@ -163,6 +169,15 @@ describe("applyServerMcpPatch", () => {
     expect(SERVER_MCP_FILE_RE.test("/opt/t3/server.asar/apps/server/dist/server-hANTJVk5.mjs")).toBe(true);
     expect(SERVER_MCP_FILE_RE.test("/opt/t3/apps/server/dist/runtimeLayer-CMUqXtti.mjs")).toBe(false);
     expect(SERVER_MCP_FILE_RE.test("/opt/t3/apps/server/dist/client/server-abc.mjs")).toBe(false);
+  });
+
+  it("patches the 0.1.12 invocation-context shape", () => {
+    expect(FIXTURE_CHUNK_0112).not.toBe(FIXTURE_CHUNK);
+    const res = applyServerMcpPatch(FIXTURE_CHUNK_0112);
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.code).toContain("emptyContext: empty");
+    expect(res.code).toContain(`globalThis.${SERVER_MCP_GLOBAL}.register`);
   });
 
   it("patches a valid server chunk and refuses missing/ambiguous/duplicate ones", () => {

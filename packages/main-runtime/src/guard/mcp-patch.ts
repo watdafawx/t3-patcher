@@ -33,7 +33,10 @@ const ANCHOR_RE =
   /const layerToolExposure = ([\w$]+)\(McpToolExposure, ([\w$]+)\(function\* \(\) \{\s*const ([\w$]+) = yield\* (McpServer(?:\$\d+)?);/g;
 const CALL_TOOL_RESULT_RE = /\bnew (CallToolResult(?:\$\d+)?)\(\{/g;
 const SERVICE_OPTION_PROVIDER_RE = /\b([\w$]+)\((ProviderRegistry(?:\$\d+)?)\)/g;
-const EMPTY_CONTEXT_RE = /const services = context === void 0 \? ([\w$]+)\(\) : omitRequestServices\(context\);/g;
+const EMPTY_CONTEXT_RES = [
+  /const services = context === void 0 \? ([\w$]+)\(\) : omitRequestServices\(context\);/g,
+  /const \{ localMiddleware, services \} = context === void 0 \? \{\s*services: ([\w$]+)\(\),\s*localMiddleware: \[\]\s*\} : prepareContext\(context\);/g,
+];
 const GET_OR_UNDEFINED_SCOPE_RE = /\b([\w$]+)\(scope\)\?\.thread\?\.providerSessionId/g;
 const OR_ELSE_SUCCEED_RE = /\bas (orElseSucceed(?:\$\d+)?)\s*[,}]/g;
 
@@ -99,9 +102,9 @@ export function applyServerMcpPatch(source: string): ServerMcpPatchResult {
     return { ok: false, reason: "ambiguous-provider-registry", detail: `ProviderRegistry lookups: ${providerLookups.join(", ")}` };
   }
 
-  const emptyContexts = [...new Set(all(EMPTY_CONTEXT_RE, source).map((m) => m[1]!))];
+  const emptyContexts = [...new Set(EMPTY_CONTEXT_RES.flatMap((re) => all(re, source).map((m) => m[1]!)))];
   if (emptyContexts.length === 0) {
-    return { ok: false, reason: "no-empty-context", detail: "no `makeInvoke` empty context helper found" };
+    return { ok: false, reason: "no-empty-context", detail: "no `empty()` invocation-context helper found" };
   }
   if (emptyContexts.length > 1) {
     return { ok: false, reason: "ambiguous-empty-context", detail: `empty context helpers: ${emptyContexts.join(", ")}` };
