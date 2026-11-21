@@ -101,12 +101,12 @@
     {
       "id": "mcp-relay",
       "name": "MCP Relay",
-      "description": "Multi-agent MCP relay server. Connect harnesses once to a local Streamable HTTP endpoint; add, remove, toggle, and restart MCP servers live without restarting agent sessions.",
+      "description": "Multi-agent MCP relay server. Connect harnesses once to a local Streamable HTTP endpoint; import servers already configured in Claude, Codex, OpenCode, Cursor or VS Code, then add, remove, toggle and restart them live without restarting agent sessions.",
       "author": "T3 Patcher",
       "homepage": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/mcp-relay",
       "source": "https://github.com/watdafawx/t3-patcher/tree/main/plugins/mcp-relay",
       "license": "MIT",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "apiVersion": "1",
       "permissions": [
         "main"
@@ -117,9 +117,9 @@
         "agents"
       ],
       "download": {
-        "url": "https://github.com/watdafawx/t3-patcher/releases/download/plugin-registry/t3p-plugin-mcp-relay-0.1.0.zip",
-        "sha256": "98174faa7215d43214ee936381f115958b9a01cad0a2bf86a951e928fc8a13e6",
-        "size": 14397
+        "url": "https://github.com/watdafawx/t3-patcher/releases/download/plugin-registry/t3p-plugin-mcp-relay-0.2.0.zip",
+        "sha256": "f4b8d92b339402ba9cf0a1d973038f4952f22c4a892850a13c95646e7480f9b2",
+        "size": 24976
       }
     },
     {
