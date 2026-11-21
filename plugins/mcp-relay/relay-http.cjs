@@ -219,7 +219,7 @@ class McpRelayHttpServer {
           result: {
             protocolVersion: PROTOCOL_VERSION,
             capabilities: { tools: { listChanged: true } },
-            serverInfo: { name: "t3p-mcp-relay", version: "0.1.0" },
+            serverInfo: { name: "t3p-mcp-relay", version: "0.2.0" },
           },
         };
       }
