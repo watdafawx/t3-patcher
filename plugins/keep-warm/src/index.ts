@@ -1,11 +1,13 @@
 import type { CacheState, OrchestrationCommand, PluginModule, SettingSchema, T3Api, ThreadSummary } from "@t3p/api";
 
-import { buildRow, decide, nextPingAt, SETTLED_REASON, pingsAfterActivity, type ListRow, type Rules, type ThreadInfo, type Watch } from "./model.js";
+import { buildRow, decide, isUnknownThreadError, nextPingAt, SETTLED_REASON, pingsAfterActivity, threadFacts, type ListRow, type Rules, type ThreadFacts, type ThreadInfo, type Watch } from "./model.js";
 import { mountDecorator, mountStatus, type Controller } from "./ui.js";
 
 const TICK_MS = 15_000;
 /** How often settled state is re-read so the chip reacts to settle/un-settle without a reload. */
 const SETTLED_POLL_MS = 3_000;
+/** Consecutive "no such thread" answers before a watch is dropped (a dropped socket answers too). */
+const GONE_POLLS = 3;
 const PING_TEXT = 'Keep-warm ping. Reply with just "ok". Use no tools.';
 
 const settings: SettingSchema[] = [
@@ -26,12 +28,21 @@ const plugin: PluginModule = {
     const watches = new Map<string, Watch>();
     const redraws = new Set<() => void>();
     const notes = new Map<string, string>();
-    /** Thread ids currently in T3's Settled section (from the live shell list). */
+    /** Thread ids currently in T3's Settled section (from the shell list, when it mentions them). */
     const settledIds = new Set<string>();
     /** Latest thread facts (title, project, model) and cache states, for the list and the sidebar icon. */
     const infos = new Map<string, ThreadInfo>();
     const states = new Map<string, CacheState | null>();
-    const isSettled = (threadId: string): boolean => settledIds.has(threadId) && t3.settings.get<boolean>("keepWarmSettled") !== true;
+    /**
+     * Facts read from each watched thread's projection. The shell list is only a convenience: in
+     * current T3 builds it can omit threads (it streams a subset of projects), so existence,
+     * settled state and run activity come from the projection instead.
+     */
+    const facts = new Map<string, ThreadFacts>();
+    /** Consecutive "no such thread" projection failures per watch. */
+    const goneStreak = new Map<string, number>();
+    const isSettled = (threadId: string): boolean =>
+      (settledIds.has(threadId) || facts.get(threadId)?.settled === true) && t3.settings.get<boolean>("keepWarmSettled") !== true;
     let stopped = false;
     let ticking = false;
 
@@ -50,22 +61,41 @@ const plugin: PluginModule = {
       for (const fn of redraws) fn();
     };
 
-    /** Remembers thread facts and drops watches whose thread is gone (archived or deleted). */
-    const absorb = (list: ThreadSummary[]): boolean => {
+    /** Remembers the thread facts the shell list does carry (titles, project names). Never drops a watch. */
+    const absorb = (list: ThreadSummary[]): void => {
       infos.clear();
       for (const t of list) infos.set(t.threadId, { title: t.title, projectName: t.projectName ?? null, providerInstanceId: t.providerInstanceId, model: t.model });
-      let removed = false;
-      if (list.length > 0) {
-        for (const id of [...watches.keys()]) {
-          if (infos.has(id)) continue;
-          watches.delete(id);
-          notes.delete(id);
-          states.delete(id);
-          removed = true;
+    };
+
+    /** Drops a watch and everything kept for it (thread archived, deleted or removed by the user). */
+    const forget = (threadId: string): void => {
+      watches.delete(threadId);
+      notes.delete(threadId);
+      states.delete(threadId);
+      facts.delete(threadId);
+      goneStreak.delete(threadId);
+    };
+
+    /** Facts for the watched thread from its projection, or undefined when it could not be read. */
+    const readFacts = async (threadId: string): Promise<ThreadFacts | undefined> => {
+      try {
+        const f = threadFacts(await t3.threads.projection(threadId));
+        goneStreak.delete(threadId);
+        facts.set(threadId, f);
+        return f;
+      } catch (error) {
+        // A dropped socket answers every call with an error; only a thread T3 says does not exist
+        // drops the watch, and only after several answers in a row.
+        const streak = isUnknownThreadError(error) ? (goneStreak.get(threadId) ?? 0) + 1 : 0;
+        if (streak >= GONE_POLLS) {
+          forget(threadId);
+          save();
+          t3.log("info", `keep-warm: thread ${threadId} is gone; watch dropped`);
+        } else {
+          goneStreak.set(threadId, streak);
         }
+        return undefined;
       }
-      if (removed) save();
-      return removed;
     };
 
     const ping = async (threadId: string, watch: Watch): Promise<void> => {
@@ -97,15 +127,15 @@ const plugin: PluginModule = {
       try {
         const list = await t3.threads.list();
         if (stopped) return;
-        const gone = absorb(list);
+        absorb(list);
         const next = new Set(list.filter((t) => t.settled).map((t) => t.threadId));
-        const changed = gone || next.size !== settledIds.size || [...next].some((id) => !settledIds.has(id));
+        const changed = next.size !== settledIds.size || [...next].some((id) => !settledIds.has(id));
         settledIds.clear();
         for (const id of next) settledIds.add(id);
-        if (changed) {
-          redraw();
-          void tick();
-        }
+        // Redraw even without a change: this poll is the safety net that keeps the header button
+        // in step with the route (a header can be re-mounted after `thread:focus` already fired).
+        redraw();
+        if (changed) void tick();
       } catch (error) {
         t3.log("debug", `settled refresh failed: ${String(error)}`);
       }
@@ -122,13 +152,21 @@ const plugin: PluginModule = {
         for (const t of list) if (t.settled) settledIds.add(t.threadId);
         for (const [threadId, watch] of [...watches]) {
           if (!watches.has(threadId)) continue;
+          const f = await readFacts(threadId);
+          if (!watches.has(threadId)) continue; // dropped above: the thread is gone
+          if (f?.archived) {
+            forget(threadId);
+            save();
+            t3.ui.toast({ title: "Keep warm stopped", message: "The thread was archived.", kind: "info" });
+            continue;
+          }
           const state = await t3.cache.state(threadId).catch(() => null);
           states.set(threadId, state);
           watch.pings = pingsAfterActivity(watch, state);
-          const decision = decide(watch, state, running.has(threadId), Date.now(), rules(), settledIds.has(threadId));
+          const busy = running.has(threadId) || f?.activeTurn === true;
+          const decision = decide(watch, state, busy, Date.now(), rules(), isSettled(threadId));
           if (decision.action === "stop") {
-            watches.delete(threadId);
-            notes.delete(threadId);
+            forget(threadId);
             save();
             t3.ui.toast({ title: "Keep warm stopped", message: decision.reason, kind: "info" });
           } else if (decision.action === "settled") {
@@ -159,18 +197,24 @@ const plugin: PluginModule = {
       if (!paused) void tick();
     };
     const stopWatching = (threadId: string): void => {
-      if (!watches.delete(threadId)) return;
-      notes.delete(threadId);
-      states.delete(threadId);
+      if (!watches.has(threadId)) return;
+      forget(threadId);
       save();
       redraw();
+    };
+    /** The list's facts, else the projection's (the shell list can omit a thread entirely). */
+    const infoOf = (threadId: string): ThreadInfo | null => {
+      const fromList = infos.get(threadId);
+      if (fromList) return fromList;
+      const f = facts.get(threadId);
+      return f ? { title: f.title ?? "", projectName: null, providerInstanceId: f.providerInstanceId, model: f.model } : null;
     };
     const controller: Controller = {
       redraws,
       rows(now: number): ListRow[] {
         const r = rules();
         return [...watches].map(([threadId, watch]) =>
-          buildRow({ threadId, watch, info: infos.get(threadId) ?? null, state: states.get(threadId) ?? null, settled: isSettled(threadId), note: watch.paused ? "paused by you" : notes.get(threadId) ?? "" }, now, r),
+          buildRow({ threadId, watch, info: infoOf(threadId), state: states.get(threadId) ?? null, settled: isSettled(threadId), note: watch.paused ? "paused by you" : notes.get(threadId) ?? "" }, now, r),
         );
       },
       pause: (id) => setPaused(id, true),
@@ -199,19 +243,24 @@ const plugin: PluginModule = {
       slot: "threadHeader",
       id: "toggle",
       render(host, ctx) {
+        // The route tracker (`t3.threads.current()`) follows pushState immediately; the slot
+        // context can trail a route change by a moment, so it is only the fallback.
+        const headerThread = (): string | null => t3.threads.current() ?? ctx.threadId;
         const style = document.createElement("style");
         style.textContent = `
-          [data-t3p-plugin="keep-warm"] .kw[data-on="true"] { color: var(--success-foreground, var(--success)); }`;
+          [data-t3p-plugin="keep-warm"] .kw[data-on="true"] { color: var(--success-foreground, var(--success)); }
+          [data-t3p-plugin="keep-warm"] .kw[hidden] { display: none; }`;
         const button = document.createElement("button");
         button.type = "button";
         button.className = "t3p-btn kw";
         button.setAttribute("data-variant", "ghost");
         button.addEventListener("click", () => {
-          if (ctx.threadId) toggle(ctx.threadId);
+          const id = headerThread();
+          if (id) toggle(id);
         });
         host.append(style, button);
         const draw = (): void => {
-          const id = ctx.threadId;
+          const id = headerThread();
           const watch = id ? watches.get(id) : undefined;
           const settled = id ? isSettled(id) : false;
           button.dataset.on = String(Boolean(watch) && !settled);
@@ -249,7 +298,12 @@ const plugin: PluginModule = {
     });
     disposers.push(() => statusReg.dispose(), () => decoReg.dispose());
 
-    disposers.push(t3.events.on("thread:focus", () => void refreshSettled().then(redraw)));
+    // The header button follows the route: redraw at once (the list refresh can take a moment),
+    // then re-read settled state and let the list refresh draw again.
+    disposers.push(t3.events.on("thread:focus", () => {
+      redraw();
+      void refreshSettled();
+    }));
     disposers.push(t3.settings.onChange(() => void refreshSettled().then(redraw)));
     const timer = setInterval(() => void tick(), TICK_MS);
     const settledTimer = setInterval(() => void refreshSettled(), SETTLED_POLL_MS);

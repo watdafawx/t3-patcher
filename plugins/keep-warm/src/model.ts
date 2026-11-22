@@ -62,6 +62,72 @@ export function nextPingAt(state: CacheState | null, now: number, leadMs: number
 }
 
 // ---------------------------------------------------------------------------------------------
+// Thread facts from the projection
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The per-thread facts the plugin needs, read from `orchestration.getThreadProjection`.
+ * The shell thread list is NOT a reliable source for these: in current T3 builds it can miss
+ * threads entirely (only some projects' threads are streamed), so a watch must never be judged
+ * gone, settled or idle from a list that simply does not mention it.
+ */
+export interface ThreadFacts {
+  title: string | null;
+  providerInstanceId: string | null;
+  model: string | null;
+  /** The thread is in T3's Settled section. */
+  settled: boolean;
+  /** The thread is archived: its watch is dropped. */
+  archived: boolean;
+  /** The newest provider turn has not finished: a run is active. */
+  activeTurn: boolean;
+}
+
+const TERMINAL_TURN_STATUSES: ReadonlySet<string> = new Set(["completed", "failed", "cancelled", "rolled_back", "stopped"]);
+
+interface ProjectionWire {
+  settled?: unknown;
+  thread?: {
+    title?: unknown;
+    providerInstanceId?: unknown;
+    modelSelection?: { model?: unknown } | null;
+    archivedAt?: unknown;
+    settledOverride?: unknown;
+  } | null;
+  providerTurns?: Array<{ status?: unknown; startedAt?: unknown; completedAt?: unknown }> | null;
+}
+
+function newestTurn(turns: ProjectionWire["providerTurns"]): { status?: unknown; at: number } | null {
+  let newest: { status?: unknown; at: number } | null = null;
+  for (const turn of turns ?? []) {
+    if (!turn || typeof turn !== "object") continue;
+    const at = Date.parse(String(turn.completedAt ?? turn.startedAt ?? ""));
+    const time = Number.isNaN(at) ? 0 : at;
+    if (!newest || time >= newest.at) newest = { status: turn.status, at: time };
+  }
+  return newest;
+}
+
+/** Reads the facts above out of one projection (the wire shape of `t3.threads.projection`). */
+export function threadFacts(projection: unknown): ThreadFacts {
+  const wire = (projection ?? {}) as ProjectionWire;
+  const thread = wire.thread ?? {};
+  const title = typeof thread.title === "string" && thread.title.length > 0 ? thread.title : null;
+  const providerInstanceId = typeof thread.providerInstanceId === "string" ? thread.providerInstanceId : null;
+  const model = typeof thread.modelSelection?.model === "string" ? thread.modelSelection.model : null;
+  const settled = wire.settled === true || thread.settledOverride === "settled";
+  const newest = newestTurn(wire.providerTurns);
+  const status = newest?.status;
+  const activeTurn = typeof status === "string" && status.length > 0 && !TERMINAL_TURN_STATUSES.has(status);
+  return { title, providerInstanceId, model, settled, archived: thread.archivedAt != null, activeTurn };
+}
+
+/** True for a projection error that means the thread is not there any more (not a dropped socket). */
+export function isUnknownThreadError(error: unknown): boolean {
+  return /unknown thread|not found|no such thread/i.test(String(error));
+}
+
+// ---------------------------------------------------------------------------------------------
 // List model (status bar popover and sidebar icon)
 // ---------------------------------------------------------------------------------------------
 

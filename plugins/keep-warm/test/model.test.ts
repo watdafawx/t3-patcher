@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { decide, nextPingAt, pingsAfterActivity, type Rules, type Watch } from "../src/model.js";
+import { decide, isUnknownThreadError, nextPingAt, pingsAfterActivity, threadFacts, type Rules, type Watch } from "../src/model.js";
 
 const rules: Rules = { leadMs: 8 * 60_000, maxPings: 20, minTtlMs: 30 * 60_000 };
 const now = 1_000_000_000;
@@ -55,6 +55,49 @@ describe("nextPingAt", () => {
     expect(nextPingAt(state(now + 3_600_000), now, 480_000)).toBe(now + 3_600_000 - 480_000);
     expect(nextPingAt(state(now + 60_000), now, 480_000)).toBe(now);
     expect(nextPingAt(state(now - 1), now, 480_000)).toBeNull();
+  });
+});
+
+describe("threadFacts", () => {
+  const projection = (over: Record<string, unknown> = {}) => ({
+    thread: { title: "Group sync", providerInstanceId: "claudeAgent", modelSelection: { model: "claude-sonnet-5-5" }, archivedAt: null, settledOverride: null },
+    providerTurns: [{ status: "completed", startedAt: "2026-01-01T00:00:00.000Z" }],
+    ...over,
+  });
+
+  it("reads title, provider and model", () => {
+    expect(threadFacts(projection())).toMatchObject({ title: "Group sync", providerInstanceId: "claudeAgent", model: "claude-sonnet-5-5" });
+  });
+
+  it("reports archived threads and missing fields", () => {
+    expect(threadFacts(projection({ thread: { archivedAt: "2026-01-01T00:00:00.000Z" } })).archived).toBe(true);
+    expect(threadFacts(projection({ thread: { archivedAt: null } })).archived).toBe(false);
+    expect(threadFacts(null)).toMatchObject({ title: null, providerInstanceId: null, model: null, settled: false, archived: false, activeTurn: false });
+  });
+
+  it("uses the newest turn to decide whether a run is active", () => {
+    const turns = [
+      { status: "running", startedAt: "2026-01-01T00:02:00.000Z" },
+      { status: "completed", startedAt: "2026-01-01T00:01:00.000Z" },
+    ];
+    expect(threadFacts(projection({ providerTurns: turns })).activeTurn).toBe(true);
+    expect(threadFacts(projection({ providerTurns: [{ status: "completed" }, { status: "failed" }] })).activeTurn).toBe(false);
+    expect(threadFacts(projection({ providerTurns: [] })).activeTurn).toBe(false);
+  });
+
+  it("trusts the projection's settled flag over the override", () => {
+    expect(threadFacts(projection({ settled: true })).settled).toBe(true);
+    expect(threadFacts(projection({ thread: { settledOverride: "settled" } })).settled).toBe(true);
+    expect(threadFacts(projection({ thread: { settledOverride: "active" } })).settled).toBe(false);
+  });
+});
+
+describe("isUnknownThreadError", () => {
+  it("tells a deleted thread apart from a dropped socket", () => {
+    expect(isUnknownThreadError(new Error("unknown thread t1"))).toBe(true);
+    expect(isUnknownThreadError("RpcError: thread not found")).toBe(true);
+    expect(isUnknownThreadError(new Error("cannot call orchestration.getThreadProjection: client is reconnecting"))).toBe(false);
+    expect(isUnknownThreadError(new Error("connection lost"))).toBe(false);
   });
 });
 
